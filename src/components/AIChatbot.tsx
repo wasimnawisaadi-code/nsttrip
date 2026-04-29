@@ -57,6 +57,7 @@ export default function AIChatbot({ hideFloatingButton = false }: { hideFloating
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
         body: JSON.stringify({ messages: newMsgs }),
