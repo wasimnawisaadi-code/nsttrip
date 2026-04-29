@@ -1,4 +1,4 @@
-// Nawi AI Assistant — uses Lovable AI Gateway (Gemini)
+// Nawi AI Assistant — directly calls Gemini API (no Lovable Gateway needed)
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -32,55 +32,91 @@ Deno.serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), {
+    const apiKey = Deno.env.get('GOOGLE_API_KEY');
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'GOOGLE_API_KEY not configured in Edge Functions' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const contents = messages.map((m: any) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+    const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          ...messages,
-        ],
-        stream: true,
-        temperature: 0.4,
+        systemInstruction: {
+          parts: [{ text: SYSTEM_PROMPT }]
+        },
+        contents,
+        generationConfig: {
+          temperature: 0.4
+        }
       }),
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit reached. Please try again in a moment.' }), {
-          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: 'AI credits exhausted. Add credits in Workspace → Usage.' }), {
-          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
       const errText = await response.text();
-      console.error('Lovable AI error:', response.status, errText.slice(0, 300));
-      return new Response(JSON.stringify({ error: `AI gateway error: ${errText.slice(0, 200)}` }), {
+      console.error('Gemini API error:', response.status, errText.slice(0, 300));
+      return new Response(JSON.stringify({ error: `Gemini error: ${errText.slice(0, 200)}` }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    return new Response(response.body, {
+    const reader = response.body!.getReader();
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    
+    const stream = new ReadableStream({
+      async start(controller) {
+        let buffer = '';
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            
+            let nlIdx: number;
+            while ((nlIdx = buffer.indexOf('\n')) !== -1) {
+              let line = buffer.slice(0, nlIdx).trim();
+              buffer = buffer.slice(nlIdx + 1);
+              
+              if (!line.startsWith('data: ')) continue;
+              const dataStr = line.slice(6);
+              
+              try {
+                const json = JSON.parse(dataStr);
+                const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                  const openAiFormat = {
+                    choices: [{ delta: { content: text } }]
+                  };
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(openAiFormat)}\n\n`));
+                }
+              } catch (e) {
+                // Ignore parsing issues for partial JSON chunks
+              }
+            }
+          }
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        } catch (e) {
+          controller.error(e);
+        }
+      }
+    });
+
+    return new Response(stream, {
       headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
     });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Unknown error';
-    console.error('ai-assistant error', msg);
-    return new Response(JSON.stringify({ error: msg }), {
+  } catch (e: any) {
+    console.error('ai-assistant error', e.message);
+    return new Response(JSON.stringify({ error: e.message }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

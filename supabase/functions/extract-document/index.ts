@@ -304,21 +304,22 @@ Document type hint: ${docType || "unknown"}. Service context: ${service || "unkn
 
 You will receive (1) raw OCR text from Google Vision and (2) the original document image. Use BOTH together — prefer what you can clearly see in the image when the OCR text is wrong, and use the OCR text to disambiguate when the image is unclear.
 
-First, infer the actual document type (passport / visa / emirates_id / driving_license / ticket / invoice / insurance / trade_license / medical / other). 
+First, infer the actual document type (passport / visa / emirates_id / driving_license / ticket / invoice / other). Then extract structured data and return ONLY a JSON object (no prose, no markdown fences) with these fields (use null when not found, never invent data):
 
-Return ONLY a strict JSON object with the following root structure:
+documentType (one of: passport, visa, emirates_id, driving_license, ticket, invoice, medical_report, insurance_policy, trade_license, other),
+fullName, firstName, lastName, passportNo, nationality, dateOfBirth (YYYY-MM-DD), passportExpiry (YYYY-MM-DD), passportIssueDate (YYYY-MM-DD), placeOfBirth, gender (Male/Female), emiratesId, emiratesIdExpiry (YYYY-MM-DD), emiratesIdIssueDate (YYYY-MM-DD), visaNumber, visaExpiry (YYYY-MM-DD), visaIssueDate (YYYY-MM-DD), visaType, sponsor, profession, address, phoneNumber, email, bloodGroup, maritalStatus, fatherName, motherName, issuingAuthority, documentNumber, mrz1, mrz2.
 
-1. Base fields (use null if not found):
-documentType, fullName, firstName, lastName, passportNo, nationality, dateOfBirth (YYYY-MM-DD), passportExpiry (YYYY-MM-DD), passportIssueDate (YYYY-MM-DD), placeOfBirth, gender (Male/Female), emiratesId, emiratesIdExpiry (YYYY-MM-DD), emiratesIdIssueDate (YYYY-MM-DD), visaNumber, visaExpiry (YYYY-MM-DD), visaIssueDate (YYYY-MM-DD), visaType, sponsor, profession, address, phoneNumber, email, bloodGroup, maritalStatus, fatherName, motherName, issuingAuthority, documentNumber, mrz1, mrz2.
+DYNAMIC ARRAYS (CRITICAL):
+1. "extractedDates": Extract EVERY single date you find on the document that is NOT a Date of Birth. Return an array of objects: [{ "name": "Name of Date (e.g., Trade License Expiry, Flight Departure Date, Insurance Start Date, Medical Report Expiry)", "date": "YYYY-MM-DD" }]. This ensures no date is left behind.
+2. "extractedFields": Extract EVERY other important key-value pair that doesn't fit the standard fields (e.g., PNR, Flight Number, Hotel Name, Policy Number, TRN Number). Return an array: [{ "key": "Field Name", "value": "Extracted Value" }].
 
-2. Dynamic Arrays (CRITICAL FOR UNIVERSAL EXTRACTION):
-- "extractedDates": An array of objects [{ "name": "String", "date": "YYYY-MM-DD" }]. Find EVERY single date on the document that is NOT already covered by the base fields above (e.g. "Trade License Issue Date", "Insurance Expiry", "Flight Departure", "Appointment Date", "Contract End Date"). Label the "name" accurately based on context.
-- "extractedFields": An array of objects [{ "key": "String", "value": "String" }]. Find EVERY important data point that does not fit into the base fields (e.g. "PNR", "Flight Number", "Hotel Name", "Policy Number", "Trade License Number").
+For passports: if a Machine Readable Zone (MRZ) is visible at the bottom, parse it and reconcile with the visual data — it is the most authoritative source for name, passport no, nationality, DOB, sex and expiry.
 
-For passports: parse MRZ if visible.
-For Emirates ID: extract the 15-digit ID (XXX-XXXX-XXXXXXX-X). Map "Expiry Date" strictly to emiratesIdExpiry and "Issuing Date" strictly to emiratesIdIssueDate. NEVER put Emirates ID dates into passport date fields.
+For Emirates ID: extract the 15-digit ID in the format XXX-XXXX-XXXXXXX-X. Ensure you map the "Expiry Date" strictly to emiratesIdExpiry and the "Issuing Date" strictly to emiratesIdIssueDate. NEVER put Emirates ID dates into the passport date fields.
 
-Validate dates: never return an expiry before an issue date.
+Validate dates: never return a DOB after today, never return an expiry before issue date.
+
+Also include "otherDetails" with any remaining random text you find.
 
 OCR TEXT (raw):
 """
