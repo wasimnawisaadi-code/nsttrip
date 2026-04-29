@@ -44,8 +44,15 @@ function extractByPattern(rawText: string, pattern: RegExp): string | null {
 }
 
 function heuristicExtract(rawText: string): Record<string, unknown> {
-  const passportNo = extractByLabel(rawText, ["Passport No", "Passport Number", "Document No"]) ||
-    extractByPattern(rawText, /passport(?:\s+no|\s+number)?\s*[:\-]?\s*([A-Z0-9]{6,12})/i);
+  const isEmiratesId = /united arab emirates|identity card|emirates id/i.test(rawText);
+  const isVisa = /visa|entry permit/i.test(rawText);
+  const isPassport = /passport/i.test(rawText);
+
+  let documentType = 'other';
+  if (isEmiratesId) documentType = 'emirates_id';
+  else if (isVisa) documentType = 'visa';
+  else if (isPassport) documentType = 'passport';
+
   const fullName = extractByLabel(rawText, ["Name", "Surname", "Full Name", "Given Name"]) ||
     extractByPattern(rawText, /(?:name|surname)\s*[:\-]?\s*([A-Z][A-Z\s]{3,60})/i);
   const nationality = extractByLabel(rawText, ["Nationality"]) ||
@@ -55,37 +62,54 @@ function heuristicExtract(rawText: string): Record<string, unknown> {
     extractByPattern(rawText, /(?:date of birth|birth date|dob)\s*[:\-]?\s*([^\n]{4,20})/i) ||
     ""
   );
-  const passportExpiry = normalizeDate(
-    extractByLabel(rawText, ["Date of Expiry", "Expiry Date", "Passport Expiry"]) ||
-    extractByPattern(rawText, /(?:date of expiry|expiry date|passport expiry)\s*[:\-]?\s*([^\n]{4,20})/i) ||
-    ""
-  );
-  const passportIssueDate = normalizeDate(
-    extractByLabel(rawText, ["Date of Issue", "Issue Date", "Passport Issue Date"]) ||
-    extractByPattern(rawText, /(?:date of issue|issue date|passport issue date)\s*[:\-]?\s*([^\n]{4,20})/i) ||
-    ""
-  );
-  const emiratesId = extractByLabel(rawText, ["ID Number", "Emirates ID", "Identity Number"]) ||
-    extractByPattern(rawText, /(?:784-\d{4}-\d{7}-\d|\d{3}-\d{4}-\d{7}-\d)/i);
   const gender = extractByLabel(rawText, ["Sex", "Gender"]);
-  const visaNumber = extractByLabel(rawText, ["Visa No", "Visa Number"]);
-  const visaExpiry = normalizeDate(extractByLabel(rawText, ["Visa Expiry", "Visa Expiration"] ) || "");
   const phoneNumber = extractByPattern(rawText, /(\+?\d[\d\s\-]{7,20}\d)/);
   const email = extractByPattern(rawText, /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i);
 
+  let passportNo = null, passportExpiry = null, passportIssueDate = null;
+  let emiratesId = null, emiratesIdExpiry = null, emiratesIdIssueDate = null;
+  let visaNumber = null, visaExpiry = null, visaType = null;
+
+  if (documentType === 'emirates_id') {
+    emiratesId = extractByLabel(rawText, ["ID Number", "Emirates ID", "Identity Number"]) ||
+      extractByPattern(rawText, /(?:784-\d{4}-\d{7}-\d|\d{3}-\d{4}-\d{7}-\d)/i);
+    emiratesIdExpiry = normalizeDate(extractByLabel(rawText, ["Expiry Date", "Date of Expiry", "Valid Until"]) || "");
+    emiratesIdIssueDate = normalizeDate(extractByLabel(rawText, ["Issue Date", "Date of Issue", "Issuing Date"]) || "");
+  } else if (documentType === 'visa') {
+    visaNumber = extractByLabel(rawText, ["Visa No", "Visa Number", "Permit No"]);
+    visaExpiry = normalizeDate(extractByLabel(rawText, ["Visa Expiry", "Visa Expiration", "Valid Until", "Date of Expiry"]) || "");
+    visaType = extractByLabel(rawText, ["Visa Type"]);
+  } else {
+    passportNo = extractByLabel(rawText, ["Passport No", "Passport Number", "Document No"]) ||
+      extractByPattern(rawText, /passport(?:\s+no|\s+number)?\s*[:\-]?\s*([A-Z0-9]{6,12})/i);
+    passportExpiry = normalizeDate(
+      extractByLabel(rawText, ["Date of Expiry", "Expiry Date", "Passport Expiry"]) ||
+      extractByPattern(rawText, /(?:date of expiry|expiry date|passport expiry)\s*[:\-]?\s*([^\n]{4,20})/i) ||
+      ""
+    );
+    passportIssueDate = normalizeDate(
+      extractByLabel(rawText, ["Date of Issue", "Issue Date", "Passport Issue Date"]) ||
+      extractByPattern(rawText, /(?:date of issue|issue date|passport issue date)\s*[:\-]?\s*([^\n]{4,20})/i) ||
+      ""
+    );
+  }
+
   return {
+    documentType,
     fullName: fullName || null,
-    passportNo: passportNo || null,
+    passportNo,
     nationality: nationality || null,
     dateOfBirth,
     passportExpiry,
     passportIssueDate,
     placeOfBirth: extractByLabel(rawText, ["Place of Birth"]) || null,
     gender: gender || null,
-    emiratesId: emiratesId || null,
-    visaNumber: visaNumber || null,
+    emiratesId,
+    emiratesIdExpiry,
+    emiratesIdIssueDate,
+    visaNumber,
     visaExpiry,
-    visaType: extractByLabel(rawText, ["Visa Type"]) || null,
+    visaType,
     sponsor: extractByLabel(rawText, ["Sponsor"]) || null,
     profession: extractByLabel(rawText, ["Profession", "Occupation"]) || null,
     address: extractByLabel(rawText, ["Address"]) || null,
@@ -98,10 +122,8 @@ function heuristicExtract(rawText: string): Record<string, unknown> {
     issuingAuthority: extractByLabel(rawText, ["Authority", "Issuing Authority", "Place of Issue"]) || null,
     documentNumber: extractByLabel(rawText, ["Document No", "Document Number"]) || passportNo || null,
     otherDetails: {
-      rawText,
-      emiratesIdExpiry: normalizeDate(extractByLabel(rawText, ["ID Expiry", "Emirates ID Expiry"]) || "") || null,
-      extractionMode: "heuristic_fallback",
-    },
+      rawTextMatch: true
+    }
   };
 }
 
@@ -282,18 +304,21 @@ Document type hint: ${docType || "unknown"}. Service context: ${service || "unkn
 
 You will receive (1) raw OCR text from Google Vision and (2) the original document image. Use BOTH together — prefer what you can clearly see in the image when the OCR text is wrong, and use the OCR text to disambiguate when the image is unclear.
 
-First, infer the actual document type (passport / visa / Emirates ID / driving license / ticket / invoice / other). Then extract structured data and return ONLY a JSON object (no prose, no markdown fences) with these fields (use null when not found, never invent data):
+First, infer the actual document type (passport / visa / emirates_id / driving_license / ticket / invoice / insurance / trade_license / medical / other). 
 
-documentType (one of: passport, visa, emirates_id, driving_license, ticket, invoice, other),
-fullName, firstName, lastName, passportNo, nationality, dateOfBirth (YYYY-MM-DD), passportExpiry (YYYY-MM-DD), passportIssueDate (YYYY-MM-DD), placeOfBirth, gender (Male/Female), emiratesId, visaNumber, visaExpiry (YYYY-MM-DD), visaType, sponsor, profession, address, phoneNumber, email, bloodGroup, maritalStatus, fatherName, motherName, issuingAuthority, documentNumber, mrz1, mrz2.
+Return ONLY a strict JSON object with the following root structure:
 
-For passports: if a Machine Readable Zone (MRZ) is visible at the bottom, parse it and reconcile with the visual data — it is the most authoritative source for name, passport no, nationality, DOB, sex and expiry.
+1. Base fields (use null if not found):
+documentType, fullName, firstName, lastName, passportNo, nationality, dateOfBirth (YYYY-MM-DD), passportExpiry (YYYY-MM-DD), passportIssueDate (YYYY-MM-DD), placeOfBirth, gender (Male/Female), emiratesId, emiratesIdExpiry (YYYY-MM-DD), emiratesIdIssueDate (YYYY-MM-DD), visaNumber, visaExpiry (YYYY-MM-DD), visaIssueDate (YYYY-MM-DD), visaType, sponsor, profession, address, phoneNumber, email, bloodGroup, maritalStatus, fatherName, motherName, issuingAuthority, documentNumber, mrz1, mrz2.
 
-For Emirates ID: extract the 15-digit ID in the format XXX-XXXX-XXXXXXX-X.
+2. Dynamic Arrays (CRITICAL FOR UNIVERSAL EXTRACTION):
+- "extractedDates": An array of objects [{ "name": "String", "date": "YYYY-MM-DD" }]. Find EVERY single date on the document that is NOT already covered by the base fields above (e.g. "Trade License Issue Date", "Insurance Expiry", "Flight Departure", "Appointment Date", "Contract End Date"). Label the "name" accurately based on context.
+- "extractedFields": An array of objects [{ "key": "String", "value": "String" }]. Find EVERY important data point that does not fit into the base fields (e.g. "PNR", "Flight Number", "Hotel Name", "Policy Number", "Trade License Number").
 
-Validate dates: never return a DOB after today, never return an expiry before issue date.
+For passports: parse MRZ if visible.
+For Emirates ID: extract the 15-digit ID (XXX-XXXX-XXXXXXX-X). Map "Expiry Date" strictly to emiratesIdExpiry and "Issuing Date" strictly to emiratesIdIssueDate. NEVER put Emirates ID dates into passport date fields.
 
-Also include "otherDetails" with any extra fields you find (e.g. ticket PNR, flight number, seat, hotel booking reference, invoice total).
+Validate dates: never return an expiry before an issue date.
 
 OCR TEXT (raw):
 """

@@ -23,38 +23,30 @@ const LEAD_SOURCES = ['Walk-in', 'Call', 'WhatsApp', 'Social Media', 'Reference'
 // Unified master list — same suggestions appear for every service.
 // Users can still add custom docs/dates with their own names.
 const ALL_DOCS: string[] = [
-  'Valid Passport (Bio Page)',
-  'Passport (Back Page)',
-  'UAE Residence Visa',
-  'Emirates ID (Front)',
-  'Emirates ID (Back)',
+  'Valid Passport (Bio Page)', 'Passport (Back Page)',
+  'UAE Residence Visa', 'Global Visa Copy',
+  'Emirates ID (Front)', 'Emirates ID (Back)',
   'Passport-Size Photograph',
-  '6-Month Bank Statement',
-  'NOC Letter from Employer',
-  'Salary Certificate',
-  'Previous Travel History (Visas)',
-  'Tenancy Contract / Property Proof',
-  'Family Documents (Marriage/Birth)',
-  'Trade License (for Corporate)',
-  'Flight Ticket',
-  'Hotel Confirmation',
-  'Travel Insurance Certificate',
-  'Vaccination Certificate',
-  'Invitation Letter / Other Docs',
+  '6-Month Bank Statement', 'NOC Letter from Employer', 'Salary Certificate',
+  'Previous Travel History (Visas)', 'Tenancy Contract / Property Proof',
+  'Family Documents (Marriage/Birth)', 'Educational Degree / Certificate',
+  'Trade License (for Corporate)', 'Business Card', 'Utility Bill',
+  'Flight Ticket', 'Travel Itinerary',
+  'Hotel Confirmation', 'Hotel Voucher',
+  'Travel Insurance Certificate', 'Medical Certificate', 'Vaccination Certificate',
+  'Driving License', 'Invitation Letter / Other Docs',
 ];
 
 const ALL_DATES: string[] = [
-  'Date of Birth',
-  'Passport Expiry',
-  'Visa Expiry',
-  'Travel Date',
-  'Wedding Anniversary',
-  'Emirates ID Expiry',
-  'Medical Report Expiry',
-  'Contract End Date',
-  'Insurance Expiry',
-  'Trade License Expiry',
-  'Visa Issue Date',
+  'Date of Birth', 'Passport Expiry', 'Passport Issue Date',
+  'Visa Expiry', 'Visa Issue Date',
+  'Emirates ID Expiry', 'Emirates ID Issue Date',
+  'Travel Date', 'Flight Departure Date', 'Flight Return Date',
+  'Hotel Check-in', 'Hotel Check-out',
+  'Appointment Date', 'Wedding Anniversary',
+  'Medical Report Expiry', 'Medical Fitness Date',
+  'Contract End Date', 'Insurance Expiry', 'Insurance Start Date',
+  'Trade License Expiry', 'Driving License Expiry'
 ];
 
 interface DocEntry { id: string; name: string; fileName: string; fileType: string; base64: string; uploadedAt: string; ocrExtracted?: boolean }
@@ -201,7 +193,15 @@ export default function AddClientWizard() {
             pushDate('Passport Expiry', extracted.passportExpiry);
             pushDate('Passport Issue Date', extracted.passportIssueDate);
             pushDate('Visa Expiry', extracted.visaExpiry);
-            pushDate('Emirates ID Expiry', (extracted.otherDetails as any)?.emiratesIdExpiry);
+            pushDate('Visa Issue Date', extracted.visaIssueDate);
+            pushDate('Emirates ID Expiry', extracted.emiratesIdExpiry || (extracted.otherDetails as any)?.emiratesIdExpiry);
+            pushDate('Emirates ID Issue Date', extracted.emiratesIdIssueDate);
+
+            if (Array.isArray(extracted.extractedDates)) {
+              extracted.extractedDates.forEach((d: any) => {
+                if (d.name && d.date) pushDate(d.name, d.date);
+              });
+            }
 
             const sdUpdates: any = { ...form.serviceDetails };
             if (extracted.gender) sdUpdates.gender = extracted.gender;
@@ -211,6 +211,14 @@ export default function AddClientWizard() {
             if (extracted.sponsor) sdUpdates.sponsor = extracted.sponsor;
             if (extracted.visaType) sdUpdates.visaType = extracted.visaType;
             if (extracted.visaNumber) sdUpdates.visaNumber = extracted.visaNumber;
+
+            if (Array.isArray(extracted.extractedFields)) {
+              extracted.extractedFields.forEach((f: any) => {
+                if (f.key && f.value && !sdUpdates[f.key]) {
+                  sdUpdates[f.key] = f.value;
+                }
+              });
+            }
 
             setForm(prev => ({
               ...prev,
