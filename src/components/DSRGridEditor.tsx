@@ -1,0 +1,224 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { DSRTemplate, DSREntry, createEntry, updateEntry, deleteEntry, fetchEntries } from '@/lib/dsr-service';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Plus, Trash2, Save, RotateCcw, CalendarClock, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@/lib/auth-context';
+
+type Row = {
+  id?: string;            // existing entry id
+  entry_date: string;
+  data: Record<string, any>;
+  dirty?: boolean;
+  isNew?: boolean;
+};
+
+interface Props {
+  template: DSRTemplate;
+  fromDate: string;
+  toDate: string;
+  isAdmin: boolean;
+  employeeFilter: string; // "all" or user_id
+  onChanged?: () => void;
+}
+
+/**
+ * Excel-like inline editor for DSR rows.
+ * - Add / edit / delete rows directly in the grid (no wizard modal)
+ * - Auto-detect today date OR manual per-row date selection
+ * - Save dirty rows in batch
+ */
+export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, employeeFilter, onChanged }: Props) {
+  const { user, profile } = useAuth();
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [autoDate, setAutoDate] = useState(true);  // auto-fill new rows with today
+  const [defaultDate, setDefaultDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const load = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const data = await fetchEntries({
+        templateId: template.id,
+        fromDate, toDate,
+        employeeId: employeeFilter !== 'all' ? employeeFilter : undefined,
+        isAdmin, currentUserId: user.id,
+      });
+      setRows(data.map(e => ({ id: e.id, entry_date: e.entry_date, data: { ...e.data, __employee: e.employee_name } })));
+    } catch (e: any) { toast.error(e.message); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [template.id, fromDate, toDate, employeeFilter, user]);
+
+  const addRow = () => {
+    const newRow: Row = {
+      entry_date: autoDate ? new Date().toISOString().split('T')[0] : defaultDate,
+      data: {},
+      dirty: true,
+      isNew: true,
+    };
+    setRows(prev => [...prev, newRow]);
+    setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }), 50);
+  };
+
+  const updateCell = (idx: number, key: string, value: any) => {
+    setRows(prev => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], data: { ...next[idx].data, [key]: value }, dirty: true };
+      return next;
+    });
+  };
+
+  const updateDate = (idx: number, value: string) => {
+    setRows(prev => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], entry_date: value, dirty: true };
+      return next;
+    });
+  };
+
+  const removeRow = async (idx: number) => {
+    const r = rows[idx];
+    if (r.id) {
+      if (!confirm('Delete this saved row?')) return;
+      try {
+        await deleteEntry(r.id);
+        toast.success('Deleted');
+        setRows(prev => prev.filter((_, i) => i !== idx));
+        onChanged?.();
+      } catch (e: any) { toast.error(e.message); }
+    } else {
+      setRows(prev => prev.filter((_, i) => i !== idx));
+    }
+  };
+
+  const saveAll = async () => {
+    if (!user || !profile) return;
+    const dirty = rows.map((r, i) => ({ r, i })).filter(x => x.r.dirty);
+    if (dirty.length === 0) { toast.info('No changes'); return; }
+    setSaving(true);
+    try {
+      const requiredKeys = template.columns.filter(c => c.required).map(c => c.key);
+      for (const { r } of dirty) {
+        const missing = requiredKeys.filter(k => !r.data[k] || String(r.data[k]).trim() === '');
+        if (missing.length > 0) throw new Error(`Required: ${template.columns.filter(c => requiredKeys.includes(c.key) && missing.includes(c.key)).map(c => c.label).join(', ')}`);
+        const cleanData = { ...r.data }; delete cleanData.__employee;
+        if (r.id) await updateEntry(r.id, template, cleanData);
+        else await createEntry(template, user.id, profile.name, r.entry_date, cleanData);
+      }
+      toast.success(`Saved ${dirty.length} row${dirty.length > 1 ? 's' : ''}`);
+      onChanged?.();
+      load();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSaving(false); }
+  };
+
+  const dirtyCount = useMemo(() => rows.filter(r => r.dirty).length, [rows]);
+  const ownsRow = (r: Row) => isAdmin || !r.id || true; // employees see only their own via RLS
+
+  return (
+    <div className="space-y-3">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between flex-wrap gap-2 p-3 bg-muted/30 rounded-lg border border-border">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Switch id="auto-date" checked={autoDate} onCheckedChange={setAutoDate} />
+            <Label htmlFor="auto-date" className="text-xs flex items-center gap-1 cursor-pointer">
+              {autoDate ? <Sparkles className="w-3 h-3 text-primary" /> : <CalendarClock className="w-3 h-3" />}
+              {autoDate ? 'Auto date (today)' : 'Manual date'}
+            </Label>
+          </div>
+          {!autoDate && (
+            <div className="flex items-center gap-1">
+              <Label className="text-xs text-muted-foreground">Apply for:</Label>
+              <Input type="date" value={defaultDate} onChange={e => setDefaultDate(e.target.value)} className="w-40 h-8 text-xs" />
+            </div>
+          )}
+          {dirtyCount > 0 && <span className="text-xs px-2 py-1 bg-warning/15 text-warning rounded-full font-medium">{dirtyCount} unsaved</span>}
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={load} disabled={loading}><RotateCcw className="w-3.5 h-3.5 mr-1" />Reload</Button>
+          {!isAdmin && <Button size="sm" onClick={addRow}><Plus className="w-3.5 h-3.5 mr-1" />Add Row</Button>}
+          <Button size="sm" onClick={saveAll} disabled={saving || dirtyCount === 0}>
+            <Save className="w-3.5 h-3.5 mr-1" />{saving ? 'Saving…' : 'Save All'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div ref={scrollRef} className="overflow-x-auto border border-border rounded-lg max-h-[60vh] overflow-y-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/60 sticky top-0 z-10">
+            <tr className="text-xs text-muted-foreground">
+              <th className="text-left p-2 w-10">#</th>
+              <th className="text-left p-2 w-36 min-w-[140px]">Date</th>
+              {isAdmin && <th className="text-left p-2 w-32 min-w-[120px]">Employee</th>}
+              {template.columns.map(c => (
+                <th key={c.key} className="text-left p-2 min-w-[140px] whitespace-nowrap">
+                  {c.label}{c.required && <span className="text-destructive ml-0.5">*</span>}
+                </th>
+              ))}
+              <th className="p-2 w-12"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && <tr><td colSpan={template.columns.length + 4} className="text-center py-8 text-muted-foreground">Loading…</td></tr>}
+            {!loading && rows.length === 0 && (
+              <tr><td colSpan={template.columns.length + 4} className="text-center py-12 text-muted-foreground">
+                No rows. {!isAdmin && 'Click "Add Row" to start.'}
+              </td></tr>
+            )}
+            {rows.map((r, idx) => (
+              <tr key={r.id || `new-${idx}`} className={`border-t hover:bg-muted/20 ${r.dirty ? 'bg-warning/5' : ''}`}>
+                <td className="p-2 text-xs text-muted-foreground">{idx + 1}</td>
+                <td className="p-1">
+                  <Input type="date" value={r.entry_date} onChange={e => updateDate(idx, e.target.value)}
+                    disabled={!ownsRow(r)} className="h-8 text-xs" />
+                </td>
+                {isAdmin && <td className="p-2 text-xs">{r.data.__employee || '—'}</td>}
+                {template.columns.map(c => (
+                  <td key={c.key} className="p-1">
+                    {c.type === 'select' ? (
+                      <Select value={r.data[c.key] || ''} onValueChange={v => updateCell(idx, c.key, v)} disabled={!ownsRow(r)}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="—" /></SelectTrigger>
+                        <SelectContent>{c.options?.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        type={c.type === 'number' ? 'number' : c.type === 'date' ? 'date' : 'text'}
+                        value={r.data[c.key] ?? ''}
+                        onChange={e => updateCell(idx, c.key, e.target.value)}
+                        disabled={!ownsRow(r)}
+                        className="h-8 text-xs"
+                        placeholder={c.label}
+                      />
+                    )}
+                  </td>
+                ))}
+                <td className="p-1 text-center">
+                  {ownsRow(r) && (
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeRow(idx)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        💡 Tip: Edit any cell directly. Date auto-fills to today (toggle off to apply a custom date). Click <strong>Save All</strong> when done.
+      </p>
+    </div>
+  );
+}

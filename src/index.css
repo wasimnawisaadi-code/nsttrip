@@ -1,0 +1,188 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 215 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+
+    --primary: 211 90% 18%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 60% 37%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 212 50% 94%;
+    --muted-foreground: 215 18% 47%;
+
+    --accent: 212 55% 85%;
+    --accent-foreground: 211 90% 18%;
+
+    --destructive: 4 66% 47%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 80% 24%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 22 100% 38%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 213 45% 92%;
+    --input: 213 45% 92%;
+    --ring: 211 90% 18%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 211 90% 18%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 211 90% 18%;
+    --sidebar-accent: 211 80% 25%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 211 70% 28%;
+    --sidebar-ring: 210 60% 37%;
+    --sidebar-muted: 210 30% 70%;
+
+    --shadow-card: 0 1px 3px rgba(5,47,89,0.08), 0 4px 12px rgba(5,47,89,0.06);
+    --shadow-elevated: 0 4px 6px rgba(5,47,89,0.1), 0 10px 24px rgba(5,47,89,0.08);
+
+    --font-display: 'DM Sans', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+}
+
+@layer components {
+  .card-nawi {
+    @apply bg-card rounded-xl p-5 border border-border;
+    box-shadow: var(--shadow-card);
+  }
+  .card-nawi-hover {
+    @apply card-nawi transition-all duration-150;
+  }
+  .card-nawi-hover:hover {
+    box-shadow: var(--shadow-elevated);
+    transform: translateY(-2px);
+  }
+  .stat-card {
+    @apply card-nawi flex items-center gap-4;
+  }
+  .stat-card-icon {
+    @apply w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0;
+  }
+  .badge-status {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  }
+  .badge-new {
+    @apply badge-status bg-secondary/10 text-secondary;
+  }
+  .badge-processing {
+    @apply badge-status;
+    background-color: hsl(var(--warning) / 0.1);
+    color: hsl(var(--warning));
+  }
+  .badge-success {
+    @apply badge-status;
+    background-color: hsl(var(--success) / 0.1);
+    color: hsl(var(--success));
+  }
+  .badge-failed {
+    @apply badge-status;
+    background-color: hsl(var(--destructive) / 0.1);
+    color: hsl(var(--destructive));
+  }
+  .badge-pending {
+    @apply badge-status;
+    background-color: hsl(var(--warning) / 0.1);
+    color: hsl(var(--warning));
+  }
+  .table-nawi thead {
+    @apply bg-primary text-primary-foreground;
+  }
+  .table-nawi thead th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider;
+  }
+  .table-nawi tbody tr:nth-child(even) {
+    @apply bg-muted/50;
+  }
+  .table-nawi tbody td {
+    @apply px-4 py-3 text-sm;
+  }
+  .table-nawi tbody tr {
+    @apply transition-colors duration-150 hover:bg-muted;
+  }
+  .input-nawi {
+    @apply w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm transition-colors duration-150;
+  }
+  .input-nawi:focus {
+    @apply outline-none ring-2 ring-primary/20 border-primary;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium text-sm transition-all duration-150 hover:opacity-90;
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-secondary text-secondary-foreground font-medium text-sm transition-all duration-150 hover:opacity-90;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border bg-background text-foreground font-medium text-sm transition-all duration-150 hover:bg-muted;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground font-medium text-sm transition-all duration-150 hover:opacity-90;
+  }
+  .btn-success {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-150 hover:opacity-90;
+    background-color: hsl(var(--success));
+    color: hsl(var(--success-foreground));
+  }
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150;
+    color: hsl(var(--sidebar-muted));
+  }
+  .sidebar-link:hover {
+    background: hsl(var(--sidebar-accent));
+    color: hsl(var(--sidebar-foreground));
+  }
+  .sidebar-link-active {
+    @apply sidebar-link;
+    background: hsl(var(--sidebar-accent));
+    color: hsl(var(--sidebar-foreground));
+    border-left: 3px solid hsl(var(--sidebar-foreground));
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .skeleton-nawi {
+    @apply animate-pulse bg-muted rounded-lg;
+  }
+  .empty-state {
+    @apply flex flex-col items-center justify-center py-16 text-center;
+  }
+}
