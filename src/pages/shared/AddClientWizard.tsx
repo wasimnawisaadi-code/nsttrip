@@ -888,31 +888,43 @@ function UAEVisaFields({ sub, Field, SelectField, form, updateSD }: { sub: strin
     </div>
   );
 
-  const F = (props: any) => <Field {...props} value={form.serviceDetails[props.k]} onChange={(v: string) => updateSD(props.k, v)} />;
-  const S = (props: any) => <SelectField {...props} value={form.serviceDetails[props.k]} onChange={(v: string) => updateSD(props.k, v)} />;
+function UAEVisaFields({ sub, Field, SelectField, form, updateSD }: { sub: string; Field: any; SelectField: any; form: any; updateSD: (k: string, v: string) => void }) {
+  const Hint = ({ items }: { items: string[] }) => (
+    <div className="md:col-span-2 mt-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+      <p className="text-xs font-semibold text-primary mb-1">📋 Required Documents</p>
+      <ul className="text-xs text-muted-foreground list-disc list-inside space-y-0.5">
+        {items.map((i) => <li key={i}>{i}</li>)}
+      </ul>
+    </div>
+  );
+  const Note = ({ text }: { text: string }) => (
+    <div className="md:col-span-2 p-2 bg-warning/5 border border-warning/20 rounded-lg text-xs text-warning-foreground">
+      ⏱ {text}
+    </div>
+  );
 
   switch (sub) {
     case 'Transit Visa':
       return (
         <>
-          <S label="Transit Duration" k="transitDuration" options={['48 Hours', '96 Hours']} />
-          <F label="Onward Destination" k="onwardDestination" />
-          <F label="Third Country Visa" k="thirdCountryVisa" />
-          <F label="Hotel Booking Ref" k="hotelBookingRef" />
-          <F label="Onward Ticket Ref" k="onwardTicketRef" />
-          <F label="Nationality" k="nationality" />
-          <F label="Travel Date" k="travelDate" type="date" />
+          <SelectField label="Transit Duration" k="transitDuration" options={['48 Hours', '96 Hours']} value={form.serviceDetails.transitDuration} onChange={(v: string) => updateSD('transitDuration', v)} />
+          <Field label="Onward Destination" k="onwardDestination" value={form.serviceDetails.onwardDestination} onChange={(v: string) => updateSD('onwardDestination', v)} />
+          <Field label="Third Country Visa" k="thirdCountryVisa" value={form.serviceDetails.thirdCountryVisa} onChange={(v: string) => updateSD('thirdCountryVisa', v)} />
+          <Field label="Hotel Booking Ref" k="hotelBookingRef" value={form.serviceDetails.hotelBookingRef} onChange={(v: string) => updateSD('hotelBookingRef', v)} />
+          <Field label="Onward Ticket Ref" k="onwardTicketRef" value={form.serviceDetails.onwardTicketRef} onChange={(v: string) => updateSD('onwardTicketRef', v)} />
+          <Field label="Nationality" k="nationality" value={form.serviceDetails.nationality} onChange={(v: string) => updateSD('nationality', v)} />
+          <Field label="Travel Date" k="travelDate" type="date" value={form.serviceDetails.travelDate} onChange={(v: string) => updateSD('travelDate', v)} />
           <Note text="Used for transit passengers only. Must be used within 30 days of issuance." />
         </>
       );
     case 'Tourist Visa':
       return (
         <>
-          <S label="Visa Duration" k="visaDuration" options={['30 Days', '60 Days']} />
-          <F label="Nationality" k="nationality" />
-          <F label="Travel Date" k="travelDate" type="date" />
-          <F label="Hotel Booking Ref" k="hotelBookingRef" />
-          <F label="Ticket Reference" k="ticketReference" />
+          <SelectField label="Visa Duration" k="visaDuration" options={['30 Days', '60 Days']} value={form.serviceDetails.visaDuration} onChange={(v: string) => updateSD('visaDuration', v)} />
+          <Field label="Nationality" k="nationality" value={form.serviceDetails.nationality} onChange={(v: string) => updateSD('nationality', v)} />
+          <Field label="Travel Date" k="travelDate" type="date" value={form.serviceDetails.travelDate} onChange={(v: string) => updateSD('travelDate', v)} />
+          <Field label="Hotel Booking Ref" k="hotelBookingRef" value={form.serviceDetails.hotelBookingRef} onChange={(v: string) => updateSD('hotelBookingRef', v)} />
+          <Field label="Ticket Reference" k="ticketReference" value={form.serviceDetails.ticketReference} onChange={(v: string) => updateSD('ticketReference', v)} />
           <Note text="Visa must be used within 60 days of issuance." />
           <Hint items={[
             'Passport copy — front & back (valid 6+ months)',
@@ -927,11 +939,11 @@ function UAEVisaFields({ sub, Field, SelectField, form, updateSD }: { sub: strin
     case 'Outside Visa - Multiple Entry':
       return (
         <>
-          <S label="Visa Duration" k="visaDuration" options={['30 Days', '60 Days']} />
-          <F label="Nationality" k="nationality" />
-          <F label="Travel Date" k="travelDate" type="date" />
-          <F label="Hotel Booking Ref" k="hotelBookingRef" />
-          <F label="Ticket Reference" k="ticketReference" />
+          <SelectField label="Visa Duration" k="visaDuration" options={['30 Days', '60 Days']} value={form.serviceDetails.visaDuration} onChange={(v: string) => updateSD('visaDuration', v)} />
+          <Field label="Nationality" k="nationality" value={form.serviceDetails.nationality} onChange={(v: string) => updateSD('nationality', v)} />
+          <Field label="Travel Date" k="travelDate" type="date" value={form.serviceDetails.travelDate} onChange={(v: string) => updateSD('travelDate', v)} />
+          <Field label="Hotel Booking Ref" k="hotelBookingRef" value={form.serviceDetails.hotelBookingRef} onChange={(v: string) => updateSD('hotelBookingRef', v)} />
+          <Field label="Ticket Reference" k="ticketReference" value={form.serviceDetails.ticketReference} onChange={(v: string) => updateSD('ticketReference', v)} />
           <Note text="Multiple entries allowed. Must be used within 60 days of issuance." />
           <Hint items={[
             'Passport copy — front & back (valid 6+ months)',
@@ -945,21 +957,21 @@ function UAEVisaFields({ sub, Field, SelectField, form, updateSD }: { sub: strin
     case 'Visa Extension':
       return (
         <>
-          <S label="Original Visa Duration" k="originalVisaDuration" options={['30 Days', '60 Days']} />
-          <S label="Extension Number" k="extensionNumber" options={['1st Extension', '2nd Extension', '3rd Extension']} />
-          <F label="Current Visa Number" k="currentVisaNumber" />
-          <F label="Current Visa Expiry" k="currentVisaExpiry" type="date" />
+          <SelectField label="Original Visa Duration" k="originalVisaDuration" options={['30 Days', '60 Days']} value={form.serviceDetails.originalVisaDuration} onChange={(v: string) => updateSD('originalVisaDuration', v)} />
+          <SelectField label="Extension Number" k="extensionNumber" options={['1st Extension', '2nd Extension', '3rd Extension']} value={form.serviceDetails.extensionNumber} onChange={(v: string) => updateSD('extensionNumber', v)} />
+          <Field label="Current Visa Number" k="currentVisaNumber" value={form.serviceDetails.currentVisaNumber} onChange={(v: string) => updateSD('currentVisaNumber', v)} />
+          <Field label="Current Visa Expiry" k="currentVisaExpiry" type="date" value={form.serviceDetails.currentVisaExpiry} onChange={(v: string) => updateSD('currentVisaExpiry', v)} />
           <Note text="Inside-country extension for next 30 days. 30-day visa: up to 3 extensions. 60-day visa: up to 2 extensions. Only for visas we issued." />
         </>
       );
     case 'Visa Change by Bus':
       return (
         <>
-          <S label="Bus Service Type" k="busServiceType" options={['Visit Visa Renewal', 'Residence Cancellation']} />
-          <S label="Pickup Emirate" k="pickupEmirate" options={['Dubai - Near Dnata', 'Sharjah - Safari Mall', 'Abu Dhabi - Mussaffa Safeer Center', 'Abu Dhabi - Madinat Zayed']} />
-          <F label="Travel Date" k="travelDate" type="date" />
-          <F label="Guarantor Name" k="guarantorName" />
-          <F label="Guarantor Emirates ID" k="guarantorEid" />
+          <SelectField label="Bus Service Type" k="busServiceType" options={['Visit Visa Renewal', 'Residence Cancellation']} value={form.serviceDetails.busServiceType} onChange={(v: string) => updateSD('busServiceType', v)} />
+          <SelectField label="Pickup Emirate" k="pickupEmirate" options={['Dubai - Near Dnata', 'Sharjah - Safari Mall', 'Abu Dhabi - Mussaffa Safeer Center', 'Abu Dhabi - Madinat Zayed']} value={form.serviceDetails.pickupEmirate} onChange={(v: string) => updateSD('pickupEmirate', v)} />
+          <Field label="Travel Date" k="travelDate" type="date" value={form.serviceDetails.travelDate} onChange={(v: string) => updateSD('travelDate', v)} />
+          <Field label="Guarantor Name" k="guarantorName" value={form.serviceDetails.guarantorName} onChange={(v: string) => updateSD('guarantorName', v)} />
+          <Field label="Guarantor Emirates ID" k="guarantorEid" value={form.serviceDetails.guarantorEid} onChange={(v: string) => updateSD('guarantorEid', v)} />
           <Note text="Inclusion: 60-day visa (Sharjah/Dubai) without deposit, 10-day Oman visa, round trip ticket, 1-day accommodation, exit voucher, 3 meals. Same-day return possible if visa approved before 4 PM." />
           <Hint items={
             form.serviceDetails.busServiceType === 'Residence Cancellation'
@@ -984,10 +996,10 @@ function UAEVisaFields({ sub, Field, SelectField, form, updateSD }: { sub: strin
     case 'Visa Change by Flight':
       return (
         <>
-          <S label="Airline" k="airline" options={['Fly Dubai', 'Al Jazeera Airways', 'Air Arabia']} />
-          <F label="Travel Date" k="travelDate" type="date" />
-          <F label="Guarantor Name" k="guarantorName" />
-          <F label="Guarantor Emirates ID" k="guarantorEid" />
+          <SelectField label="Airline" k="airline" options={['Fly Dubai', 'Al Jazeera Airways', 'Air Arabia']} value={form.serviceDetails.airline} onChange={(v: string) => updateSD('airline', v)} />
+          <Field label="Travel Date" k="travelDate" type="date" value={form.serviceDetails.travelDate} onChange={(v: string) => updateSD('travelDate', v)} />
+          <Field label="Guarantor Name" k="guarantorName" value={form.serviceDetails.guarantorName} onChange={(v: string) => updateSD('guarantorName', v)} />
+          <Field label="Guarantor Emirates ID" k="guarantorEid" value={form.serviceDetails.guarantorEid} onChange={(v: string) => updateSD('guarantorEid', v)} />
           <Note text="Inclusion: 60-day Dubai visa without deposit + 10-day Oman visa. Same-day return; passenger waits at airport until visa approved. Fly Dubai: overstay/outpass cases not allowed; must be first A2A." />
           <Hint items={[
             'Passport copy — front & back',
@@ -1001,19 +1013,19 @@ function UAEVisaFields({ sub, Field, SelectField, form, updateSD }: { sub: strin
     case 'Family Visa':
       return (
         <>
-          <F label="Sponsor Name" k="sponsorName" required />
-          <F label="Sponsor UID" k="sponsorUid" />
-          <F label="Sponsor Salary" k="sponsorSalary" />
-          <F label="Relationship" k="relationship" />
-          <F label="Nationality" k="nationality" />
+          <Field label="Sponsor Name" k="sponsorName" required value={form.serviceDetails.sponsorName} onChange={(v: string) => updateSD('sponsorName', v)} />
+          <Field label="Sponsor UID" k="sponsorUid" value={form.serviceDetails.sponsorUid} onChange={(v: string) => updateSD('sponsorUid', v)} />
+          <Field label="Sponsor Salary" k="sponsorSalary" value={form.serviceDetails.sponsorSalary} onChange={(v: string) => updateSD('sponsorSalary', v)} />
+          <Field label="Relationship" k="relationship" value={form.serviceDetails.relationship} onChange={(v: string) => updateSD('relationship', v)} />
+          <Field label="Nationality" k="nationality" value={form.serviceDetails.nationality} onChange={(v: string) => updateSD('nationality', v)} />
         </>
       );
     case 'Abscond':
       return (
         <>
-          <F label="Last Known Location" k="lastLocation" />
-          <F label="Abscond Date" k="abscondDate" type="date" />
-          <F label="Case Reference" k="caseReference" />
+          <Field label="Last Known Location" k="lastLocation" value={form.serviceDetails.lastLocation} onChange={(v: string) => updateSD('lastLocation', v)} />
+          <Field label="Abscond Date" k="abscondDate" type="date" value={form.serviceDetails.abscondDate} onChange={(v: string) => updateSD('abscondDate', v)} />
+          <Field label="Case Reference" k="caseReference" value={form.serviceDetails.caseReference} onChange={(v: string) => updateSD('caseReference', v)} />
         </>
       );
     case 'Status Change':
@@ -1021,9 +1033,9 @@ function UAEVisaFields({ sub, Field, SelectField, form, updateSD }: { sub: strin
     default:
       return (
         <>
-          <S label="Application Type" k="applicationType" options={['Inside UAE', 'Outside UAE']} />
-          <F label="Current Visa Number" k="currentVisaNumber" />
-          <F label="Nationality" k="nationality" />
+          <SelectField label="Application Type" k="applicationType" options={['Inside UAE', 'Outside UAE']} value={form.serviceDetails.applicationType} onChange={(v: string) => updateSD('applicationType', v)} />
+          <Field label="Current Visa Number" k="currentVisaNumber" value={form.serviceDetails.currentVisaNumber} onChange={(v: string) => updateSD('currentVisaNumber', v)} />
+          <Field label="Nationality" k="nationality" value={form.serviceDetails.nationality} onChange={(v: string) => updateSD('nationality', v)} />
         </>
       );
   }
