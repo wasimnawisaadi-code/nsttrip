@@ -232,29 +232,84 @@ export default function EmployeeProfile() {
       </div>
 
       {tab === 'overview' && (
-        <div className="card-nawi">
-          <div className="flex justify-end mb-4">
-            {editing ? (
-              <div className="flex gap-2"><button onClick={handleSave} className="btn-primary"><Save className="w-4 h-4" /> Save</button><button onClick={() => { setEditing(false); setForm(emp); }} className="btn-outline"><X className="w-4 h-4" /></button></div>
-            ) : (
-              <button onClick={() => setEditing(true)} className="btn-outline"><Edit className="w-4 h-4" /> Edit</button>
-            )}
+        <div className="space-y-4">
+          <div className="card-nawi">
+            <div className="flex justify-end mb-4">
+              {editing ? (
+                <div className="flex gap-2"><button onClick={handleSave} className="btn-primary"><Save className="w-4 h-4" /> Save</button><button onClick={() => { setEditing(false); setForm(emp); }} className="btn-outline"><X className="w-4 h-4" /></button></div>
+              ) : (
+                <button onClick={() => setEditing(true)} className="btn-outline"><Edit className="w-4 h-4" /> Edit Profile</button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { label: 'Full Name', key: 'name' }, { label: 'Email', key: 'email' },
+                { label: 'Mobile', key: 'mobile' }, { label: 'Passport No.', key: 'passport_no' },
+                { label: 'Emirates ID', key: 'emirates_id' }, { label: 'Base Salary', key: 'base_salary' },
+              ].map(({ label, key }) => (
+                <div key={key}>
+                  <label className="block text-xs text-muted-foreground mb-1">{label}</label>
+                  {editing ? (
+                    <input value={form[key] || ''} onChange={(e) => setForm({ ...form, [key]: key === 'base_salary' ? Number(e.target.value) : e.target.value })} className="input-nawi" type={key === 'base_salary' ? 'number' : 'text'} />
+                  ) : (
+                    <p className="text-sm font-medium text-foreground">{key === 'base_salary' ? formatCurrency(emp[key] || 0) : (emp[key] || '—')}</p>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              { label: 'Full Name', key: 'name' }, { label: 'Email', key: 'email' },
-              { label: 'Mobile', key: 'mobile' }, { label: 'Passport No.', key: 'passport_no' },
-              { label: 'Emirates ID', key: 'emirates_id' }, { label: 'Base Salary', key: 'base_salary' },
-            ].map(({ label, key }) => (
-              <div key={key}>
-                <label className="block text-xs text-muted-foreground mb-1">{label}</label>
-                {editing ? (
-                  <input value={form[key] || ''} onChange={(e) => setForm({ ...form, [key]: key === 'base_salary' ? Number(e.target.value) : e.target.value })} className="input-nawi" type={key === 'base_salary' ? 'number' : 'text'} />
-                ) : (
-                  <p className="text-sm font-medium text-foreground">{key === 'base_salary' ? formatCurrency(emp[key] || 0) : (emp[key] || '—')}</p>
+
+          <div className="card-nawi space-y-4">
+            <h3 className="text-lg font-bold font-display flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-primary" /> Workplace & Geofencing
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Select the zone where this employee is authorized to work and log in.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Assigned Zone</label>
+                  <select 
+                    className="input-nawi"
+                    value={emp.assigned_zone_id || ''}
+                    onChange={(e) => handleAssignZone(e.target.value || null)}
+                    disabled={savingZone}
+                  >
+                    <option value="">— No zone (Geofence Disabled) —</option>
+                    {zones.map(z => (
+                      <option key={z.id} value={z.id}>{z.name} ({z.radius}m)</option>
+                    ))}
+                  </select>
+                  {savingZone && <p className="text-[10px] text-primary animate-pulse mt-1">Saving workplace...</p>}
+                </div>
+
+                {assignedZone && (
+                  <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+                    <p className="text-xs font-medium text-primary mb-1">Zone Details</p>
+                    <div className="text-[11px] space-y-1 text-muted-foreground">
+                      <p>Center: {assignedZone.latitude.toFixed(6)}, {assignedZone.longitude.toFixed(6)}</p>
+                      <p>Allowed Radius: {assignedZone.radius} meters</p>
+                    </div>
+                  </div>
                 )}
               </div>
-            ))}
+
+              {assignedZone && (
+                <div className="h-48 rounded-xl border border-border overflow-hidden shadow-inner">
+                  <iframe 
+                    width="100%" 
+                    height="100%" 
+                    frameBorder="0" 
+                    scrolling="no" 
+                    marginHeight={0} 
+                    marginWidth={0} 
+                    src={getMapsEmbed(assignedZone.latitude, assignedZone.longitude, assignedZone.radius)}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

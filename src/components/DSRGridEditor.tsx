@@ -41,6 +41,8 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
   const [defaultDate, setDefaultDate] = useState(() => new Date().toISOString().split('T')[0]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const STORAGE_KEY = useMemo(() => `dsr-draft-${template.id}-${user?.id}`, [template.id, user?.id]);
+
   const load = async () => {
     if (!user) return;
     setLoading(true);
@@ -51,12 +53,54 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
         employeeId: employeeFilter !== 'all' ? employeeFilter : undefined,
         isAdmin, currentUserId: user.id,
       });
-      setRows(data.map(e => ({ id: e.id, entry_date: e.entry_date, data: { ...e.data, __employee: e.employee_name } })));
+      
+      const serverRows = data.map(e => ({ id: e.id, entry_date: e.entry_date, data: { ...e.data, __employee: e.employee_name } }));
+      
+      // Check for local drafts
+      const draftRaw = localStorage.getItem(STORAGE_KEY);
+      if (draftRaw) {
+        try {
+          const draftRows = JSON.parse(draftRaw) as Row[];
+          if (draftRows.length > 0 && confirm(`Found ${draftRows.length} unsaved changes from your last session. Restore them?`)) {
+            // Merge draft rows into server rows
+            // For now, let's just append new draft rows and keep track of dirty existing rows
+            const combined = [...serverRows];
+            draftRows.forEach(dr => {
+              if (dr.id) {
+                const idx = combined.findIndex(cr => cr.id === dr.id);
+                if (idx !== -1) combined[idx] = dr;
+              } else {
+                combined.push(dr);
+              }
+            });
+            setRows(combined);
+            toast.success('Draft restored');
+            setLoading(false);
+            return;
+          } else {
+            localStorage.removeItem(STORAGE_KEY);
+          }
+        } catch (e) {
+          console.error('Failed to parse DSR draft', e);
+        }
+      }
+      
+      setRows(serverRows);
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [template.id, fromDate, toDate, employeeFilter, user]);
+
+  // Auto-save dirty rows to localStorage
+  useEffect(() => {
+    const dirtyRows = rows.filter(r => r.dirty);
+    if (dirtyRows.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dirtyRows));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [rows, STORAGE_KEY]);
 
   const addRow = () => {
     const newRow: Row = {

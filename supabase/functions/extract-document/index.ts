@@ -253,100 +253,80 @@ serve(async (req) => {
   try {
     const { imageBase64, docType, service, serviceSubcategory } = await req.json();
     if (!imageBase64) {
-      return new Response(JSON.stringify({ error: "No image provided" }), {
+      return new Response(JSON.stringify({ error: "No image/document provided" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { token, projectId } = await getAccessToken();
     const cleanB64 = stripBase64Prefix(imageBase64);
+    const mime = imageBase64.startsWith('data:')
+      ? imageBase64.slice(5, imageBase64.indexOf(';'))
+      : 'image/jpeg';
 
-    // Step 1: Vision API OCR
-    const visionRes = await fetch("https://vision.googleapis.com/v1/images:annotate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "x-goog-user-project": projectId,
-      },
-      body: JSON.stringify({
-        requests: [{
-          image: { content: cleanB64 },
-          features: [{ type: "DOCUMENT_TEXT_DETECTION", maxResults: 1 }],
-        }],
-      }),
-    });
+    const isImage = mime.startsWith('image/');
+    let rawText = "";
 
-    if (!visionRes.ok) {
-      const err = await visionRes.text();
-      console.error("Vision API error:", visionRes.status, err);
-      const userMsg = visionRes.status === 403
-        ? "Cloud Vision API not enabled, or service account lacks the role 'Cloud Vision API User'."
-        : `Vision API error: ${err.slice(0, 300)}`;
-      return new Response(JSON.stringify({ error: userMsg }), {
-        status: visionRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Step 1: Only use Vision API for Images
+    if (isImage) {
+      try {
+        const { token, projectId } = await getAccessToken();
+        const visionRes = await fetch("https://vision.googleapis.com/v1/images:annotate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+            "x-goog-user-project": projectId,
+          },
+          body: JSON.stringify({
+            requests: [{
+              image: { content: cleanB64 },
+              features: [{ type: "DOCUMENT_TEXT_DETECTION", maxResults: 1 }],
+            }],
+          }),
+        });
+
+        if (visionRes.ok) {
+          const visionJson = await visionRes.json();
+          rawText = visionJson.responses?.[0]?.fullTextAnnotation?.text || "";
+        }
+      } catch (err) {
+        console.warn("Vision API fallback failed:", err);
+      }
     }
 
-    const visionJson = await visionRes.json();
-    const rawText = visionJson.responses?.[0]?.fullTextAnnotation?.text || "";
-
-    if (!rawText) {
-      return new Response(JSON.stringify({ success: true, data: {}, warning: "No text detected in image" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Step 2: Vision-aware AI structuring — pass BOTH the OCR text AND the original image
-    // so the model can read fields the OCR may have missed (MRZ, faded stamps, etc.)
+    // Step 2: Use Gemini (Vision or Document aware)
     const prompt = `You are an expert document data extractor for Nawi Saadi Travel & Tourism (UAE).
 Document type hint: ${docType || "unknown"}. Service context: ${service || "unknown"}${serviceSubcategory ? ` (${serviceSubcategory})` : ""}.
 
-You will receive (1) raw OCR text from Google Vision and (2) the original document image. Use BOTH together — prefer what you can clearly see in the image when the OCR text is wrong, and use the OCR text to disambiguate when the image is unclear.
+Analyze the provided ${isImage ? 'image' : 'document'} and extract structured data.
+${rawText ? `OCR Suggestion: """\n${rawText}\n"""\nUse the OCR as a hint but the document visual/content is final.` : ''}
 
-First, infer the actual document type (passport / visa / emirates_id / driving_license / ticket / invoice / other). Then extract structured data and return ONLY a JSON object (no prose, no markdown fences) with these fields (use null when not found, never invent data):
-
-documentType (one of: passport, visa, emirates_id, driving_license, ticket, invoice, medical_report, insurance_policy, trade_license, other),
+Extract and return ONLY a JSON object with these fields (use null when not found):
+documentType (passport, visa, emirates_id, driving_license, ticket, invoice, medical_report, insurance_policy, trade_license, other),
 fullName, firstName, lastName, passportNo, nationality, dateOfBirth (YYYY-MM-DD), passportExpiry (YYYY-MM-DD), passportIssueDate (YYYY-MM-DD), placeOfBirth, gender (Male/Female), emiratesId, emiratesIdExpiry (YYYY-MM-DD), emiratesIdIssueDate (YYYY-MM-DD), visaNumber, visaExpiry (YYYY-MM-DD), visaIssueDate (YYYY-MM-DD), visaType, sponsor, profession, address, phoneNumber, email, bloodGroup, maritalStatus, fatherName, motherName, issuingAuthority, documentNumber, mrz1, mrz2.
 
-DYNAMIC ARRAYS (CRITICAL):
-1. "extractedDates": Extract EVERY single date you find on the document that is NOT a Date of Birth. Return an array of objects: [{ "name": "Name of Date (e.g., Trade License Expiry, Flight Departure Date, Insurance Start Date, Medical Report Expiry)", "date": "YYYY-MM-DD" }]. This ensures no date is left behind.
-2. "extractedFields": Extract EVERY other important key-value pair that doesn't fit the standard fields (e.g., PNR, Flight Number, Hotel Name, Policy Number, TRN Number). Return an array: [{ "key": "Field Name", "value": "Extracted Value" }].
+DYNAMIC ARRAYS:
+1. "extractedDates": [{ "name": "Name of Date", "date": "YYYY-MM-DD" }] - Skip DOB here.
+2. "extractedFields": [{ "key": "Field Name", "value": "Value" }]
 
-For passports: if a Machine Readable Zone (MRZ) is visible at the bottom, parse it and reconcile with the visual data — it is the most authoritative source for name, passport no, nationality, DOB, sex and expiry.
-
-For Emirates ID: extract the 15-digit ID in the format XXX-XXXX-XXXXXXX-X. Ensure you map the "Expiry Date" strictly to emiratesIdExpiry and the "Issuing Date" strictly to emiratesIdIssueDate. NEVER put Emirates ID dates into the passport date fields.
-
-Validate dates: never return a DOB after today, never return an expiry before issue date.
-
-Also include "otherDetails" with any remaining random text you find.
-
-OCR TEXT (raw):
-"""
-${rawText}
-"""
+CRITICAL: Fix any duplicate dates. Ensure "Date of Birth" is only in the dateOfBirth field. Parse MRZ if available.
+Validate dates: No DOB in the future.
 
 Return strict JSON only.`;
 
     let text = "{}";
     try {
-      // Primary path: vision-aware Gemini via public API key (no Vertex flakiness)
-      const mime = imageBase64.startsWith('data:')
-        ? imageBase64.slice(5, imageBase64.indexOf(';'))
-        : 'image/jpeg';
       text = await callGeminiVisionStructured(prompt, cleanB64, mime);
     } catch (visionErr) {
-      console.error('Vision-aware Gemini failed, falling back to text-only:', visionErr);
-      try {
-        text = await structureWithApiKey(prompt);
-      } catch (textErr) {
-        console.error('Text-only Gemini failed too, using heuristics:', textErr);
+      console.error('Gemini extraction failed:', visionErr);
+      if (rawText) {
         return new Response(JSON.stringify({
           success: true,
           data: heuristicExtract(rawText),
-          warning: "AI extraction unavailable — used regex fallback. Please review fields carefully.",
+          warning: "AI extraction failed — used regex fallback.",
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      throw visionErr;
     }
 
     let extracted: Record<string, unknown> = {};
