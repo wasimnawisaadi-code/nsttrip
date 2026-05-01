@@ -608,13 +608,13 @@ export default function AddClientWizard() {
               <h3 className="text-base font-semibold font-display mb-4">{form.service} Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {form.service === 'Air Ticket' && <><Field label="Travel Date" k="travelDate" type="date" required value={form.serviceDetails.travelDate} onChange={v => updateSD('travelDate', v)} /><Field label="Departure City" k="departureCity" required value={form.serviceDetails.departureCity} onChange={v => updateSD('departureCity', v)} /><Field label="Arrival City" k="arrivalCity" required value={form.serviceDetails.arrivalCity} onChange={v => updateSD('arrivalCity', v)} /><Field label="Flight Number" k="flightNumber" value={form.serviceDetails.flightNumber} onChange={v => updateSD('flightNumber', v)} /><Field label="PNR" k="pnr" value={form.serviceDetails.pnr} onChange={v => updateSD('pnr', v)} /><Field label="Return Date" k="returnDate" type="date" value={form.serviceDetails.returnDate} onChange={v => updateSD('returnDate', v)} /><SelectField label="Class" k="travelClass" options={['Economy', 'Premium Economy', 'Business', 'First Class']} value={form.serviceDetails.travelClass} onChange={v => updateSD('travelClass', v)} /></>}
-                {form.service === 'UAE Visa' && <UAEVisaFields sub={form.serviceSubcategory} Field={Field} SelectField={SelectField} form={form} updateSD={updateSD} />}
+                {form.service === 'UAE Visa' && <UAEVisaFields sub={form.serviceSubcategory} form={form} updateSD={updateSD} />}
                 {form.service === 'Global Visa' && <><Field label="Country" k="country" required value={form.serviceDetails.country} onChange={v => updateSD('country', v)} /><SelectField label="Applicant Type" k="applicantType" options={['Employed', 'Self-Employed', 'Unemployed', 'Retired']} value={form.serviceDetails.applicantType} onChange={v => updateSD('applicantType', v)} /><Field label="Travel Date" k="travelDate" type="date" value={form.serviceDetails.travelDate} onChange={v => updateSD('travelDate', v)} /><Field label="Return Date" k="returnDate" type="date" value={form.serviceDetails.returnDate} onChange={v => updateSD('returnDate', v)} />{form.serviceDetails.visaMode === 'eVisa' && <><Field label="Online Portal Reference" k="eVisaRef" value={form.serviceDetails.eVisaRef} onChange={v => updateSD('eVisaRef', v)} /><Field label="Application URL" k="applicationUrl" value={form.serviceDetails.applicationUrl} onChange={v => updateSD('applicationUrl', v)} /></>}{form.serviceDetails.visaMode === 'Sticker Visa' && <><Field label="Embassy Name" k="embassyName" value={form.serviceDetails.embassyName} onChange={v => updateSD('embassyName', v)} /><Field label="Appointment Date" k="appointmentDate" type="date" value={form.serviceDetails.appointmentDate} onChange={v => updateSD('appointmentDate', v)} /></>}</>}
                 {form.service === 'Holiday Package' && <><Field label="Travel Date" k="travelDate" type="date" value={form.serviceDetails.travelDate} onChange={v => updateSD('travelDate', v)} /><Field label="Return Date" k="returnDate" type="date" value={form.serviceDetails.returnDate} onChange={v => updateSD('returnDate', v)} /><Field label="Adults" k="adults" value={form.serviceDetails.adults} onChange={v => updateSD('adults', v)} /><Field label="Children" k="children" value={form.serviceDetails.children} onChange={v => updateSD('children', v)} /><Field label="Destination" k="destination" value={form.serviceDetails.destination} onChange={v => updateSD('destination', v)} /></>}
                 {form.service === 'Travel Insurance' && <><Field label="Travel Date" k="travelDate" type="date" value={form.serviceDetails.travelDate} onChange={v => updateSD('travelDate', v)} /><Field label="Return Date" k="returnDate" type="date" value={form.serviceDetails.returnDate} onChange={v => updateSD('returnDate', v)} /><SelectField label="Coverage Type" k="coverageType" options={['Individual', 'Family', 'Group', 'Annual Multi-Trip']} value={form.serviceDetails.coverageType} onChange={v => updateSD('coverageType', v)} /><Field label="Destination" k="destination" value={form.serviceDetails.destination} onChange={v => updateSD('destination', v)} /></>}
                 {form.service === 'Pilgrimage' && <><SelectField label="Type" k="pilgrimageType" options={['Hajj', 'Umrah']} value={form.serviceDetails.pilgrimageType} onChange={v => updateSD('pilgrimageType', v)} /><Field label="Season/Year" k="season" value={form.serviceDetails.season} onChange={v => updateSD('season', v)} /><Field label="Group Name" k="groupName" value={form.serviceDetails.groupName} onChange={v => updateSD('groupName', v)} /><Field label="No. of Persons" k="persons" value={form.serviceDetails.persons} onChange={v => updateSD('persons', v)} /></>}
-                {form.service === 'Meet & Assist' && <><Field label="Flight Number" k="flightNumber" /><SelectField label="Type" k="maType" options={['Arrival', 'Departure', 'Transit']} /><Field label="Airport" k="airport" /><Field label="Date/Time" k="dateTime" type="datetime-local" /></>}
-                {form.service === 'Hotel Booking' && <><Field label="Check-in" k="checkinDate" type="date" /><Field label="Check-out" k="checkoutDate" type="date" /><Field label="City" k="city" /><Field label="Rooms" k="rooms" /><SelectField label="Room Type" k="roomType" options={['Standard', 'Deluxe', 'Suite', 'Villa']} /></>}
+                {form.service === 'Meet & Assist' && <><Field label="Flight Number" k="flightNumber" value={form.serviceDetails.flightNumber} onChange={v => updateSD('flightNumber', v)} /><SelectField label="Type" k="maType" options={['Arrival', 'Departure', 'Transit']} value={form.serviceDetails.maType} onChange={v => updateSD('maType', v)} /><Field label="Airport" k="airport" value={form.serviceDetails.airport} onChange={v => updateSD('airport', v)} /><Field label="Date/Time" k="dateTime" type="datetime-local" value={form.serviceDetails.dateTime} onChange={v => updateSD('dateTime', v)} /></>}
+                {form.service === 'Hotel Booking' && <><Field label="Check-in" k="checkinDate" type="date" value={form.serviceDetails.checkinDate} onChange={v => updateSD('checkinDate', v)} /><Field label="Check-out" k="checkoutDate" type="date" value={form.serviceDetails.checkoutDate} onChange={v => updateSD('checkoutDate', v)} /><Field label="City" k="city" value={form.serviceDetails.city} onChange={v => updateSD('city', v)} /><Field label="Rooms" k="rooms" value={form.serviceDetails.rooms} onChange={v => updateSD('rooms', v)} /><SelectField label="Room Type" k="roomType" options={['Standard', 'Deluxe', 'Suite', 'Villa']} value={form.serviceDetails.roomType} onChange={v => updateSD('roomType', v)} /></>}
               </div>
             </div>
 
@@ -888,21 +888,6 @@ function UAEVisaFields({ sub, Field, SelectField, form, updateSD }: { sub: strin
     </div>
   );
 
-function UAEVisaFields({ sub, Field, SelectField, form, updateSD }: { sub: string; Field: any; SelectField: any; form: any; updateSD: (k: string, v: string) => void }) {
-  const Hint = ({ items }: { items: string[] }) => (
-    <div className="md:col-span-2 mt-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-      <p className="text-xs font-semibold text-primary mb-1">📋 Required Documents</p>
-      <ul className="text-xs text-muted-foreground list-disc list-inside space-y-0.5">
-        {items.map((i) => <li key={i}>{i}</li>)}
-      </ul>
-    </div>
-  );
-  const Note = ({ text }: { text: string }) => (
-    <div className="md:col-span-2 p-2 bg-warning/5 border border-warning/20 rounded-lg text-xs text-warning-foreground">
-      ⏱ {text}
-    </div>
-  );
-
   switch (sub) {
     case 'Transit Visa':
       return (
@@ -918,6 +903,7 @@ function UAEVisaFields({ sub, Field, SelectField, form, updateSD }: { sub: strin
         </>
       );
     case 'Tourist Visa':
+    case 'Outside Visa - Single Entry':
       return (
         <>
           <SelectField label="Visa Duration" k="visaDuration" options={['30 Days', '60 Days']} value={form.serviceDetails.visaDuration} onChange={(v: string) => updateSD('visaDuration', v)} />
