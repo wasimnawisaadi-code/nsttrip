@@ -298,21 +298,30 @@ serve(async (req) => {
     const prompt = `You are an expert document data extractor for Nawi Saadi Travel & Tourism (UAE).
 Document type hint: ${docType || "unknown"}. Service context: ${service || "unknown"}${serviceSubcategory ? ` (${serviceSubcategory})` : ""}.
 
-Analyze the provided ${isImage ? 'image' : 'document'} and extract structured data.
+Analyze the provided ${isImage ? 'image' : 'document'} and extract structured data with 100% precision.
 ${rawText ? `OCR Suggestion: """\n${rawText}\n"""\nUse the OCR as a hint but the document visual/content is final.` : ''}
 
-Extract and return ONLY a JSON object with these fields (use null when not found):
-documentType (passport, visa, emirates_id, driving_license, ticket, invoice, medical_report, insurance_policy, trade_license, other),
-fullName, firstName, lastName, passportNo, nationality, dateOfBirth (YYYY-MM-DD), passportExpiry (YYYY-MM-DD), passportIssueDate (YYYY-MM-DD), placeOfBirth, gender (Male/Female), emiratesId, emiratesIdExpiry (YYYY-MM-DD), emiratesIdIssueDate (YYYY-MM-DD), visaNumber, visaExpiry (YYYY-MM-DD), visaIssueDate (YYYY-MM-DD), visaType, sponsor, profession, address, phoneNumber, email, bloodGroup, maritalStatus, fatherName, motherName, issuingAuthority, documentNumber, mrz1, mrz2.
+EXTRACT THESE FIELDS (use null if not found):
+- fullName, firstName, lastName
+- nationality, gender (Male/Female)
+- dateOfBirth (YYYY-MM-DD): CRITICAL for Emirates ID. Look for "Date of Birth" or "Birth Date".
+- passportNo, passportExpiry (YYYY-MM-DD), passportIssueDate (YYYY-MM-DD)
+- emiratesId (Format: 784-XXXX-XXXXXXX-X), emiratesIdExpiry, emiratesIdIssueDate
+- visaNumber, visaExpiry, visaIssueDate, visaType
+- profession, sponsor, address, phoneNumber, email
 
 DYNAMIC ARRAYS:
-1. "extractedDates": [{ "name": "Name of Date", "date": "YYYY-MM-DD" }] - Skip DOB here.
-2. "extractedFields": [{ "key": "Field Name", "value": "Value" }]
+1. "extractedDates": [{ "name": "Name", "date": "YYYY-MM-DD" }]
+   - STRICT RULE: Do NOT include Date of Birth here. Only include additional dates like "Unified No Expiry", "Insurance Expiry", etc.
+   - Do NOT repeat dates already captured in top-level fields (like visaExpiry).
+2. "extractedFields": [{ "key": "Name", "value": "Value" }]
 
-CRITICAL: Fix any duplicate dates. Ensure "Date of Birth" is only in the dateOfBirth field. Parse MRZ if available.
-Validate dates: No DOB in the future.
+CRITICAL FOR EMIRATES ID:
+- Date of Birth is usually on the FRONT.
+- Expiry Date is always present.
+- Format the ID as 784-XXXX-XXXXXXX-X.
 
-Return strict JSON only.`;
+Return ONLY a strict JSON object. No markdown.`;
 
     let text = "{}";
     try {

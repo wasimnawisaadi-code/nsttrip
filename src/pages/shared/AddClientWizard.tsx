@@ -78,7 +78,46 @@ const ALL_DATES: string[] = [
 interface DocEntry { id: string; name: string; fileName: string; fileType: string; base64: string; uploadedAt: string; ocrExtracted?: boolean }
 interface DateEntry { id: string; name: string; date: string }
 
-const uid = () => Math.random().toString(36).slice(2, 10);
+const uid = () => Math.random().toString(36).substring(2, 11);
+
+// Helper components moved outside to prevent focus-loss on re-render
+const Field = ({ label, k, type = 'text', required = false, value, onChange }: { label: string; k: string; type?: string; required?: boolean, value: string, onChange: (val: string) => void }) => (
+  <div>
+    <label className="block text-sm font-medium mb-1">{label} {required && <span className="text-destructive">*</span>}</label>
+    <input type={type} value={value || ''} onChange={(e) => onChange(e.target.value)} className="input-nawi" />
+  </div>
+);
+
+const SelectField = ({ label, k, options, allowOther = true, value, onChange }: { label: string; k: string; options: string[]; allowOther?: boolean, value: string, onChange: (val: string) => void }) => {
+  const isOther = value && !options.includes(value);
+  const [mode, setMode] = useState<'preset' | 'other'>(isOther ? 'other' : 'preset');
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1">{label}</label>
+      <select
+        value={mode === 'other' ? '__other__' : value}
+        onChange={(e) => {
+          if (e.target.value === '__other__') { setMode('other'); onChange(''); }
+          else { setMode('preset'); onChange(e.target.value); }
+        }}
+        className="input-nawi"
+      >
+        <option value="">Select</option>
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+        {allowOther && <option value="__other__">Others (specify)</option>}
+      </select>
+      {mode === 'other' && (
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={`Enter custom ${label.toLowerCase()}`}
+          className="input-nawi mt-2"
+        />
+      )}
+    </div>
+  );
+};
 
 const buildWelcomeMessage = (name: string, service: string) =>
   `Dear ${name},\n\nThank you for choosing Nawi Saadi Travel & Tourism for your ${service || 'travel'} requirement. ✈️\n\nOur team has registered your enquiry and will be in touch shortly with the next steps.\n\nIf you have any questions, just reply to this message.\n\nWarm regards,\nNawi Saadi Travel & Tourism`;
@@ -215,13 +254,27 @@ export default function AddClientWizard() {
             const newDates: DateEntry[] = [];
             const pushDate = (name: string, val?: string) => {
               if (!val) return;
-              // Normalize name and check both top-level form.dob and importantDates
-              const normName = name.toLowerCase();
-              if (normName === 'date of birth' && (form.dob || updates.dob)) return;
+              const normName = name.toLowerCase().trim();
               
-              const existingInForm = form.importantDates.find(d => d.name.toLowerCase() === normName);
-              const existingInNew = newDates.find(d => d.name.toLowerCase() === normName);
-              if (!existingInForm && !existingInNew) newDates.push({ id: uid(), name, date: val });
+              // 1. Skip if it's DOB and we already have DOB
+              if ((normName === 'date of birth' || normName === 'dob') && (form.dob || updates.dob)) return;
+              
+              // 2. Prevent adding the same logic multiple times (e.g. "Passport Expiry" and "Expiry Date")
+              // Map common names to canonical names
+              const canonicalNames: Record<string, string> = {
+                'expiry date': 'Expiry Date',
+                'expiration date': 'Expiry Date',
+                'valid until': 'Expiry Date',
+                'issue date': 'Issue Date',
+                'issuing date': 'Issue Date',
+              };
+              
+              const finalName = canonicalNames[normName] || name;
+              const finalNormName = finalName.toLowerCase();
+
+              const existingInForm = form.importantDates.find(d => d.name.toLowerCase() === finalNormName);
+              const existingInNew = newDates.find(d => d.name.toLowerCase() === finalNormName);
+              if (!existingInForm && !existingInNew) newDates.push({ id: uid(), name: finalName, date: val });
             };
             pushDate('Date of Birth', extracted.dateOfBirth);
             pushDate('Passport Expiry', extracted.passportExpiry);
@@ -347,44 +400,6 @@ export default function AddClientWizard() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const Field = ({ label, k, type = 'text', required = false }: { label: string; k: string; type?: string; required?: boolean }) => (
-    <div>
-      <label className="block text-sm font-medium mb-1">{label} {required && <span className="text-destructive">*</span>}</label>
-      <input type={type} value={form.serviceDetails[k] || ''} onChange={(e) => updateSD(k, e.target.value)} className="input-nawi" />
-    </div>
-  );
-  const SelectField = ({ label, k, options, allowOther = true }: { label: string; k: string; options: string[]; allowOther?: boolean }) => {
-    const current = form.serviceDetails[k] || '';
-    const isOther = current && !options.includes(current);
-    const [mode, setMode] = useState<'preset' | 'other'>(isOther ? 'other' : 'preset');
-    return (
-      <div>
-        <label className="block text-sm font-medium mb-1">{label}</label>
-        <select
-          value={mode === 'other' ? '__other__' : current}
-          onChange={(e) => {
-            if (e.target.value === '__other__') { setMode('other'); updateSD(k, ''); }
-            else { setMode('preset'); updateSD(k, e.target.value); }
-          }}
-          className="input-nawi"
-        >
-          <option value="">Select</option>
-          {options.map(o => <option key={o} value={o}>{o}</option>)}
-          {allowOther && <option value="__other__">Others (specify)</option>}
-        </select>
-        {mode === 'other' && (
-          <input
-            autoFocus
-            value={current}
-            onChange={(e) => updateSD(k, e.target.value)}
-            placeholder={`Enter custom ${label.toLowerCase()}`}
-            className="input-nawi mt-2"
-          />
-        )}
-      </div>
-    );
   };
 
   const selectedServiceObj = SERVICES.find(s => s.key === form.service);
@@ -592,12 +607,12 @@ export default function AddClientWizard() {
             <div className="border-t border-border pt-4">
               <h3 className="text-base font-semibold font-display mb-4">{form.service} Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {form.service === 'Air Ticket' && <><Field label="Travel Date" k="travelDate" type="date" required /><Field label="Departure City" k="departureCity" required /><Field label="Arrival City" k="arrivalCity" required /><Field label="Flight Number" k="flightNumber" /><Field label="PNR" k="pnr" /><Field label="Return Date" k="returnDate" type="date" /><SelectField label="Class" k="travelClass" options={['Economy', 'Premium Economy', 'Business', 'First Class']} /></>}
-                {form.service === 'UAE Visa' && <UAEVisaFields sub={form.serviceSubcategory} Field={Field} SelectField={SelectField} form={form} />}
-                {form.service === 'Global Visa' && <><Field label="Country" k="country" required /><SelectField label="Applicant Type" k="applicantType" options={['Employed', 'Self-Employed', 'Unemployed', 'Retired']} /><Field label="Travel Date" k="travelDate" type="date" /><Field label="Return Date" k="returnDate" type="date" />{form.serviceDetails.visaMode === 'eVisa' && <><Field label="Online Portal Reference" k="eVisaRef" /><Field label="Application URL" k="applicationUrl" /></>}{form.serviceDetails.visaMode === 'Sticker Visa' && <><Field label="Embassy Name" k="embassyName" /><Field label="Appointment Date" k="appointmentDate" type="date" /></>}</>}
-                {form.service === 'Holiday Package' && <><Field label="Travel Date" k="travelDate" type="date" /><Field label="Return Date" k="returnDate" type="date" /><Field label="Adults" k="adults" /><Field label="Children" k="children" /><Field label="Destination" k="destination" /></>}
-                {form.service === 'Travel Insurance' && <><Field label="Travel Date" k="travelDate" type="date" /><Field label="Return Date" k="returnDate" type="date" /><SelectField label="Coverage Type" k="coverageType" options={['Individual', 'Family', 'Group', 'Annual Multi-Trip']} /><Field label="Destination" k="destination" /></>}
-                {form.service === 'Pilgrimage' && <><SelectField label="Type" k="pilgrimageType" options={['Hajj', 'Umrah']} /><Field label="Season/Year" k="season" /><Field label="Group Name" k="groupName" /><Field label="No. of Persons" k="persons" /></>}
+                {form.service === 'Air Ticket' && <><Field label="Travel Date" k="travelDate" type="date" required value={form.serviceDetails.travelDate} onChange={v => updateSD('travelDate', v)} /><Field label="Departure City" k="departureCity" required value={form.serviceDetails.departureCity} onChange={v => updateSD('departureCity', v)} /><Field label="Arrival City" k="arrivalCity" required value={form.serviceDetails.arrivalCity} onChange={v => updateSD('arrivalCity', v)} /><Field label="Flight Number" k="flightNumber" value={form.serviceDetails.flightNumber} onChange={v => updateSD('flightNumber', v)} /><Field label="PNR" k="pnr" value={form.serviceDetails.pnr} onChange={v => updateSD('pnr', v)} /><Field label="Return Date" k="returnDate" type="date" value={form.serviceDetails.returnDate} onChange={v => updateSD('returnDate', v)} /><SelectField label="Class" k="travelClass" options={['Economy', 'Premium Economy', 'Business', 'First Class']} value={form.serviceDetails.travelClass} onChange={v => updateSD('travelClass', v)} /></>}
+                {form.service === 'UAE Visa' && <UAEVisaFields sub={form.serviceSubcategory} Field={Field} SelectField={SelectField} form={form} updateSD={updateSD} />}
+                {form.service === 'Global Visa' && <><Field label="Country" k="country" required value={form.serviceDetails.country} onChange={v => updateSD('country', v)} /><SelectField label="Applicant Type" k="applicantType" options={['Employed', 'Self-Employed', 'Unemployed', 'Retired']} value={form.serviceDetails.applicantType} onChange={v => updateSD('applicantType', v)} /><Field label="Travel Date" k="travelDate" type="date" value={form.serviceDetails.travelDate} onChange={v => updateSD('travelDate', v)} /><Field label="Return Date" k="returnDate" type="date" value={form.serviceDetails.returnDate} onChange={v => updateSD('returnDate', v)} />{form.serviceDetails.visaMode === 'eVisa' && <><Field label="Online Portal Reference" k="eVisaRef" value={form.serviceDetails.eVisaRef} onChange={v => updateSD('eVisaRef', v)} /><Field label="Application URL" k="applicationUrl" value={form.serviceDetails.applicationUrl} onChange={v => updateSD('applicationUrl', v)} /></>}{form.serviceDetails.visaMode === 'Sticker Visa' && <><Field label="Embassy Name" k="embassyName" value={form.serviceDetails.embassyName} onChange={v => updateSD('embassyName', v)} /><Field label="Appointment Date" k="appointmentDate" type="date" value={form.serviceDetails.appointmentDate} onChange={v => updateSD('appointmentDate', v)} /></>}</>}
+                {form.service === 'Holiday Package' && <><Field label="Travel Date" k="travelDate" type="date" value={form.serviceDetails.travelDate} onChange={v => updateSD('travelDate', v)} /><Field label="Return Date" k="returnDate" type="date" value={form.serviceDetails.returnDate} onChange={v => updateSD('returnDate', v)} /><Field label="Adults" k="adults" value={form.serviceDetails.adults} onChange={v => updateSD('adults', v)} /><Field label="Children" k="children" value={form.serviceDetails.children} onChange={v => updateSD('children', v)} /><Field label="Destination" k="destination" value={form.serviceDetails.destination} onChange={v => updateSD('destination', v)} /></>}
+                {form.service === 'Travel Insurance' && <><Field label="Travel Date" k="travelDate" type="date" value={form.serviceDetails.travelDate} onChange={v => updateSD('travelDate', v)} /><Field label="Return Date" k="returnDate" type="date" value={form.serviceDetails.returnDate} onChange={v => updateSD('returnDate', v)} /><SelectField label="Coverage Type" k="coverageType" options={['Individual', 'Family', 'Group', 'Annual Multi-Trip']} value={form.serviceDetails.coverageType} onChange={v => updateSD('coverageType', v)} /><Field label="Destination" k="destination" value={form.serviceDetails.destination} onChange={v => updateSD('destination', v)} /></>}
+                {form.service === 'Pilgrimage' && <><SelectField label="Type" k="pilgrimageType" options={['Hajj', 'Umrah']} value={form.serviceDetails.pilgrimageType} onChange={v => updateSD('pilgrimageType', v)} /><Field label="Season/Year" k="season" value={form.serviceDetails.season} onChange={v => updateSD('season', v)} /><Field label="Group Name" k="groupName" value={form.serviceDetails.groupName} onChange={v => updateSD('groupName', v)} /><Field label="No. of Persons" k="persons" value={form.serviceDetails.persons} onChange={v => updateSD('persons', v)} /></>}
                 {form.service === 'Meet & Assist' && <><Field label="Flight Number" k="flightNumber" /><SelectField label="Type" k="maType" options={['Arrival', 'Departure', 'Transit']} /><Field label="Airport" k="airport" /><Field label="Date/Time" k="dateTime" type="datetime-local" /></>}
                 {form.service === 'Hotel Booking' && <><Field label="Check-in" k="checkinDate" type="date" /><Field label="Check-out" k="checkoutDate" type="date" /><Field label="City" k="city" /><Field label="Rooms" k="rooms" /><SelectField label="Room Type" k="roomType" options={['Standard', 'Deluxe', 'Suite', 'Villa']} /></>}
               </div>
@@ -858,7 +873,7 @@ function DatesSection({
 }
 
 // ============= UAE Visa subcategory-specific fields =============
-function UAEVisaFields({ sub, Field, SelectField, form }: { sub: string; Field: any; SelectField: any; form: any }) {
+function UAEVisaFields({ sub, Field, SelectField, form, updateSD }: { sub: string; Field: any; SelectField: any; form: any; updateSD: (k: string, v: string) => void }) {
   const Hint = ({ items }: { items: string[] }) => (
     <div className="md:col-span-2 mt-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
       <p className="text-xs font-semibold text-primary mb-1">📋 Required Documents</p>
@@ -873,34 +888,31 @@ function UAEVisaFields({ sub, Field, SelectField, form }: { sub: string; Field: 
     </div>
   );
 
+  const F = (props: any) => <Field {...props} value={form.serviceDetails[props.k]} onChange={(v: string) => updateSD(props.k, v)} />;
+  const S = (props: any) => <SelectField {...props} value={form.serviceDetails[props.k]} onChange={(v: string) => updateSD(props.k, v)} />;
+
   switch (sub) {
     case 'Transit Visa':
       return (
         <>
-          <SelectField label="Transit Duration" k="transitDuration" options={['48 Hours', '96 Hours']} />
-          <Field label="Onward Destination" k="onwardDestination" />
-          <Field label="Third Country Visa" k="thirdCountryVisa" />
-          <Field label="Hotel Booking Ref" k="hotelBookingRef" />
-          <Field label="Onward Ticket Ref" k="onwardTicketRef" />
-          <Field label="Nationality" k="nationality" />
-          <Note text="Validity: 2/4 days from entry. Must be used within 14 days of issuance." />
-          <Hint items={[
-            'Passport copy — front & back (valid 6+ months)',
-            'One photograph',
-            'Third country visa copy',
-            'Confirmed onward ticket to third destination',
-            'Confirmed hotel booking',
-          ]} />
+          <S label="Transit Duration" k="transitDuration" options={['48 Hours', '96 Hours']} />
+          <F label="Onward Destination" k="onwardDestination" />
+          <F label="Third Country Visa" k="thirdCountryVisa" />
+          <F label="Hotel Booking Ref" k="hotelBookingRef" />
+          <F label="Onward Ticket Ref" k="onwardTicketRef" />
+          <F label="Nationality" k="nationality" />
+          <F label="Travel Date" k="travelDate" type="date" />
+          <Note text="Used for transit passengers only. Must be used within 30 days of issuance." />
         </>
       );
-    case 'Outside Visa - Single Entry':
+    case 'Tourist Visa':
       return (
         <>
-          <SelectField label="Visa Duration" k="visaDuration" options={['30 Days', '60 Days']} />
-          <Field label="Nationality" k="nationality" />
-          <Field label="Travel Date" k="travelDate" type="date" />
-          <Field label="Hotel Booking Ref" k="hotelBookingRef" />
-          <Field label="Ticket Reference" k="ticketReference" />
+          <S label="Visa Duration" k="visaDuration" options={['30 Days', '60 Days']} />
+          <F label="Nationality" k="nationality" />
+          <F label="Travel Date" k="travelDate" type="date" />
+          <F label="Hotel Booking Ref" k="hotelBookingRef" />
+          <F label="Ticket Reference" k="ticketReference" />
           <Note text="Visa must be used within 60 days of issuance." />
           <Hint items={[
             'Passport copy — front & back (valid 6+ months)',
@@ -915,11 +927,11 @@ function UAEVisaFields({ sub, Field, SelectField, form }: { sub: string; Field: 
     case 'Outside Visa - Multiple Entry':
       return (
         <>
-          <SelectField label="Visa Duration" k="visaDuration" options={['30 Days', '60 Days']} />
-          <Field label="Nationality" k="nationality" />
-          <Field label="Travel Date" k="travelDate" type="date" />
-          <Field label="Hotel Booking Ref" k="hotelBookingRef" />
-          <Field label="Ticket Reference" k="ticketReference" />
+          <S label="Visa Duration" k="visaDuration" options={['30 Days', '60 Days']} />
+          <F label="Nationality" k="nationality" />
+          <F label="Travel Date" k="travelDate" type="date" />
+          <F label="Hotel Booking Ref" k="hotelBookingRef" />
+          <F label="Ticket Reference" k="ticketReference" />
           <Note text="Multiple entries allowed. Must be used within 60 days of issuance." />
           <Hint items={[
             'Passport copy — front & back (valid 6+ months)',
@@ -933,21 +945,21 @@ function UAEVisaFields({ sub, Field, SelectField, form }: { sub: string; Field: 
     case 'Visa Extension':
       return (
         <>
-          <SelectField label="Original Visa Duration" k="originalVisaDuration" options={['30 Days', '60 Days']} />
-          <SelectField label="Extension Number" k="extensionNumber" options={['1st Extension', '2nd Extension', '3rd Extension']} />
-          <Field label="Current Visa Number" k="currentVisaNumber" />
-          <Field label="Current Visa Expiry" k="currentVisaExpiry" type="date" />
+          <S label="Original Visa Duration" k="originalVisaDuration" options={['30 Days', '60 Days']} />
+          <S label="Extension Number" k="extensionNumber" options={['1st Extension', '2nd Extension', '3rd Extension']} />
+          <F label="Current Visa Number" k="currentVisaNumber" />
+          <F label="Current Visa Expiry" k="currentVisaExpiry" type="date" />
           <Note text="Inside-country extension for next 30 days. 30-day visa: up to 3 extensions. 60-day visa: up to 2 extensions. Only for visas we issued." />
         </>
       );
     case 'Visa Change by Bus':
       return (
         <>
-          <SelectField label="Bus Service Type" k="busServiceType" options={['Visit Visa Renewal', 'Residence Cancellation']} />
-          <SelectField label="Pickup Emirate" k="pickupEmirate" options={['Dubai - Near Dnata', 'Sharjah - Safari Mall', 'Abu Dhabi - Mussaffa Safeer Center', 'Abu Dhabi - Madinat Zayed']} />
-          <Field label="Travel Date" k="travelDate" type="date" />
-          <Field label="Guarantor Name" k="guarantorName" />
-          <Field label="Guarantor Emirates ID" k="guarantorEid" />
+          <S label="Bus Service Type" k="busServiceType" options={['Visit Visa Renewal', 'Residence Cancellation']} />
+          <S label="Pickup Emirate" k="pickupEmirate" options={['Dubai - Near Dnata', 'Sharjah - Safari Mall', 'Abu Dhabi - Mussaffa Safeer Center', 'Abu Dhabi - Madinat Zayed']} />
+          <F label="Travel Date" k="travelDate" type="date" />
+          <F label="Guarantor Name" k="guarantorName" />
+          <F label="Guarantor Emirates ID" k="guarantorEid" />
           <Note text="Inclusion: 60-day visa (Sharjah/Dubai) without deposit, 10-day Oman visa, round trip ticket, 1-day accommodation, exit voucher, 3 meals. Same-day return possible if visa approved before 4 PM." />
           <Hint items={
             form.serviceDetails.busServiceType === 'Residence Cancellation'
@@ -972,10 +984,10 @@ function UAEVisaFields({ sub, Field, SelectField, form }: { sub: string; Field: 
     case 'Visa Change by Flight':
       return (
         <>
-          <SelectField label="Airline" k="airline" options={['Fly Dubai', 'Al Jazeera Airways', 'Air Arabia']} />
-          <Field label="Travel Date" k="travelDate" type="date" />
-          <Field label="Guarantor Name" k="guarantorName" />
-          <Field label="Guarantor Emirates ID" k="guarantorEid" />
+          <S label="Airline" k="airline" options={['Fly Dubai', 'Al Jazeera Airways', 'Air Arabia']} />
+          <F label="Travel Date" k="travelDate" type="date" />
+          <F label="Guarantor Name" k="guarantorName" />
+          <F label="Guarantor Emirates ID" k="guarantorEid" />
           <Note text="Inclusion: 60-day Dubai visa without deposit + 10-day Oman visa. Same-day return; passenger waits at airport until visa approved. Fly Dubai: overstay/outpass cases not allowed; must be first A2A." />
           <Hint items={[
             'Passport copy — front & back',
@@ -989,19 +1001,19 @@ function UAEVisaFields({ sub, Field, SelectField, form }: { sub: string; Field: 
     case 'Family Visa':
       return (
         <>
-          <Field label="Sponsor Name" k="sponsorName" required />
-          <Field label="Sponsor UID" k="sponsorUid" />
-          <Field label="Sponsor Salary" k="sponsorSalary" />
-          <Field label="Relationship" k="relationship" />
-          <Field label="Nationality" k="nationality" />
+          <F label="Sponsor Name" k="sponsorName" required />
+          <F label="Sponsor UID" k="sponsorUid" />
+          <F label="Sponsor Salary" k="sponsorSalary" />
+          <F label="Relationship" k="relationship" />
+          <F label="Nationality" k="nationality" />
         </>
       );
     case 'Abscond':
       return (
         <>
-          <Field label="Last Known Location" k="lastLocation" />
-          <Field label="Abscond Date" k="abscondDate" type="date" />
-          <Field label="Case Reference" k="caseReference" />
+          <F label="Last Known Location" k="lastLocation" />
+          <F label="Abscond Date" k="abscondDate" type="date" />
+          <F label="Case Reference" k="caseReference" />
         </>
       );
     case 'Status Change':
@@ -1009,9 +1021,9 @@ function UAEVisaFields({ sub, Field, SelectField, form }: { sub: string; Field: 
     default:
       return (
         <>
-          <SelectField label="Application Type" k="applicationType" options={['Inside UAE', 'Outside UAE']} />
-          <Field label="Current Visa Number" k="currentVisaNumber" />
-          <Field label="Nationality" k="nationality" />
+          <S label="Application Type" k="applicationType" options={['Inside UAE', 'Outside UAE']} />
+          <F label="Current Visa Number" k="currentVisaNumber" />
+          <F label="Nationality" k="nationality" />
         </>
       );
   }
