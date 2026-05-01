@@ -47,7 +47,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInZone, setIsInZone] = useState<boolean | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
-  const [browserSessionId] = useState(() => crypto.randomUUID());
+  const [browserSessionId] = useState(() => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  });
 
   const fetchProfile = async (userId: string) => {
     const { data: profileData } = await supabase
