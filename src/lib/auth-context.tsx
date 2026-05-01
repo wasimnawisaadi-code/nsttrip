@@ -164,33 +164,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Listen for session changes (Single device login)
   useEffect(() => {
     if (user && role === 'employee') {
-      console.log('Starting session listener for:', user.id);
+      console.log('[Auth] Starting session monitor for user:', user.id);
+      
+      // 1. Initial check: Verify session immediately upon mounting/connecting
+      const checkInitialSession = async () => {
+        const { data } = await supabase.from('profiles').select('current_session_id').eq('user_id', user.id).single();
+        if (data && data.current_session_id && data.current_session_id !== browserSessionId) {
+          console.warn('[Auth] Initial session mismatch detected!', { db: data.current_session_id, local: browserSessionId });
+          triggerLogout();
+        }
+      };
+      
+      checkInitialSession();
+
+      // 2. Realtime check: Listen for updates from other devices
       const channel = supabase.channel(`session-monitor-${user.id}`)
         .on('postgres_changes', { 
           event: 'UPDATE', 
           schema: 'public', 
           table: 'profiles'
         }, (payload) => {
-          // Filter by user_id in JS for better reliability
           if (payload.new.user_id !== user.id) return;
           
           const dbSessionId = payload.new.current_session_id;
-          console.log('Session update detected. DB:', dbSessionId, 'Local:', browserSessionId);
+          console.log('[Auth] Realtime update detected. DB:', dbSessionId, 'Local:', browserSessionId);
           
           if (dbSessionId && dbSessionId !== browserSessionId) {
-            toast.error('Logged in from another device. Signing out...', {
-              duration: 4000,
-              position: 'top-center',
-            });
-            setTimeout(() => signOut(), 2500);
+            triggerLogout();
           }
         })
         .subscribe((status) => {
-          console.log('Session channel status:', status);
+          console.log('[Auth] Realtime status:', status);
         });
       
+      const triggerLogout = () => {
+        toast.error('Logged in from another device. Signing out...', {
+          duration: 5000,
+          position: 'top-center',
+        });
+        setTimeout(() => signOut(), 2500);
+      };
+      
       return () => { 
-        console.log('Stopping session listener');
+        console.log('[Auth] Stopping session monitor');
         channel.unsubscribe(); 
       };
     }
