@@ -171,29 +171,6 @@ export default function UserProfile() {
             </form>
           </div>
 
-          <div className="card-nawi">
-            <h3 className="text-lg font-bold font-display flex items-center gap-2 mb-4">
-              <MapPin className="w-5 h-5 text-primary" /> Assigned Workplace
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Your login location is restricted to your assigned zone.
-            </p>
-            {profile.assigned_zone_id ? (
-              <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-                <p className="text-sm font-medium text-primary">Geofence Enforced</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  You are assigned to a specific workplace zone. Please ensure your location services are enabled.
-                </p>
-              </div>
-            ) : (
-              <div className="p-4 rounded-xl bg-muted/50 border border-border">
-                <p className="text-sm font-medium text-muted-foreground">No specific zone assigned</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  You can log in from any location.
-                </p>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>
