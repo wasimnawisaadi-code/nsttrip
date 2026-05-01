@@ -47,6 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInZone, setIsInZone] = useState<boolean | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
+  const [browserSessionId] = useState(() => crypto.randomUUID());
+
   const fetchProfile = async (userId: string) => {
     const { data: profileData } = await supabase
       .from('profiles')
@@ -69,6 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ? 'admin'
         : 'employee';
     setRole(userRole);
+
+    // Single-device login enforcement (Employees only)
+    if (userRole === 'employee') {
+      await supabase.from('profiles').update({ current_session_id: browserSessionId }).eq('user_id', userId);
+    }
 
     // Start geofence watching only for plain employees with assigned zones
     if (userRole === 'employee' && profileData?.assigned_zone_id) {
@@ -148,6 +155,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
   }, []);
+
+  // Listen for session changes (Single device login)
+  useEffect(() => {
+    if (user && role === 'employee') {
+      const channel = supabase.channel(`session-${user.id}`)
+        .on('postgres_changes', { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'profiles', 
+          filter: `user_id=eq.${user.id}` 
+        }, (payload) => {
+          const dbSessionId = payload.new.current_session_id;
+          if (dbSessionId && dbSessionId !== browserSessionId) {
+            toast.error('Logged in from another device. Signing out...');
+            setTimeout(() => signOut(), 2500);
+          }
+        })
+        .subscribe();
+      
+      return () => { channel.unsubscribe(); };
+    }
+  }, [user, role, browserSessionId]);
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });

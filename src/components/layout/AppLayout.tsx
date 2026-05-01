@@ -29,6 +29,7 @@ const adminLinks = [
   { to: '/admin/geofence', label: 'Geofence Zones', icon: MapPin },
   { to: '/admin/audit-log', label: 'Audit Log', icon: Shield },
   { to: '/admin/chat', label: 'Team Chat', icon: MessageCircle },
+  { to: '/admin/profile', label: 'My Profile', icon: Shield },
 ];
 
 const employeeLinks = [
@@ -42,6 +43,7 @@ const employeeLinks = [
   { to: '/employee/attendance', label: 'Attendance', icon: Clock },
   { to: '/employee/leave', label: 'Leave', icon: FileText },
   { to: '/employee/chat', label: 'Team Chat', icon: MessageCircle },
+  { to: '/employee/profile', label: 'My Profile', icon: UserIcon },
 ];
 
 export default function AppLayout() {

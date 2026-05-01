@@ -30,6 +30,7 @@ import DSRTemplateAssignment from "./pages/admin/DSRTemplateAssignment";
 import SocialLeads from "./pages/shared/SocialLeads";
 import PerformanceLeaderboard from "./pages/shared/PerformanceLeaderboard";
 import BroadcastModule from "./pages/admin/BroadcastModule";
+import UserProfile from "./pages/shared/UserProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="/admin/leads" element={<SocialLeads />} />
               <Route path="/admin/performance" element={<PerformanceLeaderboard />} />
               <Route path="/admin/broadcast" element={<BroadcastModule />} />
+              <Route path="/admin/profile" element={<UserProfile />} />
 
               {/* Employee */}
               <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
@@ -84,6 +86,7 @@ const App = () => (
               <Route path="/employee/dsr" element={<DailyStatusReport />} />
               <Route path="/employee/leads" element={<SocialLeads />} />
               <Route path="/employee/performance" element={<PerformanceLeaderboard />} />
+              <Route path="/employee/profile" element={<UserProfile />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

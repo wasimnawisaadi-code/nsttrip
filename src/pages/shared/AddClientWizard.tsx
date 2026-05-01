@@ -192,7 +192,10 @@ export default function AddClientWizard() {
       };
       setForm(prev => ({ ...prev, documents: [...prev.documents, entry] }));
 
-      if (file.type.startsWith('image/')) {
+      // Allow Images, PDFs, and Word docs for OCR
+      const isOcrSupported = file.type.startsWith('image/') || file.type === 'application/pdf' || file.type.includes('word') || file.name.endsWith('.docx') || file.name.endsWith('.doc');
+      
+      if (isOcrSupported) {
         setOcrLoading(entry.id);
         try {
           const { data, error } = await supabase.functions.invoke('extract-document', {
@@ -212,8 +215,13 @@ export default function AddClientWizard() {
             const newDates: DateEntry[] = [];
             const pushDate = (name: string, val?: string) => {
               if (!val) return;
-              const existing = form.importantDates.find(d => d.name.toLowerCase() === name.toLowerCase());
-              if (!existing) newDates.push({ id: uid(), name, date: val });
+              // Normalize name and check both top-level form.dob and importantDates
+              const normName = name.toLowerCase();
+              if (normName === 'date of birth' && (form.dob || updates.dob)) return;
+              
+              const existingInForm = form.importantDates.find(d => d.name.toLowerCase() === normName);
+              const existingInNew = newDates.find(d => d.name.toLowerCase() === normName);
+              if (!existingInForm && !existingInNew) newDates.push({ id: uid(), name, date: val });
             };
             pushDate('Date of Birth', extracted.dateOfBirth);
             pushDate('Passport Expiry', extracted.passportExpiry);
@@ -223,10 +231,15 @@ export default function AddClientWizard() {
             pushDate('Emirates ID Expiry', extracted.emiratesIdExpiry || (extracted.otherDetails as any)?.emiratesIdExpiry);
             pushDate('Emirates ID Issue Date', extracted.emiratesIdIssueDate);
 
-            // Handle dynamic dates
+            // Handle dynamic dates - skip if it's DOB or already exists
             if (Array.isArray(extracted.extractedDates)) {
               extracted.extractedDates.forEach((d: any) => {
-                if (d.name && d.date) pushDate(d.name, d.date);
+                if (d.name && d.date) {
+                  const dName = d.name.toLowerCase();
+                  if (dName !== 'date of birth' && dName !== 'dob') {
+                    pushDate(d.name, d.date);
+                  }
+                }
               });
             }
 
@@ -380,7 +393,7 @@ export default function AddClientWizard() {
   const steps = ['Type & Service', 'Documents (AI Scan)', 'Client Details', 'Review'];
 
   const canProceedStep0 = form.clientType && form.leadSource && form.leadSource.trim() && form.service && (!hasSubcategories || form.serviceSubcategory);
-  const canProceedStep2 = form.name && form.mobile;
+  const canProceedStep2 = form.name && form.name.length >= 2 && form.mobile && form.mobile.length >= 5;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -555,7 +568,20 @@ export default function AddClientWizard() {
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label className="block text-sm font-medium mb-1">Full Name <span className="text-destructive">*</span></label><input value={form.name} onChange={(e) => updateForm({ name: e.target.value })} className="input-nawi" required /></div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Full Name <span className="text-destructive">*</span></label>
+                <input 
+                  value={form.name} 
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                    updateForm({ name: val });
+                  }} 
+                  className={`input-nawi ${form.name && form.name.length < 2 ? 'border-destructive' : ''}`}
+                  placeholder="Letters only, min 2 chars"
+                  required 
+                />
+                {form.name && form.name.length < 2 && <p className="text-[10px] text-destructive mt-1">Minimum 2 characters required</p>}
+              </div>
               <div><label className="block text-sm font-medium mb-1">Mobile <span className="text-destructive">*</span></label><input value={form.mobile} onChange={(e) => updateForm({ mobile: e.target.value })} className="input-nawi" required /></div>
               <div><label className="block text-sm font-medium mb-1">Email</label><input type="email" value={form.email} onChange={(e) => updateForm({ email: e.target.value })} className="input-nawi" /></div>
               <div><label className="block text-sm font-medium mb-1">Nationality</label><input value={form.nationality} onChange={(e) => updateForm({ nationality: e.target.value })} className="input-nawi" /></div>
