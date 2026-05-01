@@ -166,18 +166,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user && role === 'employee') {
       console.log('[Auth] Starting session monitor for user:', user.id);
       
-      // 1. Initial check: Verify session immediately upon mounting/connecting
-      const checkInitialSession = async () => {
-        const { data } = await supabase.from('profiles').select('current_session_id').eq('user_id', user.id).single();
-        if (data && data.current_session_id && data.current_session_id !== browserSessionId) {
-          console.warn('[Auth] Initial session mismatch detected!', { db: data.current_session_id, local: browserSessionId });
+      const triggerLogout = () => {
+        toast.error('Logged in from another device. Signing out...', {
+          duration: 6000,
+          position: 'top-center',
+        });
+        setTimeout(() => signOut(), 2500);
+      };
+
+      // 1. Core Logic: Verify if the DB session ID matches our local ID
+      const verifySession = async () => {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('current_session_id')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('[Auth] Session check error:', error);
+          return;
+        }
+
+        if (data?.current_session_id && data.current_session_id !== browserSessionId) {
+          console.warn('[Auth] Session mismatch detected!', { db: data.current_session_id, local: browserSessionId });
           triggerLogout();
         }
       };
       
-      checkInitialSession();
+      // 2. Initial check on mount
+      verifySession();
 
-      // 2. Realtime check: Listen for updates from other devices
+      // 3. Realtime check: Listen for updates
       const channel = supabase.channel(`session-monitor-${user.id}`)
         .on('postgres_changes', { 
           event: 'UPDATE', 
@@ -185,10 +204,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           table: 'profiles'
         }, (payload) => {
           if (payload.new.user_id !== user.id) return;
-          
           const dbSessionId = payload.new.current_session_id;
           console.log('[Auth] Realtime update detected. DB:', dbSessionId, 'Local:', browserSessionId);
-          
           if (dbSessionId && dbSessionId !== browserSessionId) {
             triggerLogout();
           }
@@ -196,18 +213,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .subscribe((status) => {
           console.log('[Auth] Realtime status:', status);
         });
-      
-      const triggerLogout = () => {
-        toast.error('Logged in from another device. Signing out...', {
-          duration: 5000,
-          position: 'top-center',
-        });
-        setTimeout(() => signOut(), 2500);
-      };
+
+      // 4. Polling Fallback: Check every 30 seconds (backup for Realtime)
+      const pollingInterval = setInterval(verifySession, 30000);
       
       return () => { 
         console.log('[Auth] Stopping session monitor');
         channel.unsubscribe(); 
+        clearInterval(pollingInterval);
       };
     }
   }, [user, role, browserSessionId]);
