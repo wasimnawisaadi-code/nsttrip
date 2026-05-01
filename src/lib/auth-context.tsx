@@ -164,22 +164,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Listen for session changes (Single device login)
   useEffect(() => {
     if (user && role === 'employee') {
-      const channel = supabase.channel(`session-${user.id}`)
+      console.log('Starting session listener for:', user.id);
+      const channel = supabase.channel(`session-monitor-${user.id}`)
         .on('postgres_changes', { 
           event: 'UPDATE', 
           schema: 'public', 
-          table: 'profiles', 
-          filter: `user_id=eq.${user.id}` 
+          table: 'profiles'
         }, (payload) => {
+          // Filter by user_id in JS for better reliability
+          if (payload.new.user_id !== user.id) return;
+          
           const dbSessionId = payload.new.current_session_id;
+          console.log('Session update detected. DB:', dbSessionId, 'Local:', browserSessionId);
+          
           if (dbSessionId && dbSessionId !== browserSessionId) {
-            toast.error('Logged in from another device. Signing out...');
+            toast.error('Logged in from another device. Signing out...', {
+              duration: 4000,
+              position: 'top-center',
+            });
             setTimeout(() => signOut(), 2500);
           }
         })
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Session channel status:', status);
+        });
       
-      return () => { channel.unsubscribe(); };
+      return () => { 
+        console.log('Stopping session listener');
+        channel.unsubscribe(); 
+      };
     }
   }, [user, role, browserSessionId]);
 
