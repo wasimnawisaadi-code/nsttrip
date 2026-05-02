@@ -320,7 +320,7 @@ export default function GeofenceManagement() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-medium truncate">{emp.name}</p>
                         {isLive && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-success/15 text-success font-medium">● LIVE</span>}
-                        {hasOverride && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">CUSTOM</span>}
+                        {hasOverride && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">OVERRIDE</span>}
                         {!enforce && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/10 text-warning font-medium">GEOFENCE OFF</span>}
                       </div>
                       <p className="text-[11px] text-muted-foreground truncate mt-0.5">
@@ -396,7 +396,7 @@ function EmployeeEditor({
       {/* ZONE */}
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Assigned Zone</label>
-        <select className="input-nawi text-sm py-1.5 w-full" value={zoneId} onChange={e => setZoneId(e.target.value)}>
+        <select className="input-nawi text-sm py-1.5 w-full" value={zoneId || ''} onChange={e => setZoneId(e.target.value)}>
           <option value="" disabled>— Select a Zone —</option>
           {zones.map(z => (
             <option key={z.id} value={z.id}>{z.name} · {z.radius}m</option>
