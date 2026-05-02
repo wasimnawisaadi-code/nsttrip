@@ -173,11 +173,11 @@ export default function EmployeeProfile() {
             <span className="text-xs text-muted-foreground">Joined {formatDate(emp.created_at)}</span>
             {assignedZone ? (
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium inline-flex items-center gap-1">
-                <MapPin className="w-3 h-3" /> {assignedZone.name} ({assignedZone.radius}m)
+                <MapPin className="w-3 h-3" /> {assignedZone.name}
               </span>
             ) : (
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-warning/10 text-warning font-medium inline-flex items-center gap-1">
-                <MapPin className="w-3 h-3" /> No zone
+                <MapPin className="w-3 h-3" /> Any location allowed
               </span>
             )}
             {Object.keys(override).length > 0 && (
@@ -277,9 +277,9 @@ export default function EmployeeProfile() {
                     onChange={(e) => handleAssignZone(e.target.value || null)}
                     disabled={savingZone}
                   >
-                    <option value="">— No zone (Geofence Disabled) —</option>
+                    <option value="">— No specific zone assigned (Unrestricted) —</option>
                     {zones.map(z => (
-                      <option key={z.id} value={z.id}>{z.name} ({z.radius}m)</option>
+                      <option key={z.id} value={z.id}>{z.name}</option>
                     ))}
                   </select>
                   {savingZone && <p className="text-[10px] text-primary animate-pulse mt-1">Saving workplace...</p>}

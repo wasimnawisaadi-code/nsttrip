@@ -68,9 +68,8 @@ export default function Login() {
             .from('geofence_zones').select('*').eq('id', settings.default_zone_id).eq('is_active', true).maybeSingle();
           if (zone) zonesToCheck = [zone];
         } else {
-          const { data: zones } = await supabase
-            .from('geofence_zones').select('*').eq('is_active', true).eq('zone_type', 'office');
-          zonesToCheck = zones || [];
+          // If no specific zone and no default zone, allow login from anywhere (unrestricted)
+          zonesToCheck = [];
         }
 
         if (zonesToCheck.length > 0) {

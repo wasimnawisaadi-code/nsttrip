@@ -179,7 +179,7 @@ export default function GeofenceManagement() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-lg font-bold font-display">Geofence Control Room</h2>
-          <p className="text-sm text-muted-foreground">Assign a zone & schedule per employee. They can only login from inside their zone.</p>
+          <p className="text-sm text-muted-foreground">Assign a specific zone to restrict where an employee can log in. Employees without a zone have unrestricted access.</p>
         </div>
         <div className="px-3 py-1.5 rounded-full bg-success/10 text-success text-xs font-medium flex items-center gap-1.5">
           <Activity className="w-3.5 h-3.5" /> {liveCount} active now
@@ -397,7 +397,7 @@ function EmployeeEditor({
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Assigned Zone</label>
         <select className="input-nawi text-sm py-1.5 w-full" value={zoneId} onChange={e => setZoneId(e.target.value)}>
-          <option value="">— No zone (cannot login if geofence ON) —</option>
+          <option value="">— Unrestricted access (No specific zone) —</option>
           {zones.map(z => (
             <option key={z.id} value={z.id}>{z.name} · {z.radius}m</option>
           ))}
