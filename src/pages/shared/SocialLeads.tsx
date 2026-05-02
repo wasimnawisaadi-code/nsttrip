@@ -55,6 +55,8 @@ export default function SocialLeads() {
   const [filterSource, setFilterSource] = useState<'all' | Source>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | Status>('all');
   const [search, setSearch] = useState('');
+  const [quickFilter, setQuickFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom'>('all');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [openLead, setOpenLead] = useState<Lead | null>(null);
 
   const load = async () => {
@@ -130,9 +132,18 @@ export default function SocialLeads() {
   };
 
   const filtered = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    const startOfWeek = new Date(today); startOfWeek.setDate(today.getDate() - 7);
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
     return leads.filter(l => {
+      // Source & Status
       if (filterSource !== 'all' && l.source !== filterSource) return false;
       if (filterStatus !== 'all' && l.status !== filterStatus) return false;
+      
+      // Search
       if (search) {
         const q = search.toLowerCase();
         if (!(l.full_name || '').toLowerCase().includes(q)
@@ -140,9 +151,34 @@ export default function SocialLeads() {
           && !(l.username || '').toLowerCase().includes(q)
           && !(l.display_id || '').toLowerCase().includes(q)) return false;
       }
+
+      // Date Filtering
+      const createdAt = new Date(l.created_at);
+      if (quickFilter !== 'all') {
+        if (quickFilter === 'today') {
+          if (createdAt < today) return false;
+        } else if (quickFilter === 'yesterday') {
+          if (createdAt < yesterday || createdAt >= today) return false;
+        } else if (quickFilter === 'week') {
+          if (createdAt < startOfWeek) return false;
+        } else if (quickFilter === 'month') {
+          if (createdAt < startOfMonth) return false;
+        } else if (quickFilter === 'custom') {
+          if (dateRange.start) {
+            const start = new Date(dateRange.start);
+            if (createdAt < start) return false;
+          }
+          if (dateRange.end) {
+            const end = new Date(dateRange.end);
+            end.setHours(23, 59, 59, 999);
+            if (createdAt > end) return false;
+          }
+        }
+      }
+
       return true;
     });
-  }, [leads, filterSource, filterStatus, search]);
+  }, [leads, filterSource, filterStatus, search, quickFilter, dateRange]);
 
   const counts = useMemo(() => ({
     total: leads.length,
@@ -258,24 +294,54 @@ export default function SocialLeads() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="relative flex-1 max-w-xs">
+      <div className="flex flex-wrap gap-2 items-center bg-muted/30 p-3 rounded-lg border border-border">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input value={search} onChange={e => setSearch(e.target.value)} className="input-nawi pl-9" placeholder="Search name, phone, username…" />
         </div>
-        <select value={filterSource} onChange={e => setFilterSource(e.target.value as any)} className="input-nawi w-auto">
-          <option value="all">All Sources</option>
-          <option value="whatsapp">WhatsApp</option>
-          <option value="instagram">Instagram</option>
-          <option value="messenger">Messenger</option>
-        </select>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="input-nawi w-auto">
-          <option value="all">All Statuses</option>
-          <option value="NEW">New</option>
-          <option value="IN_PROGRESS">In Progress</option>
-          <option value="CONVERTED">Converted</option>
-          <option value="NOT_CONVERTED">Not Converted</option>
-        </select>
+        
+        <div className="flex items-center gap-2 flex-wrap">
+          <select value={filterSource} onChange={e => setFilterSource(e.target.value as any)} className="input-nawi w-auto text-sm py-1.5">
+            <option value="all">All Channels</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="instagram">Instagram</option>
+            <option value="messenger">Messenger</option>
+          </select>
+
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="input-nawi w-auto text-sm py-1.5">
+            <option value="all">All Statuses</option>
+            <option value="NEW">New</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="CONVERTED">Converted</option>
+            <option value="NOT_CONVERTED">Not Converted</option>
+          </select>
+
+          <select value={quickFilter} onChange={e => setQuickFilter(e.target.value as any)} className="input-nawi w-auto text-sm py-1.5 font-medium text-primary">
+            <option value="all">Any Time</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="custom">Custom Range</option>
+          </select>
+
+          {quickFilter === 'custom' && (
+            <div className="flex items-center gap-1">
+              <input type="date" value={dateRange.start} onChange={e => setDateRange({ ...dateRange, start: e.target.value })} className="input-nawi w-auto text-[11px] py-1 h-8" />
+              <span className="text-muted-foreground">to</span>
+              <input type="date" value={dateRange.end} onChange={e => setDateRange({ ...dateRange, end: e.target.value })} className="input-nawi w-auto text-[11px] py-1 h-8" />
+            </div>
+          )}
+
+          {(filterSource !== 'all' || filterStatus !== 'all' || search || quickFilter !== 'all') && (
+            <button 
+              onClick={() => { setSearch(''); setFilterSource('all'); setFilterStatus('all'); setQuickFilter('all'); setDateRange({ start: '', end: '' }); }}
+              className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 px-2"
+            >
+              <XCircle className="w-3 h-3" /> Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
