@@ -277,7 +277,7 @@ export default function EmployeeProfile() {
                     onChange={(e) => handleAssignZone(e.target.value || null)}
                     disabled={savingZone}
                   >
-                    <option value="">— No specific zone assigned (Unrestricted) —</option>
+                    <option value="" disabled>— Select a Zone —</option>
                     {zones.map(z => (
                       <option key={z.id} value={z.id}>{z.name}</option>
                     ))}

@@ -397,7 +397,7 @@ function EmployeeEditor({
       <div className="space-y-2">
         <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Assigned Zone</label>
         <select className="input-nawi text-sm py-1.5 w-full" value={zoneId} onChange={e => setZoneId(e.target.value)}>
-          <option value="">— Unrestricted access (No specific zone) —</option>
+          <option value="" disabled>— Select a Zone —</option>
           {zones.map(z => (
             <option key={z.id} value={z.id}>{z.name} · {z.radius}m</option>
           ))}
