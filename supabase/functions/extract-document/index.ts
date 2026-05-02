@@ -295,33 +295,35 @@ serve(async (req) => {
     }
 
     // Step 2: Use Gemini (Vision or Document aware)
-    const prompt = `You are an expert document data extractor for Nawi Saadi Travel & Tourism (UAE).
+    const prompt = `You are a world-class document analysis engine for Nawi Saadi Travel & Tourism (UAE).
 Document type hint: ${docType || "unknown"}. Service context: ${service || "unknown"}${serviceSubcategory ? ` (${serviceSubcategory})` : ""}.
 
-Analyze the provided ${isImage ? 'image' : 'document'} and extract structured data with 100% precision.
-${rawText ? `OCR Suggestion: """\n${rawText}\n"""\nUse the OCR as a hint but the document visual/content is final.` : ''}
+Analyze the provided ${isImage ? 'image' : 'document'} and SCRAPE ALL DISCOVERABLE DATA with 100% precision.
+${rawText ? `OCR Hint: """\n${rawText}\n"""\nUse OCR as a guide, but perform visual verification.` : ''}
 
-EXTRACT THESE FIELDS (use null if not found):
-- fullName, firstName, lastName
-- nationality, gender (Male/Female)
-- dateOfBirth (YYYY-MM-DD): CRITICAL for Emirates ID. Look for "Date of Birth" or "Birth Date".
-- passportNo, passportExpiry (YYYY-MM-DD), passportIssueDate (YYYY-MM-DD)
-- emiratesId (Format: 784-XXXX-XXXXXXX-X), emiratesIdExpiry, emiratesIdIssueDate
-- visaNumber, visaExpiry, visaIssueDate, visaType
-- profession, sponsor, address, phoneNumber, email
+REQUIRED JSON STRUCTURE:
+1. "fullName", "firstName", "lastName", "nationality", "gender", "dateOfBirth" (YYYY-MM-DD)
+2. "passportNo", "passportExpiry" (YYYY-MM-DD), "passportIssueDate" (YYYY-MM-DD)
+3. "emiratesId" (784-XXXX-XXXXXXX-X), "emiratesIdExpiry", "emiratesIdIssueDate"
+4. "visaNumber", "visaExpiry", "visaIssueDate", "visaType"
+5. "profession", "sponsor", "address", "phoneNumber", "email"
 
-DYNAMIC ARRAYS:
-1. "extractedDates": [{ "name": "Name", "date": "YYYY-MM-DD" }]
-   - STRICT RULE: Do NOT include Date of Birth here. Only include additional dates like "Unified No Expiry", "Insurance Expiry", etc.
-   - Do NOT repeat dates already captured in top-level fields (like visaExpiry).
-2. "extractedFields": [{ "key": "Name", "value": "Value" }]
+UNIVERSAL SCRAPING ARRAYS:
+- "extractedDates": [{ "name": "Exact Label from Doc", "date": "YYYY-MM-DD" }]
+  * SCRAPE EVERY SINGLE DATE YOU SEE (e.g. "Insurance Expiry", "Unified No Expiry", "Trade License Expiry", "Medical Result Date", "Travel Date").
+  * Do NOT repeat dates already in the top-level fields above.
+  * Do NOT put Date of Birth here.
+
+- "extractedFields": [{ "key": "Exact Label from Doc", "value": "Value" }]
+  * SCRAPE EVERY KEY-VALUE PAIR (e.g. "Trade License No", "Company Name", "Sponsor UID", "UID Number", "Unified Number", "Place of Issue", "Mother Name", "Father Name").
+  * Do NOT repeat fields already captured above.
 
 CRITICAL FOR EMIRATES ID:
-- Date of Birth is usually on the FRONT.
-- Expiry Date is always present.
-- Format the ID as 784-XXXX-XXXXXXX-X.
+- Date of Birth is on the FRONT.
+- Expiry Date is usually on both sides.
+- Capture the 15-digit ID as 784-XXXX-XXXXXXX-X.
 
-Return ONLY a strict JSON object. No markdown.`;
+Return ONLY a strict JSON object. No conversation.`;
 
     let text = "{}";
     try {

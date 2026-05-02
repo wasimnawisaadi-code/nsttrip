@@ -305,10 +305,30 @@ export default function AddClientWizard() {
             if (extracted.visaType) sdUpdates.visaType = extracted.visaType;
             if (extracted.visaNumber) sdUpdates.visaNumber = extracted.visaNumber;
 
-            // Handle dynamic fields
+            // IMPROVED: Universal Field Mapping with Canonical Keys
             if (Array.isArray(extracted.extractedFields)) {
               extracted.extractedFields.forEach((f: any) => {
-                if (f.key && f.value) sdUpdates[f.key] = f.value;
+                if (f.key && f.value) {
+                  const key = f.key.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  const fieldMap: Record<string, string> = {
+                    'tradelicenseno': 'tradeLicenseNo',
+                    'tradelicense': 'tradeLicenseNo',
+                    'licenseno': 'tradeLicenseNo',
+                    'companyname': 'companyName',
+                    'unifiednumber': 'unifiedNo',
+                    'unifiedno': 'unifiedNo',
+                    'sponsoruid': 'sponsorUid',
+                    'sponsorsalary': 'sponsorSalary',
+                    'relationship': 'relationship',
+                    'pnr': 'pnr',
+                    'flightnumber': 'flightNumber',
+                    'airline': 'airline',
+                    'hotelbookingref': 'hotelBookingRef',
+                    'passportno': 'passportNo',
+                  };
+                  const targetKey = fieldMap[key] || f.key;
+                  if (!sdUpdates[targetKey]) sdUpdates[targetKey] = f.value;
+                }
               });
             }
 
