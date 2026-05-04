@@ -323,10 +323,12 @@ export default function ClientProfile() {
           {quotations.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No quotations yet</p>
           ) : (
-            <table className="table-nawi w-full">
-              <thead><tr><th>ID</th><th>Date</th><th>Quoted</th><th>Payable</th><th>Profit</th><th>Status</th></tr></thead>
-              <tbody>{quotations.map((q: any) => <tr key={q.id}><td className="font-mono text-xs">{q.display_id}</td><td>{formatDate(q.generated_at)}</td><td>{formatCurrency(q.quoted_price)}</td><td>{formatCurrency(q.payable_amount)}</td><td className="text-success font-medium">{formatCurrency(q.profit)}</td><td><StatusBadge status={q.status} /></td></tr>)}</tbody>
-            </table>
+            <div className="table-container">
+              <table className="table-nawi w-full">
+                <thead><tr><th>ID</th><th>Date</th><th>Quoted</th><th>Payable</th><th>Profit</th><th>Status</th></tr></thead>
+                <tbody>{quotations.map((q: any) => <tr key={q.id}><td className="font-mono text-xs">{q.display_id}</td><td>{formatDate(q.generated_at)}</td><td>{formatCurrency(q.quoted_price)}</td><td>{formatCurrency(q.payable_amount)}</td><td className="text-success font-medium">{formatCurrency(q.profit)}</td><td><StatusBadge status={q.status} /></td></tr>)}</tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -357,10 +359,12 @@ export default function ClientProfile() {
             <div className="p-4 bg-success/5 rounded-xl border border-success/20"><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-xl font-bold font-display text-success">{formatCurrency(client.profit || 0)}</p></div>
           </div>
           {quotations.length > 0 && (
-            <table className="table-nawi w-full">
-              <thead><tr><th>Quotation</th><th>Date</th><th>Service</th><th>Quoted</th><th>Payable</th><th>Profit</th></tr></thead>
-              <tbody>{quotations.map((q: any) => <tr key={q.id}><td className="font-mono text-xs">{q.display_id}</td><td>{formatDate(q.generated_at)}</td><td>{q.service}</td><td>{formatCurrency(q.quoted_price)}</td><td>{formatCurrency(q.payable_amount)}</td><td className="text-success font-medium">{formatCurrency(q.profit)}</td></tr>)}</tbody>
-            </table>
+            <div className="table-container">
+              <table className="table-nawi w-full">
+                <thead><tr><th>Quotation</th><th>Date</th><th>Service</th><th>Quoted</th><th>Payable</th><th>Profit</th></tr></thead>
+                <tbody>{quotations.map((q: any) => <tr key={q.id}><td className="font-mono text-xs">{q.display_id}</td><td>{formatDate(q.generated_at)}</td><td>{q.service}</td><td>{formatCurrency(q.quoted_price)}</td><td>{formatCurrency(q.payable_amount)}</td><td className="text-success font-medium">{formatCurrency(q.profit)}</td></tr>)}</tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

@@ -186,10 +186,11 @@ export default function AdminAttendance() {
               )}
             </div>
           </div>
-          <div className="card-nawi p-0 overflow-x-auto">
+          <div className="table-container">
             <table className="table-nawi w-full">
               <thead><tr><th>Employee</th><th>Present</th><th>Late</th><th>Absent</th><th>Leave</th><th>Total Hours</th><th>Avg/Day</th><th></th></tr></thead>
               <tbody>
+                {empSummary.map(e => (
                   <tr key={e.user_id}>
                     <td className="font-medium">
                       <div className="flex items-center gap-2">
@@ -297,7 +298,7 @@ export default function AdminAttendance() {
                   <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center font-bold text-primary-foreground">{emp?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>
                   <div><p className="font-semibold">{emp?.name}</p></div>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="table-container">
                   <table className="table-nawi w-full text-sm">
                     <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Hours</th><th>Status</th><th>Work Summary</th></tr></thead>
                     <tbody>

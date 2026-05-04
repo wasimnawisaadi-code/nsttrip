@@ -40,6 +40,7 @@ export default function TeamChat() {
   const [message, setMessage] = useState('');
   const [showNewGroup, setShowNewGroup] = useState(false);
   const [showNewDM, setShowNewDM] = useState(false);
+  const [mobileSidebar, setMobileSidebar] = useState(false);
   const [groupForm, setGroupForm] = useState({ name: '', members: [] as string[] });
   const [groups, setGroups] = useState<any[]>([]);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -351,9 +352,16 @@ export default function TeamChat() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-120px)] bg-background rounded-xl border border-border overflow-hidden animate-fade-in">
-      <div className="w-64 border-r border-border flex flex-col flex-shrink-0">
-        <div className="p-3 border-b border-border flex items-center justify-between">
+    <div className="flex h-[calc(100vh-120px)] bg-background rounded-xl border border-border overflow-hidden animate-fade-in relative">
+      <div className={`
+        fixed inset-y-0 left-0 z-40 w-64 bg-background border-r border-border flex flex-col transition-transform duration-200 lg:static lg:translate-x-0
+        ${mobileSidebar ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="p-3 border-b border-border flex items-center justify-between lg:hidden">
+          <h3 className="font-semibold font-display text-sm">Messages</h3>
+          <button onClick={() => setMobileSidebar(false)} className="p-1.5 hover:bg-muted rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-3 border-b border-border hidden lg:flex items-center justify-between">
           <h3 className="font-semibold font-display text-sm">Messages</h3>
           <div className="flex gap-1">
             <button onClick={() => setShowNewGroup(true)} className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground" title="New Group"><Users className="w-4 h-4" /></button>
@@ -369,7 +377,7 @@ export default function TeamChat() {
               const canDelete = g.created_by === user?.id && g.name !== 'General';
               return (
                 <div key={g.id} className={`group/grp w-full flex items-center gap-1 rounded-lg pr-1 transition-colors ${isActive ? 'bg-primary/10' : 'hover:bg-muted'}`}>
-                  <button onClick={() => { setActiveChat(g.id); setActiveChatType('group'); }}
+                  <button onClick={() => { setActiveChat(g.id); setActiveChatType('group'); setMobileSidebar(false); }}
                     className={`flex-1 text-left px-3 py-2 text-sm flex items-center gap-2 ${isActive ? 'text-primary font-medium' : 'text-foreground'}`}>
                     <Hash className="w-4 h-4 flex-shrink-0" />
                     <span className="truncate flex-1">{g.name}</span>
@@ -396,7 +404,7 @@ export default function TeamChat() {
               const unread = unreadCounts[userId] || 0;
               const isActive = activeChat === userId && activeChatType === 'direct';
               return (
-                <button key={userId} onClick={() => startDM(userId)}
+                <button key={userId} onClick={() => { startDM(userId); setMobileSidebar(false); }}
                   className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${isActive ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted text-foreground'}`}>
                   {u.photo_url ? (
                     <img src={u.photo_url} alt="" className="w-5 h-5 rounded-full object-cover" />
@@ -416,6 +424,7 @@ export default function TeamChat() {
 
       <div className="flex-1 flex flex-col">
         <div className="p-3 border-b border-border flex items-center gap-2">
+          <button onClick={() => setMobileSidebar(true)} className="lg:hidden p-1.5 -ml-1 hover:bg-muted rounded-lg text-muted-foreground"><Users className="w-5 h-5" /></button>
           {activeChatType === 'group' ? <Hash className="w-5 h-5 text-muted-foreground" /> : <User className="w-5 h-5 text-muted-foreground" />}
           <h3 className="font-semibold text-sm">{getActiveName()}</h3>
         </div>

@@ -185,4 +185,33 @@
   .empty-state {
     @apply flex flex-col items-center justify-center py-16 text-center;
   }
+  .table-container {
+    @apply w-full overflow-x-auto rounded-xl border border-border;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mobile-card-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+  .mobile-stat-grid {
+    @apply grid grid-cols-2 lg:grid-cols-4 gap-3;
+  }
+}
+
+/* Mobile Tweaks */
+@media (max-width: 640px) {
+  .card-nawi {
+    @apply p-4;
+  }
+  .stat-card {
+    @apply p-3 gap-3;
+  }
+  .stat-card-icon {
+    @apply w-10 h-10;
+  }
+  .table-nawi tbody td {
+    @apply px-3 py-2 text-xs;
+  }
+  .table-nawi thead th {
+    @apply px-3 py-2 text-[10px];
+  }
 }

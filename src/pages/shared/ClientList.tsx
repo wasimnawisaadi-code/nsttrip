@@ -61,20 +61,22 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-wrap flex-1">
-          <div className="relative">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} className="input-nawi pl-9 w-52" placeholder="Search name, ID, mobile, passport..." />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} className="input-nawi pl-9" placeholder="Search..." />
           </div>
-          <select value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} className="input-nawi w-auto text-sm">
+          <div className="flex gap-2">
+            <select value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} className="input-nawi w-1/2 sm:w-auto text-sm">
             <option value="all">All Services</option>
             {services.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-nawi w-auto text-sm">
-            <option value="all">All Status</option>
-            <option value="New">New</option><option value="Processing">Processing</option><option value="Success">Success</option><option value="Failed">Failed</option>
-          </select>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-nawi w-1/2 sm:w-auto text-sm">
+              <option value="all">All Status</option>
+              <option value="New">New</option><option value="Processing">Processing</option><option value="Success">Success</option><option value="Failed">Failed</option>
+            </select>
+          </div>
           <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} className="input-nawi w-auto text-sm">
             <option value="all">All Months</option>
             {months.map(m => <option key={m} value={m}>{m}</option>)}
@@ -90,19 +92,19 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         {adminView && (
-          <select value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)} className="input-nawi w-auto text-sm">
+          <select value={employeeFilter} onChange={(e) => setEmployeeFilter(e.target.value)} className="input-nawi w-full sm:w-auto text-sm">
             <option value="all">All Employees</option>
             {profiles.map(e => <option key={e.user_id} value={e.user_id}>{e.name}</option>)}
           </select>
         )}
-        <select value={leadFilter} onChange={(e) => setLeadFilter(e.target.value)} className="input-nawi w-auto text-sm">
+        <select value={leadFilter} onChange={(e) => setLeadFilter(e.target.value)} className="input-nawi w-full sm:w-auto text-sm">
           <option value="all">All Sources</option>
           {leadSources.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         {nationalities.length > 0 && (
-          <select value={nationalityFilter} onChange={(e) => setNationalityFilter(e.target.value)} className="input-nawi w-auto text-sm">
+          <select value={nationalityFilter} onChange={(e) => setNationalityFilter(e.target.value)} className="input-nawi w-full sm:w-auto text-sm">
             <option value="all">All Nationalities</option>
             {nationalities.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
@@ -113,7 +115,7 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
       {filtered.length === 0 ? (
         <EmptyState icon={<Briefcase className="w-8 h-8 text-muted-foreground" />} title="No clients found" description="Add your first client to get started." action={<button onClick={() => navigate(`${basePath}/clients/new`)} className="btn-primary"><Plus className="w-4 h-4" /> Add Client</button>} />
       ) : viewMode === 'table' ? (
-        <div className="card-nawi overflow-x-auto p-0">
+        <div className="table-container">
           <table className="table-nawi w-full">
             <thead><tr><th>ID</th><th>Name</th><th>Mobile</th><th>Service</th><th>Status</th><th>Source</th><th>Assigned</th><th>Created</th><th>Revenue</th><th></th></tr></thead>
             <tbody>

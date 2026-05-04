@@ -365,7 +365,7 @@ export default function PayrollManagement() {
         </div>
       )}
 
-      <div className="card-nawi p-0 overflow-x-auto">
+      <div className="table-container">
         <table className="table-nawi w-full text-sm">
           <thead>
             <tr>

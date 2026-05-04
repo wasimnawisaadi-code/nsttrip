@@ -153,13 +153,13 @@ export default function Login() {
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">Email Address</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                className="input-nawi" placeholder="you@nawisaadi.com" required />
+                className="input-nawi" placeholder="you@nawisaadi.com" required autoComplete="off" />
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">Password</label>
               <div className="relative">
                 <input type={showPass ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-                  className="input-nawi pr-10" placeholder="••••••••" required />
+                  className="input-nawi pr-10" placeholder="••••••••" required autoComplete="off" />
                 <button type="button" onClick={() => setShowPass(!showPass)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

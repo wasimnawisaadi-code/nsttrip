@@ -868,20 +868,22 @@ function DatesSection({
       ) : (
         <div className="space-y-2">
           {dates.map((d) => (
-            <div key={d.id} className="grid grid-cols-12 gap-2 items-center">
-              <input
-                value={d.name}
-                onChange={(e) => onUpdate(d.id, { name: e.target.value })}
-                placeholder="Date name (e.g. Travel Date)"
-                className="input-nawi col-span-6"
-              />
-              <input
-                type="date"
-                value={d.date}
-                onChange={(e) => onUpdate(d.id, { date: e.target.value })}
-                className="input-nawi col-span-5"
-              />
-              <button onClick={() => onRemove(d.id)} className="text-destructive p-2 hover:bg-destructive/10 rounded-lg col-span-1 flex justify-center">
+            <div key={d.id} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center p-3 border border-border rounded-lg bg-muted/20 relative group">
+              <div className="flex-1 w-full space-y-2 sm:space-y-0 sm:flex sm:gap-2">
+                <input
+                  value={d.name}
+                  onChange={(e) => onUpdate(d.id, { name: e.target.value })}
+                  placeholder="Date name (e.g. Travel Date)"
+                  className="input-nawi flex-1"
+                />
+                <input
+                  type="date"
+                  value={d.date}
+                  onChange={(e) => onUpdate(d.id, { date: e.target.value })}
+                  className="input-nawi sm:w-44"
+                />
+              </div>
+              <button onClick={() => onRemove(d.id)} className="text-destructive p-2 hover:bg-destructive/10 rounded-lg flex justify-center self-end sm:self-auto">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>

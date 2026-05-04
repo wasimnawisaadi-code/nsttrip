@@ -48,10 +48,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const watchIdRef = useRef<number | null>(null);
 
   const [browserSessionId] = useState(() => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
+    try {
+      const stored = localStorage.getItem('nawi_session_id');
+      if (stored) return stored;
+      const newId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+        ? crypto.randomUUID() 
+        : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      localStorage.setItem('nawi_session_id', newId);
+      return newId;
+    } catch (e) {
+      // Fallback for private browsing
+      return Math.random().toString(36).substring(2, 15);
     }
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
   });
 
   const fetchProfile = async (userId: string) => {
@@ -77,10 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : 'employee';
     setRole(userRole);
 
-    // Single-device login enforcement (Employees only)
-    if (userRole === 'employee') {
-      await supabase.from('profiles').update({ current_session_id: browserSessionId }).eq('user_id', userId);
-    }
+    // Single-device login enforcement (All users)
+    await supabase.from('profiles').update({ current_session_id: browserSessionId }).eq('user_id', userId);
 
     // Start geofence watching only for plain employees with assigned zones
     if (userRole === 'employee' && profileData?.assigned_zone_id) {
@@ -163,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listen for session changes (Single device login)
   useEffect(() => {
-    if (user && role === 'employee') {
+    if (user) {
       console.log('[Auth] Starting session monitor for user:', user.id);
       
       const triggerLogout = () => {
@@ -176,46 +182,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // 1. Core Logic: Verify if the DB session ID matches our local ID
       const verifySession = async () => {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('current_session_id')
-          .eq('user_id', user.id)
-          .single();
-        
-        if (error) {
-          console.error('[Auth] Session check error:', error);
-          return;
-        }
-
-        if (data?.current_session_id && data.current_session_id !== browserSessionId) {
-          console.warn('[Auth] Session mismatch detected!', { db: data.current_session_id, local: browserSessionId });
-          triggerLogout();
-        }
-      };
-      
-      // 2. Initial check on mount
-      verifySession();
-
-      // 3. Realtime check: Listen for updates
+      // --- 1. Realtime Session Monitor ---
       const channel = supabase.channel(`session-monitor-${user.id}`)
         .on('postgres_changes', { 
           event: 'UPDATE', 
           schema: 'public', 
-          table: 'profiles'
+          table: 'profiles',
+          filter: `user_id=eq.${user.id}`
         }, (payload) => {
-          if (payload.new.user_id !== user.id) return;
           const dbSessionId = payload.new.current_session_id;
           console.log('[Auth] Realtime update detected. DB:', dbSessionId, 'Local:', browserSessionId);
           if (dbSessionId && dbSessionId !== browserSessionId) {
             triggerLogout();
           }
         })
-        .subscribe((status) => {
-          console.log('[Auth] Realtime status:', status);
-        });
+        .subscribe();
 
-      // 4. Polling Fallback: Check every 30 seconds (backup for Realtime)
-      const pollingInterval = setInterval(verifySession, 30000);
+      // --- 2. Fallback Polling (Every 30s) ---
+      // This ensures that even if Realtime fails, or if the user is DELETED or DEACTIVATED, 
+      // the app will detect it and logout automatically.
+      const pollInterval = setInterval(async () => {
+        console.log('[Auth] Polling session status...');
+        const { data: prof, error } = await supabase
+          .from('profiles')
+          .select('status, current_session_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        // If profile is missing (deleted) or error occurs, force logout
+        if (error || !prof) {
+          console.warn('[Auth] Profile missing or inaccessible. Logging out.');
+          signOut();
+          return;
+        }
+
+        // If deactivated, force logout
+        if (prof.status === 'inactive') {
+          console.warn('[Auth] Account deactivated. Logging out.');
+          signOut();
+          return;
+        }
+
+        // If session ID mismatch detected via poll
+        if (prof.current_session_id && prof.current_session_id !== browserSessionId) {
+          console.warn('[Auth] Session override detected via poll.');
+          triggerLogout();
+        }
+      }, 30000);
       
       return () => { 
         console.log('[Auth] Stopping session monitor');
@@ -288,6 +301,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq('id', todayRecord.id);
       }
     }
+    
+    if (user) {
+      await supabase.from('profiles').update({ current_session_id: null }).eq('user_id', user.id);
+    }
+
+    localStorage.removeItem('nawi_session_id');
     await supabase.auth.signOut();
   };
 

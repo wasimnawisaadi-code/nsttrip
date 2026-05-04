@@ -198,7 +198,7 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
       </div>
 
       {/* Grid */}
-      <div ref={scrollRef} className="overflow-x-auto border border-border rounded-lg max-h-[60vh] overflow-y-auto">
+      <div ref={scrollRef} className="table-container max-h-[60vh]">
         <table className="w-full text-sm">
           <thead className="bg-muted/60 sticky top-0 z-10">
             <tr className="text-xs text-muted-foreground">

@@ -198,7 +198,7 @@ export default function AdminDashboard() {
 
       {tab === 'dashboard' && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="card-nawi relative overflow-hidden">
               <div className="absolute top-0 right-0 w-16 h-16 bg-secondary/10 rounded-bl-[40px]" />
               <div className="relative">
@@ -383,7 +383,7 @@ export default function AdminDashboard() {
                 <Link to="/admin/attendance" className="text-xs text-secondary hover:underline">View All →</Link>
               </div>
               {data.todayAttendance.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">No records</p> : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   {data.todayAttendance.map((a: any) => (
                     <div key={a.id} className="flex items-center gap-2 p-2 rounded-lg border border-border">
                       {a.photo ? <img src={a.photo} alt="" className="w-8 h-8 rounded-full object-cover" /> :
@@ -467,11 +467,11 @@ export default function AdminDashboard() {
       )}
 
       {tab === 'clients' && (
-        <div className="card-nawi">
-          <div className="flex justify-end mb-3">
+        <div className="card-nawi p-0">
+          <div className="p-4 flex justify-end">
             <button onClick={() => exportCSV(data.allClients.map((c: any) => ({ ID: c.display_id, Name: c.name, Service: c.service, Status: c.status, Revenue: c.revenue, Profit: c.profit, LeadSource: c.lead_source, Nationality: c.nationality || '', Created: formatDate(c.created_at) })), 'clients_report.csv')} className="btn-outline text-sm"><Download className="w-4 h-4" /> Export</button>
           </div>
-          <div className="overflow-x-auto">
+          <div className="table-container border-none">
             <table className="table-nawi w-full"><thead><tr><th>ID</th><th>Name</th><th>Service</th><th>Status</th><th>Lead Source</th><th>Revenue</th><th>Profit</th><th>Created</th></tr></thead>
               <tbody>{data.allClients.slice(0, 50).map((c: any) => <tr key={c.id}><td className="font-mono text-xs">{c.display_id}</td><td>{c.name}</td><td>{c.service}</td><td><StatusBadge status={c.status} /></td><td>{c.lead_source}</td><td>{formatCurrency(c.revenue || 0)}</td><td className="text-success">{formatCurrency(c.profit || 0)}</td><td>{formatDate(c.created_at)}</td></tr>)}</tbody>
             </table>
@@ -480,10 +480,11 @@ export default function AdminDashboard() {
       )}
 
       {tab === 'employees' && (
-        <div className="card-nawi p-0 overflow-x-auto">
+        <div className="card-nawi p-0">
           <div className="p-4 flex justify-end"><button onClick={() => exportCSV(data.topEmployees.map((e: any) => ({ Name: e.name, Clients: e.clients, Revenue: e.revenue, Profit: e.profit, TasksDone: e.tasks, SuccessRate: e.successRate + '%', PresentDays: e.presentDays })), 'employee_performance.csv')} className="btn-outline text-sm"><Download className="w-4 h-4" /> Export</button></div>
-          <table className="table-nawi w-full">
-            <thead><tr><th>Employee</th><th>Status</th><th>Revenue</th><th>Profit</th><th>Success %</th><th>Total Hours</th><th>Avg/Day</th></tr></thead>
+          <div className="table-container border-none">
+            <table className="table-nawi w-full text-sm">
+              <thead><tr><th>Employee</th><th>Status</th><th>Revenue</th><th>Profit</th><th>Success %</th><th>Total Hours</th><th>Avg/Day</th></tr></thead>
             <tbody>{data.topEmployees.map((e: any) => (
               <tr key={e.id}>
                 <td className="font-medium">
@@ -516,9 +517,9 @@ export default function AdminDashboard() {
                 <td className="text-primary font-medium">{e.avgHours}h</td>
               </tr>
             ))}</tbody>
-          </table>
+            </table>
+          </div>
         </div>
-      )}
 
       {tab === 'services' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -65,22 +65,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Unassign clients & tasks
+    // 1. Unassign all work data
     await admin.from("clients").update({ assigned_to: null }).eq("assigned_to", targetUserId);
     await admin.from("tasks").update({ assigned_to: null }).eq("assigned_to", targetUserId);
 
-    // Remove role + profile
+    // 2. Clear application-level records
     await admin.from("user_roles").delete().eq("user_id", targetUserId);
     await admin.from("profiles").delete().eq("user_id", targetUserId);
 
-    // Delete auth user
+    // 3. Delete from Supabase Auth (The source of truth for credentials)
+    console.log(`[Admin] Deleting auth user: ${targetUserId}`);
     const { error: delErr } = await admin.auth.admin.deleteUser(targetUserId);
+    
     if (delErr) {
-      return new Response(JSON.stringify({ error: delErr.message }), {
+      console.error(`[Admin] Auth deletion failed: ${delErr.message}`);
+      return new Response(JSON.stringify({ error: `Auth deletion failed: ${delErr.message}` }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log(`[Admin] Successfully deleted user: ${targetUserId}`);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

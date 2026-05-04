@@ -248,7 +248,7 @@ export default function DailyStatusReport() {
             </Card>
 
             {/* KPI cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               <KpiCard icon={ClipboardList} label="Entries" value={String(kpis.count)} />
               <KpiCard icon={Users} label="Employees" value={String(kpis.uniqueEmployees)} />
               <KpiCard icon={DollarSign} label="Sales" value={formatCurrency(kpis.totalSale)} />
@@ -333,7 +333,7 @@ export default function DailyStatusReport() {
               <Card>
                 <CardHeader><CardTitle className="text-base">Employee Performance</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
+                  <div className="table-container border-0">
                     <table className="w-full text-sm">
                       <thead><tr className="border-b text-xs text-muted-foreground"><th className="text-left py-2">Employee</th><th className="text-right">Entries</th><th className="text-right">Sales</th><th className="text-right">Profit</th></tr></thead>
                       <tbody>

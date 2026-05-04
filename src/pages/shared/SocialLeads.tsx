@@ -281,7 +281,7 @@ export default function SocialLeads() {
           </h3>
           <p className="text-[11px] text-muted-foreground">Live count of converted leads by channel</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
           {([['This Week', analytics.week], ['This Month', analytics.month], ['All Time', analytics.allTime]] as const).map(([label, data]) => (
             <div key={label} className="border border-border rounded-lg p-3 space-y-2 bg-muted/20">
               <div className="flex items-center justify-between">
@@ -317,14 +317,14 @@ export default function SocialLeads() {
         </div>
         
         <div className="flex items-center gap-2 flex-wrap">
-          <select value={filterSource} onChange={e => setFilterSource(e.target.value as any)} className="input-nawi w-auto text-sm py-1.5">
+          <select value={filterSource} onChange={e => setFilterSource(e.target.value as any)} className="input-nawi w-full sm:w-auto text-sm py-1.5">
             <option value="all">All Channels</option>
             <option value="whatsapp">WhatsApp</option>
             <option value="instagram">Instagram</option>
             <option value="messenger">Messenger</option>
           </select>
 
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="input-nawi w-auto text-sm py-1.5">
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="input-nawi w-full sm:w-auto text-sm py-1.5">
             <option value="all">All Statuses</option>
             <option value="NEW">New</option>
             <option value="IN_PROGRESS">In Progress</option>
@@ -332,7 +332,7 @@ export default function SocialLeads() {
             <option value="NOT_CONVERTED">Not Converted</option>
           </select>
 
-          <select value={quickFilter} onChange={e => setQuickFilter(e.target.value as any)} className="input-nawi w-auto text-sm py-1.5 font-medium text-primary">
+          <select value={quickFilter} onChange={e => setQuickFilter(e.target.value as any)} className="input-nawi w-full sm:w-auto text-sm py-1.5 font-medium text-primary">
             <option value="all">Any Time</option>
             <option value="today">Today</option>
             <option value="yesterday">Yesterday</option>
