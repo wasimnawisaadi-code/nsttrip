@@ -608,16 +608,27 @@ export default function AddClientWizard() {
                 <input 
                   value={form.name} 
                   onChange={(e) => {
-                    const val = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                    // Relaxed regex to allow dots, dashes and standard chars
+                    const val = e.target.value.replace(/[^a-zA-Z\s.\-]/g, '');
                     updateForm({ name: val });
                   }} 
-                  className={`input-nawi ${form.name && form.name.length < 2 ? 'border-destructive' : ''}`}
-                  placeholder="Letters only, min 2 chars"
+                  className={`input-nawi ${form.name && form.name.length < 2 ? 'border-destructive bg-destructive/5' : ''}`}
+                  placeholder="Full Name (min 2 chars)"
                   required 
                 />
-                {form.name && form.name.length < 2 && <p className="text-[10px] text-destructive mt-1">Minimum 2 characters required</p>}
+                {form.name && form.name.length < 2 && <p className="text-[10px] text-destructive mt-1 font-medium">Please enter at least 2 characters</p>}
               </div>
-              <div><label className="block text-sm font-medium mb-1">Mobile <span className="text-destructive">*</span></label><input value={form.mobile} onChange={(e) => updateForm({ mobile: e.target.value })} className="input-nawi" required /></div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Mobile <span className="text-destructive">*</span></label>
+                <input 
+                  value={form.mobile} 
+                  onChange={(e) => updateForm({ mobile: e.target.value })} 
+                  className={`input-nawi ${form.mobile && form.mobile.length < 5 ? 'border-destructive bg-destructive/5' : ''}`}
+                  placeholder="Mobile Number (min 5 digits)"
+                  required 
+                />
+                {form.mobile && form.mobile.length < 5 && <p className="text-[10px] text-destructive mt-1 font-medium">Please enter at least 5 digits</p>}
+              </div>
               <div><label className="block text-sm font-medium mb-1">Email</label><input type="email" value={form.email} onChange={(e) => updateForm({ email: e.target.value })} className="input-nawi" /></div>
               <div><label className="block text-sm font-medium mb-1">Nationality</label><input value={form.nationality} onChange={(e) => updateForm({ nationality: e.target.value })} className="input-nawi" /></div>
               <div><label className="block text-sm font-medium mb-1">Date of Birth</label><input type="date" value={form.dob} onChange={(e) => updateForm({ dob: e.target.value })} className="input-nawi" /></div>
