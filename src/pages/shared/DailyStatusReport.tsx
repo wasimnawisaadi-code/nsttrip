@@ -464,10 +464,12 @@ function ExcelUploadButton({ template, userId, userName, entryDate, onDone }: { 
   };
 
   const confirm = async () => {
-    if (!result?.ok || !result.rows) return;
+    if (!result?.ok || !result.parsedRows) return;
     setBusy(true);
     try {
-      const n = await bulkCreateEntries(template, userId, userName, entryDate || today, result.rows);
+      const rows = result.parsedRows.map(pr => pr.data);
+      const dates = result.parsedRows.map(pr => pr.detectedDate);
+      const n = await bulkCreateEntries(template, userId, userName, entryDate || today, rows, dates);
       toast.success(`Imported ${n} rows`);
       setResult(null);
       onDone();
@@ -497,15 +499,17 @@ function ExcelUploadButton({ template, userId, userName, entryDate, onDone }: { 
 
               {result.ok && (
                 <>
-                  <div className="p-3 bg-green-500/10 text-green-700 rounded">
-                    Detected <strong>{result.rows?.length}</strong> valid rows.
-                    {result.hasDateColumn ? ' A Date column was found in your file.' : ' No Date column found — rows will use the date you choose.'}
+                  <div className="p-3 bg-green-500/10 text-green-700 rounded flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Detected <strong>{result.parsedRows?.length}</strong> rows.
+                    {result.hasDateColumn ? ' Dates detected in file — using file dates.' : ' No dates found in file.'}
                   </div>
-
-                  <div className="p-3 bg-primary/5 text-primary rounded border border-primary/20 text-xs">
-                    Confirming import for <strong>{entryDate || today}</strong>. 
-                    All <strong>{result.rows?.length}</strong> entries from the file will be saved under this date.
-                  </div>
+                  
+                  {!result.hasDateColumn && (
+                    <div className="p-3 bg-primary/5 text-primary rounded border border-primary/20 text-xs">
+                      Fallback: All entries will be saved under <strong>{entryDate || today}</strong>.
+                    </div>
+                  )}
                 </>
               )}
 
