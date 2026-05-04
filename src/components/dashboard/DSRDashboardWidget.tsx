@@ -68,7 +68,13 @@ export default function DSRDashboardWidget({ basePath = '/admin' }: { basePath?:
         <Link to={`${basePath}/dsr`} className="text-xs text-primary hover:underline flex items-center gap-1">View all <ChevronRight className="w-3 h-3" /></Link>
       </div>
 
-      {loading ? <div className="skeleton-nawi h-40" /> : (
+      {loading ? <div className="skeleton-nawi h-40" /> : stats.count === 0 ? (
+        <div className="h-48 flex flex-col items-center justify-center text-muted-foreground bg-muted/10 rounded-lg border border-dashed border-border">
+          <ClipboardList className="w-8 h-8 mb-2 opacity-20" />
+          <p className="text-xs font-medium">No DSR entries found</p>
+          <p className="text-[10px] opacity-60">Last 7 days ({stats.employees} active employees)</p>
+        </div>
+      ) : (
         <>
           <div className="grid grid-cols-4 gap-2">
             <Stat label="Entries" value={String(stats.count)} />

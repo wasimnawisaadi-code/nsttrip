@@ -42,26 +42,43 @@ export default function AdminDashboard() {
       const leave = leaveRes.data || [];
 
       const now = new Date();
-      const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const lastMonth = `${now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()}-${String(now.getMonth() === 0 ? 12 : now.getMonth()).padStart(2, '0')}`;
       const today = now.toISOString().split('T')[0];
+      const [rYear, rMonth] = reportMonth.split('-').map(Number);
+      
+      // Previous month for comparison
+      const prevDate = new Date(rYear, rMonth - 2, 1);
+      const lastMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
-      const revenueThisMonth = clients.filter((c: any) => c.created_at?.startsWith(thisMonth)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
+      const matchesFilter = (dateStr: string | null) => {
+        if (!dateStr) return false;
+        if (viewType === 'monthly') return dateStr.startsWith(reportMonth);
+        if (viewType === 'annual') return dateStr.startsWith(String(rYear));
+        if (viewType === 'weekly') {
+          // Show 7 days including the selected month end or current day
+          const d = new Date(dateStr);
+          const end = new Date(rYear, rMonth, 0); // End of selected month
+          const diff = (end.getTime() - d.getTime()) / 86400000;
+          return diff >= 0 && diff < 7;
+        }
+        return true;
+      };
+
+      const revenueThisMonth = clients.filter((c: any) => matchesFilter(c.created_at)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
       const revenueLastMonth = clients.filter((c: any) => c.created_at?.startsWith(lastMonth)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-      const profitThisMonth = clients.filter((c: any) => c.created_at?.startsWith(thisMonth)).reduce((s: number, c: any) => s + (c.profit || 0), 0);
+      const profitThisMonth = clients.filter((c: any) => matchesFilter(c.created_at)).reduce((s: number, c: any) => s + (c.profit || 0), 0);
       const totalRevenue = clients.reduce((s: number, c: any) => s + (c.revenue || 0), 0);
       const totalProfit = clients.reduce((s: number, c: any) => s + (c.profit || 0), 0);
 
       const activeTasks = tasks.filter((t: any) => t.status === 'New' || t.status === 'Processing').length;
       const overdueTasks = tasks.filter((t: any) => (t.status === 'New' || t.status === 'Processing') && t.due_date && new Date(t.due_date) < now).length;
-      const completedTasks = tasks.filter((t: any) => t.status === 'Completed' && t.completed_date?.startsWith(thisMonth)).length;
+      const completedTasks = tasks.filter((t: any) => t.status === 'Completed' && matchesFilter(t.completed_date)).length;
       
       const activeEmployeeIds = new Set(employees.filter(e => e.status === 'active').map(e => e.user_id));
       const employeesOnline = attendance.filter((a: any) => a.date === today && !a.logout_time && activeEmployeeIds.has(a.employee_id)).length;
       const totalActiveEmp = employees.filter((e: any) => e.status === 'active').length;
       const pendingLeave = leave.filter((l: any) => l.status === 'Pending').length;
 
-      const clientsThisMonth = clients.filter((c: any) => c.created_at?.startsWith(thisMonth)).length;
+      const clientsThisMonth = clients.filter((c: any) => matchesFilter(c.created_at)).length;
       const clientsLastMonth = clients.filter((c: any) => c.created_at?.startsWith(lastMonth)).length;
 
       const serviceCounts: Record<string, number> = {};
@@ -75,14 +92,34 @@ export default function AdminDashboard() {
       const serviceData = Object.entries(serviceCounts).map(([name, value]) => ({ name, value, revenue: serviceRevenue[name] || 0 }));
 
       const revenueData: any[] = [];
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        const label = d.toLocaleDateString('en-US', { month: 'short' });
-        const rev = clients.filter((c: any) => c.created_at?.startsWith(key)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-        const prof = clients.filter((c: any) => c.created_at?.startsWith(key)).reduce((s: number, c: any) => s + (c.profit || 0), 0);
-        const clt = clients.filter((c: any) => c.created_at?.startsWith(key)).length;
-        revenueData.push({ month: label, revenue: rev, profit: prof, clients: clt });
+      if (viewType === 'weekly') {
+        const end = new Date(rYear, rMonth, 0); // End of month
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(end); d.setDate(end.getDate() - i);
+          const key = d.toISOString().split('T')[0];
+          const label = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+          const rev = clients.filter((c: any) => c.created_at?.startsWith(key)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
+          const prof = clients.filter((c: any) => c.created_at?.startsWith(key)).reduce((s: number, c: any) => s + (c.profit || 0), 0);
+          revenueData.push({ month: label, revenue: rev, profit: prof });
+        }
+      } else if (viewType === 'annual') {
+        for (let i = 2; i >= 0; i--) {
+          const year = rYear - i;
+          const label = String(year);
+          const rev = clients.filter((c: any) => c.created_at?.startsWith(label)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
+          const prof = clients.filter((c: any) => c.created_at?.startsWith(label)).reduce((s: number, c: any) => s + (c.profit || 0), 0);
+          revenueData.push({ month: label, revenue: rev, profit: prof });
+        }
+      } else {
+        for (let i = 11; i >= 0; i--) {
+          const d = new Date(rYear, rMonth - 1 - i, 1);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          const label = d.toLocaleDateString('en-US', { month: 'short' });
+          const rev = clients.filter((c: any) => c.created_at?.startsWith(key)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
+          const prof = clients.filter((c: any) => c.created_at?.startsWith(key)).reduce((s: number, c: any) => s + (c.profit || 0), 0);
+          const clt = clients.filter((c: any) => c.created_at?.startsWith(key)).length;
+          revenueData.push({ month: label, revenue: rev, profit: prof, clients: clt });
+        }
       }
 
       const statusCounts: Record<string, number> = { New: 0, Processing: 0, Success: 0, Failed: 0 };
@@ -119,7 +156,7 @@ export default function AdminDashboard() {
         const ec = clients.filter((c: any) => c.assigned_to === e.user_id);
         const successRate = ec.length > 0 ? Math.round((ec.filter((c: any) => c.status === 'Success').length / ec.length) * 100) : 0;
         const isClockedIn = !!empAttendance.find(a => a.login_time && !a.logout_time && a.date === today);
-        const isOnline = e.last_seen_at && (new Date().getTime() - new Date(e.last_seen_at).getTime() < 300000);
+        const isOnline = e.last_seen_at && (new Date().getTime() - new Date(e.last_seen_at).getTime() < 60000);
 
         return {
           name: e.name, id: e.user_id, photo: e.photo_url,
@@ -167,7 +204,7 @@ export default function AdminDashboard() {
       });
     };
     load();
-  }, [reportMonth]);
+  }, [reportMonth, viewType]);
 
   if (!data) return <div className="skeleton-nawi h-96 w-full" />;
 
@@ -391,7 +428,7 @@ export default function AdminDashboard() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-xs font-medium truncate">{a.name}</p>
-                          {a.last_seen_at && (new Date().getTime() - new Date(a.last_seen_at).getTime() < 300000) && (
+                          {a.last_seen_at && (new Date().getTime() - new Date(a.last_seen_at).getTime() < 60000) && (
                             <span className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Online now" />
                           )}
                         </div>

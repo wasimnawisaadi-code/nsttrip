@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth-context';
 type Row = {
   id?: string;            // existing entry id
   entry_date: string;
+  employee_id?: string;   // existing entry employee id
   data: Record<string, any>;
   dirty?: boolean;
   isNew?: boolean;
@@ -37,8 +38,7 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [autoDate, setAutoDate] = useState(true);  // auto-fill new rows with today
-  const [defaultDate, setDefaultDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [workingDate, setWorkingDate] = useState(() => new Date().toISOString().split('T')[0]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const STORAGE_KEY = useMemo(() => `dsr-draft-${template.id}-${user?.id}`, [template.id, user?.id]);
@@ -54,7 +54,7 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
         isAdmin, currentUserId: user.id,
       });
       
-      const serverRows = data.map(e => ({ id: e.id, entry_date: e.entry_date, data: { ...e.data, __employee: e.employee_name } }));
+      const serverRows = data.map(e => ({ id: e.id, entry_date: e.entry_date, employee_id: e.employee_id, data: { ...e.data, __employee: e.employee_name } }));
       
       // Check for local drafts
       const draftRaw = localStorage.getItem(STORAGE_KEY);
@@ -104,7 +104,7 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
 
   const addRow = () => {
     const newRow: Row = {
-      entry_date: autoDate ? new Date().toISOString().split('T')[0] : defaultDate,
+      entry_date: workingDate,
       data: {},
       dirty: true,
       isNew: true,
@@ -166,33 +166,41 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
   };
 
   const dirtyCount = useMemo(() => rows.filter(r => r.dirty).length, [rows]);
-  const ownsRow = (r: Row) => isAdmin || !r.id || true; // employees see only their own via RLS
+  const ownsRow = (r: Row) => isAdmin || !r.id || (r.employee_id === user?.id);
 
   return (
     <div className="space-y-3">
       {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-2 p-3 bg-muted/30 rounded-lg border border-border">
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <Switch id="auto-date" checked={autoDate} onCheckedChange={setAutoDate} />
-            <Label htmlFor="auto-date" className="text-xs flex items-center gap-1 cursor-pointer">
-              {autoDate ? <Sparkles className="w-3 h-3 text-primary" /> : <CalendarClock className="w-3 h-3" />}
-              {autoDate ? 'Auto date (today)' : 'Manual date'}
+            <Label className="text-xs font-semibold text-primary flex items-center gap-1.5 uppercase tracking-wider">
+              <CalendarClock className="w-3.5 h-3.5" /> Working Date
             </Label>
+            <Input 
+              type="date" 
+              value={workingDate} 
+              onChange={e => setWorkingDate(e.target.value)} 
+              className="w-40 h-8 text-xs font-medium border-primary/30 focus:border-primary" 
+            />
           </div>
-          {!autoDate && (
-            <div className="flex items-center gap-1">
-              <Label className="text-xs text-muted-foreground">Apply for:</Label>
-              <Input type="date" value={defaultDate} onChange={e => setDefaultDate(e.target.value)} className="w-40 h-8 text-xs" />
-            </div>
+          {dirtyCount > 0 && (
+            <span className="text-xs px-2 py-1 bg-warning/15 text-warning rounded-full font-medium flex items-center gap-1">
+              <Save className="w-3 h-3" /> {dirtyCount} unsaved rows
+            </span>
           )}
-          {dirtyCount > 0 && <span className="text-xs px-2 py-1 bg-warning/15 text-warning rounded-full font-medium">{dirtyCount} unsaved</span>}
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={load} disabled={loading}><RotateCcw className="w-3.5 h-3.5 mr-1" />Reload</Button>
-          {!isAdmin && <Button size="sm" onClick={addRow}><Plus className="w-3.5 h-3.5 mr-1" />Add Row</Button>}
-          <Button size="sm" onClick={saveAll} disabled={saving || dirtyCount === 0}>
-            <Save className="w-3.5 h-3.5 mr-1" />{saving ? 'Saving…' : 'Save All'}
+          <Button size="sm" variant="outline" onClick={load} disabled={loading}>
+            <RotateCcw className="w-3.5 h-3.5 mr-1" />Reload
+          </Button>
+          {!isAdmin && (
+            <Button size="sm" onClick={addRow} className="bg-primary hover:bg-primary/90">
+              <Plus className="w-3.5 h-3.5 mr-1" />Add Row
+            </Button>
+          )}
+          <Button size="sm" onClick={saveAll} disabled={saving || dirtyCount === 0} className="bg-success hover:bg-success/90 text-white">
+            <Save className="w-3.5 h-3.5 mr-1" />{saving ? 'Saving…' : 'Save All Changes'}
           </Button>
         </div>
       </div>
