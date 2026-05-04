@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import {
-  ClipboardList, Plus, Upload, Download, FileSpreadsheet, Pencil, Trash2,
+  ClipboardList, Plus, Upload, Download, FileSpreadsheet, Calendar, Pencil, Trash2,
   Settings as SettingsIcon, TrendingUp, DollarSign, Users, AlertCircle, CheckCircle2, ExternalLink, BarChart3,
 } from 'lucide-react';
 import { toast } from 'sonner';
