@@ -53,7 +53,9 @@ export default function AdminDashboard() {
       const activeTasks = tasks.filter((t: any) => t.status === 'New' || t.status === 'Processing').length;
       const overdueTasks = tasks.filter((t: any) => (t.status === 'New' || t.status === 'Processing') && t.due_date && new Date(t.due_date) < now).length;
       const completedTasks = tasks.filter((t: any) => t.status === 'Completed' && t.completed_date?.startsWith(thisMonth)).length;
-      const employeesOnline = attendance.filter((a: any) => a.date === today && !a.logout_time).length;
+      
+      const activeEmployeeIds = new Set(employees.filter(e => e.status === 'active').map(e => e.user_id));
+      const employeesOnline = attendance.filter((a: any) => a.date === today && !a.logout_time && activeEmployeeIds.has(a.employee_id)).length;
       const totalActiveEmp = employees.filter((e: any) => e.status === 'active').length;
       const pendingLeave = leave.filter((l: any) => l.status === 'Pending').length;
 
@@ -94,10 +96,12 @@ export default function AdminDashboard() {
       });
       upcomingDates.sort((a, b) => a.days - b.days);
 
-      const todayAttendance = attendance.filter((a: any) => a.date === today).map((a: any) => {
-        const emp = employees.find((e: any) => e.user_id === a.employee_id);
-        return { ...a, name: emp?.name || 'Unknown', photo: emp?.photo_url };
-      });
+      const todayAttendance = attendance
+        .filter((a: any) => a.date === today && activeEmployeeIds.has(a.employee_id))
+        .map((a: any) => {
+          const emp = employees.find((e: any) => e.user_id === a.employee_id);
+          return { ...a, name: emp?.name || 'Unknown', photo: emp?.photo_url };
+        });
 
       const topEmployees = employees.filter((e: any) => e.status === 'active').map((e: any) => ({
         name: e.name, id: e.user_id, photo: e.photo_url,
