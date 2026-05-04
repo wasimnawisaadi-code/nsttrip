@@ -180,8 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTimeout(() => signOut(), 2500);
       };
 
-      // 1. Core Logic: Verify if the DB session ID matches our local ID
-      const verifySession = async () => {
+      // 1. Core Logic: Realtime Session Monitor
       // --- 1. Realtime Session Monitor ---
       const channel = supabase.channel(`session-monitor-${user.id}`)
         .on('postgres_changes', { 
@@ -233,7 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return () => { 
         console.log('[Auth] Stopping session monitor');
         channel.unsubscribe(); 
-        clearInterval(pollingInterval);
+        clearInterval(pollInterval);
       };
     }
   }, [user, role, browserSessionId]);
