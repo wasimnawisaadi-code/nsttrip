@@ -175,7 +175,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (user) {
       initTimeout = setTimeout(() => {
-        console.log('[Auth] Starting session monitor for user:', user.id);
         startMonitor();
       }, 2000);
 
@@ -223,7 +222,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       
       return () => { 
-        console.log('[Auth] Stopping session monitor');
         clearTimeout(initTimeout);
         if (channel) channel.unsubscribe(); 
         if (pollInterval) clearInterval(pollInterval);
