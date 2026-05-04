@@ -87,18 +87,31 @@ export default function EmployeeList() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateEmail(form.email)) { alert('Please enter a valid email address'); return; }
-    if (form.password.length < 8) { alert('Password must be at least 8 characters'); return; }
+    if (!validateEmail(form.email)) { toast.error('Please enter a valid email address'); return; }
+    if (form.password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+    // 1. Pre-check if email exists in profiles to give better error
+    const { data: existing } = await supabase.from('profiles').select('id').eq('email', form.email).maybeSingle();
+    if (existing) {
+      toast.error('This email is already registered to another employee.', { position: 'top-center' });
+      return;
+    }
 
-    // Create auth user via Supabase admin (we use signUp which will auto-create profile via trigger)
+    // 2. Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: { data: { name: form.name } }
     });
 
-    if (authError) { alert(authError.message); return; }
-    if (!authData.user) { alert('Failed to create user'); return; }
+    if (authError) {
+      if (authError.message.toLowerCase().includes('already registered')) {
+        toast.error('This email is already in use.', { position: 'top-center' });
+      } else {
+        toast.error(authError.message);
+      }
+      return;
+    }
+    if (!authData.user) { toast.error('Failed to create user'); return; }
 
     // Update profile with additional details
     await supabase.from('profiles').update({

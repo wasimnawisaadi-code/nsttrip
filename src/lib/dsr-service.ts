@@ -189,7 +189,7 @@ export async function fetchEntries(filters: {
 
 // =================== EXCEL PARSING & COLUMN DETECTION ===================
 function normalize(s: string): string {
-  return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return String(s || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
 }
 
 export type ExcelParsedRow = {
@@ -300,7 +300,8 @@ export async function parseExcelForTemplate(file: File, template: DSRTemplate): 
       unmatchedHeaders: unmatched,
     };
   }
-  if (matchRate < 0.4) {
+  // Lower threshold to 30% for better flexibility
+  if (matchRate < 0.3) {
     return {
       ok: false,
       reason: `Only ${Math.round(matchRate * 100)}% of columns matched the template. Please check your file format.`,
