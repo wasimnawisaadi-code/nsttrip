@@ -118,6 +118,8 @@ export default function AdminDashboard() {
 
         const ec = clients.filter((c: any) => c.assigned_to === e.user_id);
         const successRate = ec.length > 0 ? Math.round((ec.filter((c: any) => c.status === 'Success').length / ec.length) * 100) : 0;
+        const isClockedIn = !!empAttendance.find(a => a.login_time && !a.logout_time && a.date === today);
+        const isOnline = e.last_seen_at && (new Date().getTime() - new Date(e.last_seen_at).getTime() < 300000);
 
         return {
           name: e.name, id: e.user_id, photo: e.photo_url,
@@ -129,6 +131,8 @@ export default function AdminDashboard() {
           presentDays: empAttendance.filter((a: any) => a.status === 'Present' || a.status === 'Late').length,
           totalHours: Math.round(totalHours * 10) / 10,
           avgHours: empAttendance.length > 0 ? Math.round((totalHours / empAttendance.length) * 10) / 10 : 0,
+          isClockedIn,
+          isOnline
         };
       }).sort((a, b) => b.revenue - a.revenue);
 
@@ -479,7 +483,7 @@ export default function AdminDashboard() {
         <div className="card-nawi p-0 overflow-x-auto">
           <div className="p-4 flex justify-end"><button onClick={() => exportCSV(data.topEmployees.map((e: any) => ({ Name: e.name, Clients: e.clients, Revenue: e.revenue, Profit: e.profit, TasksDone: e.tasks, SuccessRate: e.successRate + '%', PresentDays: e.presentDays })), 'employee_performance.csv')} className="btn-outline text-sm"><Download className="w-4 h-4" /> Export</button></div>
           <table className="table-nawi w-full">
-            <thead><tr><th>Employee</th><th>Clients</th><th>Revenue</th><th>Profit</th><th>Success %</th><th>Total Hours</th><th>Avg/Day</th></tr></thead>
+            <thead><tr><th>Employee</th><th>Status</th><th>Revenue</th><th>Profit</th><th>Success %</th><th>Total Hours</th><th>Avg/Day</th></tr></thead>
             <tbody>{data.topEmployees.map((e: any) => (
               <tr key={e.id}>
                 <td className="font-medium">
@@ -487,14 +491,26 @@ export default function AdminDashboard() {
                     <div className="relative">
                       {e.photo ? <img src={e.photo} alt="" className="w-7 h-7 rounded-full object-cover" /> :
                         <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">{e.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>}
-                      {e.last_seen_at && (new Date().getTime() - new Date(e.last_seen_at).getTime() < 300000) && (
-                        <span className="absolute -right-0.5 -bottom-0.5 w-2 h-2 rounded-full bg-success border border-card shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Online now" />
+                      {e.isOnline && (
+                        <span className="absolute -right-0.5 -bottom-0.5 w-2 h-2 rounded-full bg-success border border-card shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" title="Online now" />
                       )}
                     </div>
                     {e.name}
                   </div>
                 </td>
-                <td>{e.clients}</td><td>{formatCurrency(e.revenue)}</td><td className="text-success">{formatCurrency(e.profit)}</td>
+                <td>
+                  {e.isClockedIn ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/10 text-success border border-success/20 flex items-center gap-1 w-fit">
+                      <div className="w-1 h-1 rounded-full bg-success animate-ping" /> CLOCKED IN
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border w-fit">
+                      OFFLINE
+                    </span>
+                  )}
+                </td>
+                <td>{formatCurrency(e.revenue)}</td>
+                <td className="text-success font-semibold">{formatCurrency(e.profit)}</td>
                 <td><div className="flex items-center gap-2"><div className="w-16 h-2 bg-muted rounded-full"><div className="h-full bg-primary rounded-full" style={{ width: `${e.successRate}%` }} /></div><span className="text-xs">{e.successRate}%</span></div></td>
                 <td className="font-semibold">{e.totalHours}h</td>
                 <td className="text-primary font-medium">{e.avgHours}h</td>
