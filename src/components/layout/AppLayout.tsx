@@ -57,6 +57,66 @@ export default function AppLayout() {
   const [showSearch, setShowSearch] = useState(false);
   const [unreadChats, setUnreadChats] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [dubaiTime, setDubaiTime] = useState('');
+  const [workDuration, setWorkDuration] = useState<string | null>(null);
+
+  // Accidental close prevention
+  // Note: Modern browsers (Chrome/Firefox) do NOT allow custom text here for security.
+  // They will show a standard "Changes you made may not be saved" message.
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (user) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [user]);
+
+  // Live Dubai Clock (UTC+4)
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      // Dubai is UTC+4
+      const dubaiDate = new Date(now.getTime() + (now.getTimezoneOffset() * 60000) + (4 * 3600000));
+      setDubaiTime(dubaiDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    };
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Fetch today's attendance for live work duration
+  useEffect(() => {
+    if (!user) return;
+    const fetchTodayAttendance = async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from('attendance')
+        .select('login_time, logout_time')
+        .eq('employee_id', user.id)
+        .eq('date', today)
+        .single();
+      
+      if (data && data.login_time && !data.logout_time) {
+        const updateWorkClock = () => {
+          const login = new Date(data.login_time);
+          const now = new Date();
+          const diffMs = now.getTime() - login.getTime();
+          const hours = Math.floor(diffMs / 3600000);
+          const minutes = Math.floor((diffMs % 3600000) / 60000);
+          setWorkDuration(`${hours}h ${minutes}m`);
+        };
+        updateWorkClock();
+        const interval = setInterval(updateWorkClock, 60000);
+        return () => clearInterval(interval);
+      } else {
+        setWorkDuration(null);
+      }
+    };
+    fetchTodayAttendance();
+  }, [user]);
 
   useEffect(() => {
     if (!loading && !user) navigate('/login');
@@ -225,7 +285,17 @@ export default function AppLayout() {
           <button onClick={openAIChatbot} className="p-2 hover:bg-muted rounded-lg transition-colors" title="AI Assistant" aria-label="AI Assistant">
             <Sparkles className="w-5 h-5 text-muted-foreground" />
           </button>
-          <span className="text-xs text-muted-foreground hidden md:block">{today}</span>
+          <div className="hidden md:flex flex-col items-end gap-0.5">
+            <span className="text-[10px] font-bold text-primary flex items-center gap-1 uppercase tracking-wider">
+              <Clock className="w-2.5 h-2.5" /> Dubai Time: {dubaiTime}
+            </span>
+            {workDuration && (
+              <span className="text-[10px] font-bold text-success flex items-center gap-1 uppercase tracking-wider">
+                <Sparkles className="w-2.5 h-2.5" /> Work Duration: {workDuration}
+              </span>
+            )}
+            <span className="text-[10px] text-muted-foreground font-medium">{today}</span>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6">

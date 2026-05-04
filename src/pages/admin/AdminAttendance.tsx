@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatDate, generateDisplayId, auditLog } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { getAttendanceSettings } from '@/lib/settings';
 
 const COLORS = ['hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--destructive))', 'hsl(var(--muted))'];
 
@@ -21,6 +22,7 @@ export default function AdminAttendance() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [allAttendance, setAllAttendance] = useState<any[]>([]);
   const [allLeave, setAllLeave] = useState<any[]>([]);
+  const [weekendDays, setWeekendDays] = useState<number[]>([0]); // Default to Sunday only
 
   const loadData = async () => {
     const [empRes, attRes, leaveRes, rolesRes] = await Promise.all([
@@ -34,6 +36,9 @@ export default function AdminAttendance() {
     setEmployees((empRes.data || []).filter((e: any) => !adminIds.has(e.user_id)));
     setAllAttendance(attRes.data || []);
     setAllLeave(leaveRes.data || []);
+    
+    const settings = await getAttendanceSettings();
+    setWeekendDays(settings.weekend_days);
   };
 
   useEffect(() => { loadData(); }, []);
@@ -73,7 +78,7 @@ export default function AdminAttendance() {
     const recs = allAttendance.filter(a => a.date === dateStr);
     const leaves = allLeave.filter(l => l.status === 'Approved' && l.start_date <= dateStr && l.end_date >= dateStr);
     const dow = new Date(y, m - 1, day).getDay();
-    return { dateStr, recs, leaves, isWeekend: dow === 5 || dow === 6, isToday: dateStr === now.toISOString().split('T')[0] };
+    return { dateStr, recs, leaves, isWeekend: weekendDays.includes(dow), isToday: dateStr === now.toISOString().split('T')[0] };
   };
 
   const handleManualEntry = async (e: React.FormEvent) => {
@@ -199,8 +204,8 @@ export default function AdminAttendance() {
         <div className="card-nawi">
           <h3 className="text-base font-semibold font-display mb-4">📅 Monthly Calendar — {yearMonth}</h3>
           <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-              <div key={d} className={`py-1 font-semibold ${d === 'Fri' || d === 'Sat' ? 'text-destructive/60' : 'text-muted-foreground'}`}>{d}</div>
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
+              <div key={d} className={`py-1 font-semibold ${weekendDays.includes(i) ? 'text-destructive/60' : 'text-muted-foreground'}`}>{d}</div>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1">

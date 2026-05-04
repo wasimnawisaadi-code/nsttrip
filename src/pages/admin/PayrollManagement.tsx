@@ -8,6 +8,7 @@ import PasswordConfirmDialog from '@/components/PasswordConfirmDialog';
 import PayrollEntriesModal from '@/components/PayrollEntriesModal';
 import { Download, Calculator, Edit, Save, X, Lock, Unlock, FileText, ListPlus } from 'lucide-react';
 import { toast } from 'sonner';
+import { getAttendanceSettings } from '@/lib/settings';
 
 const NUMERIC_FIELDS = [
   'base_salary', 'present_days', 'late_days', 'absent_days',
@@ -15,6 +16,17 @@ const NUMERIC_FIELDS = [
   'sick_deduction', 'unpaid_deduction', 'absence_deduction', 'late_deduction',
   'bonus', 'allowances', 'overtime',
 ];
+
+function getWorkingDaysInMonth(yearMonth: string, weekendDays: number[] = [0]) {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  let count = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const day = new Date(year, month - 1, d).getDay();
+    if (!weekendDays.includes(day)) count++;
+  }
+  return count || 22; // fallback
+}
 
 export default function PayrollManagement() {
   const { user } = useAuth();
@@ -24,6 +36,7 @@ export default function PayrollManagement() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [employees, setEmployees] = useState<any[]>([]);
+  const [weekendDays, setWeekendDays] = useState<number[]>([0]);
   const [pwdAction, setPwdAction] = useState<{ type: 'lock' | 'unlock' | 'confirm'; row: any } | null>(null);
   const [entriesModal, setEntriesModal] = useState<any | null>(null);
   const [entriesByPayroll, setEntriesByPayroll] = useState<Record<string, { credit: number; debit: number }>>({});
@@ -39,6 +52,9 @@ export default function PayrollManagement() {
       // Admins are bosses — exclude from payroll
       const adminIds = new Set((rolesRes.data || []).filter((r: any) => r.role === 'admin' || r.role === 'superadmin').map((r: any) => r.user_id));
       setEmployees((empsRes.data || []).filter((e: any) => !adminIds.has(e.user_id)));
+      
+      const settings = await getAttendanceSettings();
+      setWeekendDays(settings.weekend_days);
     };
     fetchEmps();
   }, []);
@@ -85,12 +101,13 @@ export default function PayrollManagement() {
       const unpaidLeave = monthLeave.filter(l => ['Hajj', 'Emergency'].includes(l.leave_type || '')).reduce((s, l) => s + (l.days || 0), 0);
 
       const baseSalary = emp.base_salary || 0;
-      const dailyRate = baseSalary / 22;
+      const totalWorkingDays = getWorkingDaysInMonth(yearMonth, weekendDays);
+      const dailyRate = baseSalary / totalWorkingDays;
       const sickHalfPay = Math.max(0, Math.min(sickLeave - 15, 15));
       const sickUnpaid = Math.max(0, sickLeave - 30);
       const sickDeduction = (sickHalfPay * dailyRate * 0.5) + (sickUnpaid * dailyRate);
       const unpaidDeduction = unpaidLeave * dailyRate;
-      const absentDays = Math.max(0, 22 - presentDays - paidLeaveDays - sickLeave - unpaidLeave);
+      const absentDays = Math.max(0, totalWorkingDays - presentDays - paidLeaveDays - sickLeave - unpaidLeave);
       const absenceDeduction = absentDays * dailyRate;
       const lateDeduction = lateDays > 3 ? (lateDays - 3) * (dailyRate * 0.25) : 0;
       const totalDeductions = sickDeduction + unpaidDeduction + absenceDeduction + lateDeduction;
@@ -215,8 +232,9 @@ export default function PayrollManagement() {
     doc.setTextColor(255); doc.setFontSize(9);
     doc.text('ATTENDANCE SUMMARY', 22, y + 5.5);
     y += 12; doc.setTextColor(0); doc.setFontSize(9);
+    const totalWorkingDays = getWorkingDaysInMonth(yearMonth, weekendDays);
     const attRows = [
-      ['Present Days', `${p.present_days || 0} / 22`],
+      ['Present Days', `${p.present_days || 0} / ${totalWorkingDays}`],
       ['Late Days', String(p.late_days || 0)],
       ['Absent Days', String(p.absent_days || 0)],
       ['Paid Leave', String(p.paid_leave_days || 0)],
@@ -382,7 +400,7 @@ export default function PayrollManagement() {
                 <tr key={p.id}>
                   <td className="font-medium whitespace-nowrap">{emp?.name || '—'}</td>
                   <td>{numCell('base_salary', formatCurrency(p.base_salary), isEditing)}</td>
-                  <td>{numCell('present_days', <><span className="text-success">{p.present_days || 0}</span>/22</>, isEditing)}</td>
+                  <td>{numCell('present_days', <><span className="text-success">{p.present_days || 0}</span>/{getWorkingDaysInMonth(yearMonth, weekendDays)}</>, isEditing)}</td>
                   <td>{numCell('late_days', p.late_days > 0 ? <span className="text-warning">{p.late_days}</span> : '0', isEditing)}</td>
                   <td>{numCell('absent_days', p.absent_days > 0 ? <span className="text-destructive">{p.absent_days}</span> : '0', isEditing)}</td>
                   <td>{numCell('paid_leave_days', p.paid_leave_days || 0, isEditing)}</td>

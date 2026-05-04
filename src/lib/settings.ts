@@ -22,7 +22,7 @@ export const DEFAULT_ATTENDANCE: AttendanceSettings = {
   work_start: '09:00',
   work_end: '18:00',
   grace_minutes: 15,
-  weekend_days: [5, 6],
+  weekend_days: [0],
   half_day_after_hours: 4,
   min_full_day_hours: 8,
   early_leave_threshold_min: 30,
