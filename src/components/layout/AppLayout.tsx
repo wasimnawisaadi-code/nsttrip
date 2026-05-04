@@ -87,6 +87,20 @@ export default function AppLayout() {
     return () => clearInterval(timer);
   }, []);
 
+  // Heartbeat: Update last_seen_at every 1 minute
+  useEffect(() => {
+    if (!user) return;
+    const heartbeat = async () => {
+      await supabase
+        .from('profiles')
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq('user_id', user.id);
+    };
+    heartbeat();
+    const interval = setInterval(heartbeat, 60000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   // Fetch today's attendance for live work duration
   useEffect(() => {
     if (!user) return;
@@ -229,7 +243,10 @@ export default function AppLayout() {
             )}
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-foreground truncate">{profile.name}</p>
+                <p className="text-sm font-medium text-sidebar-foreground truncate flex items-center gap-2">
+                  {profile.name}
+                  <span className="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Online" />
+                </p>
                 <p className="text-xs text-sidebar-muted capitalize">{isAdmin ? 'admin' : 'employee'}</p>
               </div>
             )}

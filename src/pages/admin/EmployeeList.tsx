@@ -165,7 +165,12 @@ export default function EmployeeList() {
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-foreground truncate">{e.name}</p>
+                      <div className="relative">
+                        <p className="font-semibold text-foreground truncate">{e.name}</p>
+                        {e.last_seen_at && (new Date().getTime() - new Date(e.last_seen_at).getTime() < 300000) && (
+                          <span className="absolute -left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Online now" />
+                        )}
+                      </div>
                       {adminMap[e.user_id] && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 flex items-center gap-1">
                           <Shield className="w-3 h-3" /> {adminMap[e.user_id] === 'superadmin' ? 'SUPERADMIN' : 'ADMIN'}
