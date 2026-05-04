@@ -364,15 +364,21 @@ export default function DailyStatusReport() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <DSRGridEditor
-                  key={`editor-${refreshCount}`}
-                  template={activeTemplate}
-                  fromDate={fromDate}
-                  toDate={toDate}
-                  isAdmin={isAdmin}
-                  employeeFilter={employeeFilter}
-                  onChanged={() => setRefreshCount(prev => prev + 1)}
-                />
+                {activeTemplate ? (
+                  <DSRGridEditor
+                    key={`editor-${refreshCount}`}
+                    template={activeTemplate}
+                    fromDate={fromDate}
+                    toDate={toDate}
+                    isAdmin={isAdmin}
+                    employeeFilter={employeeFilter}
+                    onChanged={() => setRefreshCount(prev => prev + 1)}
+                  />
+                ) : (
+                  <div className="py-20 text-center text-muted-foreground">
+                    Please select a template to view the report
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
