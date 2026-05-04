@@ -41,6 +41,7 @@ export default function DailyStatusReport() {
   const [employees, setEmployees] = useState<{ user_id: string; name: string }[]>([]);
   const [showEntryModal, setShowEntryModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState<DSREntry | null>(null);
+  const [refreshCount, setRefreshCount] = useState(0);
 
   const loadTemplates = async () => {
     if (!user) return;
@@ -72,7 +73,7 @@ export default function DailyStatusReport() {
   };
 
   useEffect(() => { loadTemplates(); loadEmployees(); }, [user, isAdmin]);
-  useEffect(() => { loadEntries(); }, [activeTemplate, fromDate, toDate, employeeFilter]);
+  useEffect(() => { loadEntries(); }, [activeTemplate, fromDate, toDate, employeeFilter, refreshCount]);
 
   // Aggregate KPIs for current view
   const kpis = useMemo(() => {
@@ -364,12 +365,13 @@ export default function DailyStatusReport() {
               </CardHeader>
               <CardContent>
                 <DSRGridEditor
+                  key={`editor-${refreshCount}`}
                   template={activeTemplate}
                   fromDate={fromDate}
                   toDate={toDate}
                   isAdmin={isAdmin}
                   employeeFilter={employeeFilter}
-                  onChanged={loadEntries}
+                  onChanged={() => setRefreshCount(prev => prev + 1)}
                 />
               </CardContent>
             </Card>
@@ -444,19 +446,13 @@ function ExcelUploadButton({ template, userId, userName, entryDate, onDone }: { 
   const inputRef = useRef<HTMLInputElement>(null);
   const [result, setResult] = useState<ExcelParseResult | null>(null);
   const [busy, setBusy] = useState(false);
-  // Date mode: 'auto' = use detected date per row (fallback today), 'fixed' = apply chosen date to all rows
-  const [dateMode, setDateMode] = useState<'auto' | 'fixed'>('auto');
   const today = new Date().toISOString().split('T')[0];
-  const [fixedDate, setFixedDate] = useState(today);
 
   const handleFile = async (file: File) => {
     setBusy(true);
     try {
       const r = await parseExcelForTemplate(file, template);
       setResult(r);
-      // If file has no date column, force fixed mode
-      if (r.ok && !r.hasDateColumn) setDateMode('fixed');
-      else if (r.ok && r.hasDateColumn) setDateMode('auto');
     } catch (e: any) { toast.error('Could not parse file: ' + e.message); }
     finally { setBusy(false); if (inputRef.current) inputRef.current.value = ''; }
   };
@@ -465,14 +461,7 @@ function ExcelUploadButton({ template, userId, userName, entryDate, onDone }: { 
     if (!result?.ok || !result.rows) return;
     setBusy(true);
     try {
-      let perRowDates: (string | null)[] | undefined;
-      let fallback = today;
-      if (dateMode === 'auto' && result.parsedRows) {
-        perRowDates = result.parsedRows.map(p => p.detectedDate || today);
-      } else {
-        fallback = fixedDate;
-      }
-      const n = await bulkCreateEntries(template, userId, userName, fallback, result.rows, perRowDates);
+      const n = await bulkCreateEntries(template, userId, userName, entryDate || today, result.rows);
       toast.success(`Imported ${n} rows`);
       setResult(null);
       onDone();
@@ -480,17 +469,6 @@ function ExcelUploadButton({ template, userId, userName, entryDate, onDone }: { 
     finally { setBusy(false); }
   };
 
-  // Build per-date summary for preview
-  const dateSummary = useMemo(() => {
-    if (!result?.parsedRows) return [];
-    const finalDate = (i: number) => dateMode === 'fixed' ? fixedDate : (result.parsedRows![i].detectedDate || today);
-    const map = new Map<string, number>();
-    result.parsedRows.forEach((_, i) => {
-      const d = finalDate(i);
-      map.set(d, (map.get(d) || 0) + 1);
-    });
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [result, dateMode, fixedDate, today]);
 
   return (
     <>
@@ -518,48 +496,10 @@ function ExcelUploadButton({ template, userId, userName, entryDate, onDone }: { 
                     {result.hasDateColumn ? ' A Date column was found in your file.' : ' No Date column found — rows will use the date you choose.'}
                   </div>
 
-                  {/* Date mode selector */}
-                  <Card className="border-primary/30">
-                    <CardContent className="pt-4 space-y-3">
-                      <Label className="text-xs font-semibold">How should dates be assigned?</Label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          disabled={!result.hasDateColumn}
-                          onClick={() => setDateMode('auto')}
-                          className={`text-left p-3 rounded border text-xs ${dateMode === 'auto' ? 'border-primary bg-primary/10' : 'border-border'} ${!result.hasDateColumn ? 'opacity-40 cursor-not-allowed' : ''}`}
-                        >
-                          <div className="font-semibold mb-0.5">🪄 Auto-detect from file</div>
-                          <div className="text-muted-foreground">Each row uses the Date in your Excel. Empty/invalid → today.</div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDateMode('fixed')}
-                          className={`text-left p-3 rounded border text-xs ${dateMode === 'fixed' ? 'border-primary bg-primary/10' : 'border-border'}`}
-                        >
-                          <div className="font-semibold mb-0.5">📅 Apply one date to all rows</div>
-                          <div className="text-muted-foreground">Override file dates. All rows saved under the date you pick.</div>
-                        </button>
-                      </div>
-                      {dateMode === 'fixed' && (
-                        <div>
-                          <Label className="text-xs">Save all rows under date:</Label>
-                          <Input type="date" value={fixedDate} onChange={e => setFixedDate(e.target.value)} className="w-48 h-8 mt-1" />
-                        </div>
-                      )}
-                      {dateSummary.length > 0 && (
-                        <div className="text-xs">
-                          <div className="font-medium mb-1 text-muted-foreground">Final date distribution:</div>
-                          <div className="flex flex-wrap gap-1">
-                            {dateSummary.slice(0, 12).map(([d, n]) => (
-                              <Badge key={d} variant="secondary" className="text-[10px]">{d} · {n}</Badge>
-                            ))}
-                            {dateSummary.length > 12 && <Badge variant="outline" className="text-[10px]">+{dateSummary.length - 12} more</Badge>}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                  <div className="p-3 bg-primary/5 text-primary rounded border border-primary/20 text-xs">
+                    Confirming import for <strong>{entryDate || today}</strong>. 
+                    All <strong>{result.rows?.length}</strong> entries from the file will be saved under this date.
+                  </div>
                 </>
               )}
 

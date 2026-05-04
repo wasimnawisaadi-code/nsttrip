@@ -3,9 +3,8 @@ import { DSRTemplate, DSREntry, createEntry, updateEntry, deleteEntry, fetchEntr
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, Save, RotateCcw, CalendarClock, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Save, RotateCcw, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 
@@ -136,8 +135,8 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
       try {
         await deleteEntry(r.id);
         toast.success('Deleted');
-        setRows(prev => prev.filter((_, i) => i !== idx));
-        onChanged?.();
+        onChanged?.(); // Trigger parent refresh (KPIs)
+        load();        // Trigger local refresh (Grid)
       } catch (e: any) { toast.error(e.message); }
     } else {
       setRows(prev => prev.filter((_, i) => i !== idx));
@@ -159,8 +158,8 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
         else await createEntry(template, user.id, profile.name, r.entry_date, cleanData);
       }
       toast.success(`Saved ${dirty.length} row${dirty.length > 1 ? 's' : ''}`);
-      onChanged?.();
-      load();
+      onChanged?.(); // Refresh parent KPIs
+      load();        // Refresh local grid
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
   };
