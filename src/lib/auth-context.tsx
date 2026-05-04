@@ -169,70 +169,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Listen for session changes (Single device login)
   useEffect(() => {
-    if (user) {
-      console.log('[Auth] Starting session monitor for user:', user.id);
-      
-      const triggerLogout = () => {
-        toast.error('Logged in from another device. Signing out...', {
-          duration: 6000,
-          position: 'top-center',
-        });
-        setTimeout(() => signOut(), 2500);
-      };
+    let channel: any;
+    let pollInterval: any;
+    let initTimeout: any;
 
-      // 1. Core Logic: Realtime Session Monitor
-      // --- 1. Realtime Session Monitor ---
-      const channel = supabase.channel(`session-monitor-${user.id}`)
-        .on('postgres_changes', { 
-          event: 'UPDATE', 
-          schema: 'public', 
-          table: 'profiles',
-          filter: `user_id=eq.${user.id}`
-        }, (payload) => {
-          const dbSessionId = payload.new.current_session_id;
-          console.log('[Auth] Realtime update detected. DB:', dbSessionId, 'Local:', browserSessionId);
-          if (dbSessionId && dbSessionId !== browserSessionId) {
+    if (user) {
+      initTimeout = setTimeout(() => {
+        console.log('[Auth] Starting session monitor for user:', user.id);
+        startMonitor();
+      }, 2000);
+
+      const startMonitor = () => {
+        const triggerLogout = () => {
+          toast.error('Logged in from another device. Signing out...', {
+            duration: 6000,
+            position: 'top-center',
+          });
+          setTimeout(() => signOut(), 2500);
+        };
+
+        // 1. Realtime Session Monitor
+        channel = supabase.channel(`session-monitor-${user.id}`)
+          .on('postgres_changes', { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'profiles',
+            filter: `user_id=eq.${user.id}`
+          }, (payload) => {
+            const dbSessionId = payload.new.current_session_id;
+            if (dbSessionId && dbSessionId !== browserSessionId) {
+              triggerLogout();
+            }
+          })
+          .subscribe();
+
+        // 2. Fallback Polling (Every 30s)
+        pollInterval = setInterval(async () => {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('status, current_session_id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (prof?.status === 'inactive') {
+            signOut();
+            return;
+          }
+
+          if (prof?.current_session_id && prof.current_session_id !== browserSessionId) {
             triggerLogout();
           }
-        })
-        .subscribe();
-
-      // --- 2. Fallback Polling (Every 30s) ---
-      // This ensures that even if Realtime fails, or if the user is DELETED or DEACTIVATED, 
-      // the app will detect it and logout automatically.
-      const pollInterval = setInterval(async () => {
-        console.log('[Auth] Polling session status...');
-        const { data: prof, error } = await supabase
-          .from('profiles')
-          .select('status, current_session_id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        // If profile is missing (deleted) or error occurs, force logout
-        if (error || !prof) {
-          console.warn('[Auth] Profile missing or inaccessible. Logging out.');
-          signOut();
-          return;
-        }
-
-        // If deactivated, force logout
-        if (prof.status === 'inactive') {
-          console.warn('[Auth] Account deactivated. Logging out.');
-          signOut();
-          return;
-        }
-
-        // If session ID mismatch detected via poll
-        if (prof.current_session_id && prof.current_session_id !== browserSessionId) {
-          console.warn('[Auth] Session override detected via poll.');
-          triggerLogout();
-        }
-      }, 30000);
+        }, 30000);
+      };
       
       return () => { 
         console.log('[Auth] Stopping session monitor');
-        channel.unsubscribe(); 
-        clearInterval(pollInterval);
+        clearTimeout(initTimeout);
+        if (channel) channel.unsubscribe(); 
+        if (pollInterval) clearInterval(pollInterval);
       };
     }
   }, [user, role, browserSessionId]);
