@@ -19,10 +19,15 @@ export default function DSRDashboardWidget({ basePath = '/admin' }: { basePath?:
       const fromStr = start.toISOString().split('T')[0];
       const toStr = end.toISOString().split('T')[0];
 
-      const { data } = await supabase.from('dsr_entries')
-        .select('employee_id, employee_name, sale_amount, profit_amount, entry_date')
-        .gte('entry_date', fromStr).lte('entry_date', toStr);
-      const entries = data || [];
+      const [dsrRes, profilesRes] = await Promise.all([
+        supabase.from('dsr_entries')
+          .select('employee_id, employee_name, sale_amount, profit_amount, entry_date')
+          .gte('entry_date', fromStr).lte('entry_date', toStr),
+        supabase.from('profiles').select('user_id, status').eq('status', 'active')
+      ]);
+
+      const activeEmpIds = new Set((profilesRes.data || []).map(p => p.user_id));
+      const entries = (dsrRes.data || []).filter((e: any) => activeEmpIds.has(e.employee_id));
 
       const sales = entries.reduce((s, e: any) => s + Number(e.sale_amount || 0), 0);
       const profit = entries.reduce((s, e: any) => s + Number(e.profit_amount || 0), 0);
