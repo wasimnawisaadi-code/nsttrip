@@ -113,6 +113,22 @@ export default function SocialLeads() {
       .update({ assigned_to: user!.id, assigned_at: new Date().toISOString(), status: lead.status === 'NEW' ? 'IN_PROGRESS' : lead.status })
       .eq('id', lead.id);
     if (error) { toast.error(error.message); return; }
+    
+    // 🔔 Notify admins that lead has been taken
+    try {
+      const { data: admins } = await supabase.from('user_roles').select('user_id').in('role', ['admin', 'superadmin']);
+      if (admins) {
+        const leadName = lead.full_name || lead.username || lead.phone || lead.display_id;
+        const rows = admins.map((a: any) => ({
+          user_id: a.user_id,
+          title: 'Lead Assigned',
+          message: `${profile?.name || 'An employee'} has taken lead ${leadName} (${lead.display_id}).`,
+          type: 'lead_assigned',
+        }));
+        if (rows.length > 0) await supabase.from('notifications').insert(rows);
+      }
+    } catch { /* non-fatal */ }
+
     toast.success('Lead assigned to you');
     load();
   };
@@ -517,17 +533,22 @@ function LeadModal({ lead, onClose, onSaved, canEdit, currentUserId, currentUser
     setSaving(false);
     if (error) { toast.error(error.message); return; }
 
-    // 🔔 Notify all admins on new conversion
-    if (isNewConversion) {
+    // 🔔 Notify all admins on new conversion or non-conversion
+    if (isNewConversion || form.status === 'NOT_CONVERTED') {
       try {
         const { data: adminRoles } = await supabase.from('user_roles').select('user_id').in('role', ['admin', 'superadmin']);
         const sourceLabel = SOURCE_META[lead.source].label;
         const leadName = lead.full_name || lead.username || lead.phone || lead.display_id;
+        const title = form.status === 'CONVERTED' ? `🎉 Lead Converted — ${sourceLabel}` : `❌ Lead Lost — ${sourceLabel}`;
+        const message = form.status === 'CONVERTED' 
+          ? `${currentUserName} converted ${leadName} (${lead.display_id}). ${form.client_need ? 'Need: ' + form.client_need : ''}`.trim()
+          : `${currentUserName} marked ${leadName} as Not Converted. ${form.notes ? 'Reason: ' + form.notes : ''}`.trim();
+
         const rows = (adminRoles || []).map((a: any) => ({
           user_id: a.user_id,
-          title: `🎉 Lead Converted — ${sourceLabel}`,
-          message: `${currentUserName} converted ${leadName} (${lead.display_id}). ${form.client_need ? 'Need: ' + form.client_need : ''}`.trim(),
-          type: 'lead_converted',
+          title,
+          message,
+          type: form.status === 'CONVERTED' ? 'lead_converted' : 'lead_lost',
         }));
         if (rows.length > 0) await supabase.from('notifications').insert(rows);
       } catch { /* non-fatal */ }

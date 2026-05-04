@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
-import logo from '@/assets/logo.png';
+const logo = "/favicon.png";
 import AIChatbot from '@/components/AIChatbot';
 import HeaderCalculator from '@/components/HeaderCalculator';
 import { openAIChatbot } from '@/lib/ai-chatbot-bus';

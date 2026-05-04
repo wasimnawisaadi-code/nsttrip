@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { recordLoginAttendance, generateDailyNotifications } from '@/lib/supabase-service';
 import { getCurrentPosition, isInsideZone } from '@/lib/geofence';
 import { supabase } from '@/integrations/supabase/client';
-import logo from '@/assets/logo.png';
+const logo = "/favicon.png";
 
 export default function Login() {
   const navigate = useNavigate();
