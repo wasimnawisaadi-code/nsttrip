@@ -103,15 +103,32 @@ export default function AdminDashboard() {
           return { ...a, name: emp?.name || 'Unknown', photo: emp?.photo_url };
         });
 
-      const topEmployees = employees.filter((e: any) => e.status === 'active').map((e: any) => ({
-        name: e.name, id: e.user_id, photo: e.photo_url,
-        clients: clients.filter((c: any) => c.assigned_to === e.user_id).length,
-        revenue: clients.filter((c: any) => c.assigned_to === e.user_id).reduce((s: number, c: any) => s + (c.revenue || 0), 0),
-        profit: clients.filter((c: any) => c.assigned_to === e.user_id).reduce((s: number, c: any) => s + (c.profit || 0), 0),
-        tasks: tasks.filter((t: any) => t.assigned_to === e.user_id && t.status === 'Completed').length,
-        successRate: (() => { const ec = clients.filter((c: any) => c.assigned_to === e.user_id); return ec.length > 0 ? Math.round((ec.filter((c: any) => c.status === 'Success').length / ec.length) * 100) : 0; })(),
-        presentDays: attendance.filter((a: any) => a.employee_id === e.user_id && a.date?.startsWith(reportMonth)).filter((a: any) => a.status === 'Present' || a.status === 'Late').length,
-      })).sort((a, b) => b.revenue - a.revenue);
+      const topEmployees = employees.filter((e: any) => e.status === 'active').map((e: any) => {
+        const empAttendance = attendance.filter((a: any) => a.employee_id === e.user_id && a.date?.startsWith(reportMonth));
+        let totalHours = empAttendance.reduce((s: number, a: any) => s + (a.hours_worked || 0), 0);
+        
+        // Include live shift duration for currently logged-in employees
+        const active = empAttendance.find((a: any) => a.login_time && !a.logout_time && a.date === today);
+        if (active) {
+          const liveDuration = (new Date().getTime() - new Date(active.login_time).getTime()) / 3600000;
+          totalHours += liveDuration;
+        }
+
+        const ec = clients.filter((c: any) => c.assigned_to === e.user_id);
+        const successRate = ec.length > 0 ? Math.round((ec.filter((c: any) => c.status === 'Success').length / ec.length) * 100) : 0;
+
+        return {
+          name: e.name, id: e.user_id, photo: e.photo_url,
+          clients: ec.length,
+          revenue: ec.reduce((s: number, c: any) => s + (c.revenue || 0), 0),
+          profit: ec.reduce((s: number, c: any) => s + (c.profit || 0), 0),
+          tasks: tasks.filter((t: any) => t.assigned_to === e.user_id && t.status === 'Completed').length,
+          successRate,
+          presentDays: empAttendance.filter((a: any) => a.status === 'Present' || a.status === 'Late').length,
+          totalHours: Math.round(totalHours * 10) / 10,
+          avgHours: empAttendance.length > 0 ? Math.round((totalHours / empAttendance.length) * 10) / 10 : 0,
+        };
+      }).sort((a, b) => b.revenue - a.revenue);
 
       const leadCounts: Record<string, number> = {};
       const leadRevenue: Record<string, number> = {};
@@ -455,7 +472,7 @@ export default function AdminDashboard() {
         <div className="card-nawi p-0 overflow-x-auto">
           <div className="p-4 flex justify-end"><button onClick={() => exportCSV(data.topEmployees.map((e: any) => ({ Name: e.name, Clients: e.clients, Revenue: e.revenue, Profit: e.profit, TasksDone: e.tasks, SuccessRate: e.successRate + '%', PresentDays: e.presentDays })), 'employee_performance.csv')} className="btn-outline text-sm"><Download className="w-4 h-4" /> Export</button></div>
           <table className="table-nawi w-full">
-            <thead><tr><th>Employee</th><th>Clients</th><th>Revenue</th><th>Profit</th><th>Tasks</th><th>Success %</th><th>Present</th></tr></thead>
+            <thead><tr><th>Employee</th><th>Clients</th><th>Revenue</th><th>Profit</th><th>Success %</th><th>Total Hours</th><th>Avg/Day</th></tr></thead>
             <tbody>{data.topEmployees.map((e: any) => (
               <tr key={e.id}>
                 <td className="font-medium">
@@ -466,9 +483,9 @@ export default function AdminDashboard() {
                   </div>
                 </td>
                 <td>{e.clients}</td><td>{formatCurrency(e.revenue)}</td><td className="text-success">{formatCurrency(e.profit)}</td>
-                <td>{e.tasks}</td>
                 <td><div className="flex items-center gap-2"><div className="w-16 h-2 bg-muted rounded-full"><div className="h-full bg-primary rounded-full" style={{ width: `${e.successRate}%` }} /></div><span className="text-xs">{e.successRate}%</span></div></td>
-                <td>{e.presentDays}</td>
+                <td className="font-semibold">{e.totalHours}h</td>
+                <td className="text-primary font-medium">{e.avgHours}h</td>
               </tr>
             ))}</tbody>
           </table>
