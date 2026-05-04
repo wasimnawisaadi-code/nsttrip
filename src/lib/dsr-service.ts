@@ -88,9 +88,9 @@ function computeFinancials(template: DSRTemplate, data: Record<string, any>) {
     if (!col.financial) continue;
     const v = parseFloat(data[col.key]);
     if (isNaN(v)) continue;
-    if (col.financial === 'sale') sale = v;
-    else if (col.financial === 'cost') cost = v;
-    else if (col.financial === 'profit') profit = v;
+    if (col.financial === 'sale') sale += v;
+    else if (col.financial === 'cost') cost += v;
+    else if (col.financial === 'profit') profit += v;
   }
   if (!profit && (sale || cost)) profit = sale - cost;
   return { sale, cost, profit };
