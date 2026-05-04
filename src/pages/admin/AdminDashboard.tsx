@@ -32,10 +32,12 @@ export default function AdminDashboard() {
       ]);
 
       const clients = clientsRes.data || [];
-      const tasks = tasksRes.data || [];
+      const clientIds = new Set(clients.map(c => c.id));
+      
+      const tasks = (tasksRes.data || []).filter((t: any) => t.client_id && clientIds.has(t.client_id));
       const employees = profilesRes.data || [];
       const attendance = attendanceRes.data || [];
-      const quotations = quotationsRes.data || [];
+      const quotations = (quotationsRes.data || []).filter((q: any) => q.client_id && clientIds.has(q.client_id));
       const auditLog = auditRes.data || [];
       const leave = leaveRes.data || [];
 
