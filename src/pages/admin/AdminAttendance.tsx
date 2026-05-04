@@ -61,7 +61,15 @@ export default function AdminAttendance() {
 
   const empSummary = employees.map(emp => {
     const recs = monthAttendance.filter(a => a.employee_id === emp.user_id);
-    const totalHours = recs.reduce((s, a) => s + (a.hours_worked || 0), 0);
+    let totalHours = recs.reduce((s, a) => s + (a.hours_worked || 0), 0);
+    
+    // Include live shift duration for currently logged-in employees
+    const active = recs.find(a => a.login_time && !a.logout_time && a.date === now.toISOString().split('T')[0]);
+    if (active) {
+      const liveDuration = (new Date().getTime() - new Date(active.login_time).getTime()) / 3600000;
+      totalHours += liveDuration;
+    }
+
     const empLeave = allLeave.filter(l => l.employee_id === emp.user_id && l.status === 'Approved' && (l.start_date?.startsWith(yearMonth) || l.end_date?.startsWith(yearMonth)));
     return {
       ...emp, present: recs.filter(a => a.status === 'Present').length,
@@ -290,7 +298,12 @@ export default function AdminAttendance() {
                           <td>{formatDate(a.date)}</td>
                           <td>{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                           <td>{a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                          <td>{a.hours_worked || 0}h</td>
+                          <td>
+                            {a.logout_time ? `${a.hours_worked || 0}h` : 
+                              a.login_time && a.date === new Date().toISOString().split('T')[0] ? 
+                              `${Math.round(((new Date().getTime() - new Date(a.login_time).getTime()) / 3600000) * 10) / 10}h (Active)` : 
+                              '—'}
+                          </td>
                           <td><StatusBadge status={a.status} /></td>
                           <td className="max-w-[200px] truncate text-xs">{a.work_summary || '—'}</td>
                         </tr>
