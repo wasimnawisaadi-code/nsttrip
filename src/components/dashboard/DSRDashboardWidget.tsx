@@ -51,7 +51,10 @@ export default function DSRDashboardWidget({ basePath = '/admin' }: { basePath?:
         cur.profit += Number(e.profit_amount || 0);
         empMap.set(k, cur);
       });
-      const topEmps = Array.from(empMap.values()).sort((a, b) => b.profit - a.profit).slice(0, 5);
+      const topEmps = Array.from(empMap.values())
+        .filter(e => e.profit > 0)
+        .sort((a, b) => b.profit - a.profit)
+        .slice(0, 5);
 
       setStats({ count: entries.length, sales, profit, employees, daily, topEmps });
       setLoading(false);

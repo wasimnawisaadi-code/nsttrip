@@ -171,7 +171,8 @@ export default function AdminDashboard() {
           isClockedIn,
           isOnline
         };
-      }).sort((a, b) => b.revenue - a.revenue);
+      }).filter(e => e.revenue > 0 || e.clients > 0 || e.tasks > 0)
+        .sort((a, b) => b.revenue - a.revenue);
 
       const leadCounts: Record<string, number> = {};
       const leadRevenue: Record<string, number> = {};
@@ -360,7 +361,12 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="card-nawi">
               <h3 className="text-base font-semibold font-display mb-3">Top Performers</h3>
-              {data.topEmployees.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">No employees</p> : (
+              {data.topEmployees.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground border border-dashed rounded-lg">
+                  <Target className="w-8 h-8 mb-2 opacity-20" />
+                  <p className="text-xs">No performance data found</p>
+                </div>
+              ) : (
                 <div className="space-y-2">
                   {data.topEmployees.slice(0, 5).map((emp: any, i: number) => (
                     <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors">
