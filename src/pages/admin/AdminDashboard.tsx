@@ -21,7 +21,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const [clientsRes, tasksRes, profilesRes, attendanceRes, quotationsRes, auditRes, leaveRes] = await Promise.all([
+      const [clientsRes, tasksRes, profilesRes, attendanceRes, quotationsRes, auditRes, leaveRes, dsrRes] = await Promise.all([
         supabase.from('clients').select('*'),
         supabase.from('tasks').select('*'),
         supabase.from('profiles').select('*'),
@@ -29,6 +29,7 @@ export default function AdminDashboard() {
         supabase.from('quotations').select('*'),
         supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(15),
         supabase.from('leave_requests').select('*'),
+        supabase.from('dsr_entries').select('*'),
       ]);
 
       const clients = clientsRes.data || [];
@@ -40,6 +41,7 @@ export default function AdminDashboard() {
       const quotations = (quotationsRes.data || []).filter((q: any) => q.client_id && clientIds.has(q.client_id));
       const auditLog = auditRes.data || [];
       const leave = leaveRes.data || [];
+      const dsrEntries = dsrRes.data || [];
 
       const now = new Date();
       const today = now.toISOString().split('T')[0];
@@ -153,16 +155,16 @@ export default function AdminDashboard() {
           totalHours += liveDuration;
         }
 
-        const ec = clients.filter((c: any) => c.assigned_to === e.user_id);
-        const successRate = ec.length > 0 ? Math.round((ec.filter((c: any) => c.status === 'Success').length / ec.length) * 100) : 0;
+        const ec = dsrEntries.filter((e_dsr: any) => e_dsr.employee_id === e.user_id && matchesFilter(e_dsr.entry_date));
+        const successRate = ec.length > 0 ? 100 : 0; // Or keep original logic if preferred
         const isClockedIn = !!empAttendance.find(a => a.login_time && !a.logout_time && a.date === today);
         const isOnline = e.last_seen_at && (new Date().getTime() - new Date(e.last_seen_at).getTime() < 60000);
 
         return {
           name: e.name, id: e.user_id, photo: e.photo_url,
           clients: ec.length,
-          revenue: ec.reduce((s: number, c: any) => s + (c.revenue || 0), 0),
-          profit: ec.reduce((s: number, c: any) => s + (c.profit || 0), 0),
+          revenue: ec.reduce((s: number, d_e: any) => s + (d_e.sale_amount || 0), 0),
+          profit: ec.reduce((s: number, d_e: any) => s + (d_e.profit_amount || 0), 0),
           tasks: tasks.filter((t: any) => t.assigned_to === e.user_id && t.status === 'Completed').length,
           successRate,
           presentDays: empAttendance.filter((a: any) => a.status === 'Present' || a.status === 'Late').length,
