@@ -102,7 +102,7 @@ export default function AdminDashboard() {
         .filter((a: any) => a.date === today && activeEmployeeIds.has(a.employee_id))
         .map((a: any) => {
           const emp = employees.find((e: any) => e.user_id === a.employee_id);
-          return { ...a, name: emp?.name || 'Unknown', photo: emp?.photo_url };
+          return { ...a, name: emp?.name || 'Unknown', photo: emp?.photo_url, last_seen_at: emp?.last_seen_at };
         });
 
       const topEmployees = employees.filter((e: any) => e.status === 'active').map((e: any) => {
@@ -385,7 +385,12 @@ export default function AdminDashboard() {
                       {a.photo ? <img src={a.photo} alt="" className="w-8 h-8 rounded-full object-cover" /> :
                         <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground">{a.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>}
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium truncate">{a.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-medium truncate">{a.name}</p>
+                          {a.last_seen_at && (new Date().getTime() - new Date(a.last_seen_at).getTime() < 300000) && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Online now" />
+                          )}
+                        </div>
                         <p className="text-[10px] text-muted-foreground">
                           {a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
                           {a.logout_time ? ` → ${new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}
@@ -479,8 +484,13 @@ export default function AdminDashboard() {
               <tr key={e.id}>
                 <td className="font-medium">
                   <div className="flex items-center gap-2">
-                    {e.photo ? <img src={e.photo} alt="" className="w-7 h-7 rounded-full object-cover" /> :
-                      <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">{e.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>}
+                    <div className="relative">
+                      {e.photo ? <img src={e.photo} alt="" className="w-7 h-7 rounded-full object-cover" /> :
+                        <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">{e.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>}
+                      {e.last_seen_at && (new Date().getTime() - new Date(e.last_seen_at).getTime() < 300000) && (
+                        <span className="absolute -right-0.5 -bottom-0.5 w-2 h-2 rounded-full bg-success border border-card shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Online now" />
+                      )}
+                    </div>
                     {e.name}
                   </div>
                 </td>

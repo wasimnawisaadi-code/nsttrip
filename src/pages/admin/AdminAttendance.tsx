@@ -190,9 +190,17 @@ export default function AdminAttendance() {
             <table className="table-nawi w-full">
               <thead><tr><th>Employee</th><th>Present</th><th>Late</th><th>Absent</th><th>Leave</th><th>Total Hours</th><th>Avg/Day</th><th></th></tr></thead>
               <tbody>
-                {empSummary.map(e => (
                   <tr key={e.user_id}>
-                    <td className="font-medium">{e.name}</td>
+                    <td className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          {e.name}
+                          {e.last_seen_at && (new Date().getTime() - new Date(e.last_seen_at).getTime() < 300000) && (
+                            <span className="absolute -left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Online now" />
+                          )}
+                        </div>
+                      </div>
+                    </td>
                     <td><span className="text-success font-medium">{e.present}</span></td>
                     <td><span className="text-warning font-medium">{e.late}</span></td>
                     <td><span className="text-destructive font-medium">{e.absent}</span></td>
