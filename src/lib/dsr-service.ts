@@ -75,7 +75,12 @@ export async function fetchAssignmentMap(): Promise<Record<string, string[]>> {
 
 export async function setAssignments(templateId: string, employeeIds: string[], assignedBy: string) {
   // Replace assignments for a template
-  await supabase.from('dsr_assignments').delete().eq('template_id', templateId);
+  const { error: deleteError } = await supabase.from('dsr_assignments').delete().eq('template_id', templateId);
+  if (deleteError) throw deleteError;
+  
+  // CRITICAL PRODUCTION FIX: Ensure template is marked as active when it is being assigned
+  await supabase.from('dsr_templates').update({ is_active: true }).eq('id', templateId);
+
   if (employeeIds.length === 0) return;
   const rows = employeeIds.map(eid => ({ template_id: templateId, employee_id: eid, assigned_by: assignedBy }));
   const { error } = await supabase.from('dsr_assignments').insert(rows);

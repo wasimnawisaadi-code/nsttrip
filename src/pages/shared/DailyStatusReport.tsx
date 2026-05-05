@@ -48,7 +48,17 @@ export default function DailyStatusReport() {
     const list = isAdmin ? await fetchAllTemplates() : await fetchAssignedTemplates(user.id);
     setTemplates(list);
     if (list.length > 0 && !activeTemplate) setActiveTemplate(list[0]);
+    
+    // FETCH ASSIGNED TASKS (like UAE Visa)
+    const { data: svcs } = await supabase
+      .from('client_services')
+      .select('*, clients(name, mobile, passport_no)')
+      .eq('status', 'New');
+    setAssignedTasks(svcs || []);
   };
+
+  const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
+  const [showTasks, setShowTasks] = useState(false);
 
   const loadEntries = async () => {
     if (!activeTemplate) { setEntries([]); return; }
@@ -247,6 +257,52 @@ export default function DailyStatusReport() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* PENDING ASSIGNED TASKS WIDGET */}
+            {assignedTasks.length > 0 && !isAdmin && (
+              <div className="card-nawi bg-warning/5 border-warning/20 mb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-warning/10 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-warning" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-warning">Pending Assignments</h3>
+                      <p className="text-xs text-muted-foreground">You have {assignedTasks.length} services from the Wizard that need DSR reporting.</p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setShowTasks(!showTasks)}>
+                    {showTasks ? 'Hide' : 'View Tasks'}
+                  </Button>
+                </div>
+                {showTasks && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4 pt-4 border-t border-warning/10">
+                    {assignedTasks.map(task => (
+                      <div key={task.id} className="p-3 bg-card border border-border rounded-xl flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <Badge variant="secondary" className="text-[10px]">{task.service}</Badge>
+                          </div>
+                          <p className="text-sm font-bold">{task.clients?.name}</p>
+                        </div>
+                        <Button size="sm" className="mt-3 text-xs h-8" onClick={() => {
+                          const tpl = templates.find(t => t.name.toLowerCase().includes(task.service.toLowerCase()));
+                          if (tpl) {
+                            setActiveTemplate(tpl);
+                            toast.success(`Switched to ${tpl.name}. Add the details for ${task.clients?.name}!`);
+                            setShowTasks(false);
+                          } else {
+                            toast.error(`No DSR template found for ${task.service}`);
+                          }
+                        }}>
+                          <Plus className="w-3 h-3 mr-1" /> Add to DSR
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* KPI cards */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
