@@ -517,7 +517,23 @@ export default function TeamChat() {
             <div className="space-y-4">
               <div><label className="block text-sm font-medium mb-1">Group Name *</label><input value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} className="input-nawi" /></div>
               <div>
-                <label className="block text-sm font-medium mb-2">Members</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium">Members</label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer hover:text-primary">
+                    <input type="checkbox" 
+                      checked={groupForm.members.length === allUsers.filter(u => u.user_id !== user?.id).length && allUsers.length > 1} 
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setGroupForm({ ...groupForm, members: allUsers.filter(u => u.user_id !== user?.id).map(u => u.user_id) });
+                        } else {
+                          setGroupForm({ ...groupForm, members: [] });
+                        }
+                      }} 
+                      className="w-4 h-4 rounded accent-primary" 
+                    />
+                    <span className="font-medium">Select All</span>
+                  </label>
+                </div>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {allUsers.filter(u => u.user_id !== user?.id).map((u) => (
                     <label key={u.user_id} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg cursor-pointer">
