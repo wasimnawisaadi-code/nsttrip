@@ -1,4 +1,3 @@
-// Refined Deep-Scan Social Leads Sync
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -70,36 +69,43 @@ Deno.serve(async (req) => {
       const allRows = await fetchSheet(SHEETS[source].id, SHEETS[source].gid, saInfo);
       if (!allRows || allRows.length < 1) continue;
       
-      const dataRows = allRows.slice(1); // skip headers
+      const headers = allRows[0].map(h => (h || "").trim().toLowerCase());
+      const dataRows = allRows.slice(1);
+      
+      // PERFECT LOGIC: Find exact column indexes if they exist
+      const idIdx = headers.findIndex(h => h === 'contact id' || h === 'psid' || h === 'id' || h === 'user_id');
+      const nameIdx = headers.findIndex(h => h === 'full name' || h === 'name' || h === 'first name');
+      const phoneIdx = headers.findIndex(h => h === 'phone' || h === 'phone number' || h === 'whatsapp');
+      const igUsernameIdx = headers.findIndex(h => h === 'username' || h === 'ig username');
       
       for (const r of dataRows) {
         let id = ""; let name = ""; let username = ""; let phone = "";
         
-        // Find ID: 10-20 digit number
-        id = r.find(c => c && /^\d{10,20}$/.test(c.trim())) || "";
+        // 1. PERFECT ID DETECTION (Exact match first, Deep Scan fallback)
+        if (idIdx >= 0 && r[idIdx] && r[idIdx].trim()) {
+           id = r[idIdx].trim();
+        } else {
+           id = r.find(c => c && /^\d{10,20}$/.test(c.trim())) || "";
+        }
         if (!id) continue;
 
-        // Find Name: The first column that has text (not just numbers/dates/booleans)
-        // Usually the first few columns are First Name, Last Name, Full Name
-        // We'll join the first two non-empty text strings
-        const textCols = r.filter(c => c && c.trim() && !/^\d/.test(c.trim()) && !["TRUE", "FALSE", "male", "female", "en_US", "en_GB", "English"].includes(c.trim()) && !c.includes("nawisaadi"));
-        
-        if (textCols.length > 0) {
-          name = textCols[0].trim();
-          // If the second column is also text, it might be the last name, let's combine if it makes sense, 
-          // or if the second column is full name, use that.
-          if (textCols.length > 1 && textCols[1].includes(name)) {
-             name = textCols[1].trim(); // It was full name
-          } else if (textCols.length > 1 && textCols[0].length < 15 && textCols[1].length < 15) {
-             // Combine first and last name if they are short
-             name = `${textCols[0]} ${textCols[1]}`.trim();
-          }
+        // 2. PERFECT NAME DETECTION
+        if (nameIdx >= 0 && r[nameIdx] && r[nameIdx].trim() && !["TRUE", "FALSE"].includes(r[nameIdx].trim())) {
+           name = r[nameIdx].trim();
+        } else {
+           const textCols = r.filter(c => c && c.trim() && !/^\d/.test(c.trim()) && !["TRUE", "FALSE", "male", "female", "en_US", "en_GB", "English"].includes(c.trim()) && !c.includes("nawisaadi"));
+           if (textCols.length > 0) name = textCols[0].trim();
         }
-        
-        // Find Username (for IG)
-        if (source === "instagram") {
-          username = r.find(c => c && /^[a-zA-Z0-9._]{3,20}$/.test(c) && !c.includes(" ") && c !== "TRUE" && c !== "FALSE") || "";
+
+        // 3. PERFECT USERNAME DETECTION
+        if (igUsernameIdx >= 0 && r[igUsernameIdx]) {
+           username = r[igUsernameIdx].trim();
+        } else if (source === "instagram") {
+           username = r.find(c => c && /^[a-zA-Z0-9._]{3,20}$/.test(c) && !c.includes(" ") && c !== "TRUE" && c !== "FALSE") || "";
         }
+
+        // 4. PERFECT PHONE DETECTION
+        if (phoneIdx >= 0 && r[phoneIdx]) phone = r[phoneIdx].trim();
 
         if (!name || name.length < 2) name = username || id; // Fallback to username or ID if name is truly missing
 
@@ -110,6 +116,7 @@ Deno.serve(async (req) => {
           await supabase.from("social_leads").insert({ ...lead, display_id: `LEAD-${Math.floor(Math.random() * 89999) + 10000}` });
           summary[source].new++;
         }
+        summary[source].total++;
       }
     } catch (e) { summary[source].error = e.message; }
   }
