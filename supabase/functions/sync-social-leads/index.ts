@@ -1,4 +1,4 @@
-// Final Robust Social Leads Sync
+// Precision Social Leads Sync
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -11,10 +11,6 @@ const SHEETS = {
   instagram: { id: "1Z8Qj1U972Ktp4iOK3-JWPcgk_vEDJ58aJKH4daD7i0E", gid: "2060179211" },
   messenger: { id: "1Z8Qj1U972Ktp4iOK3-JWPcgk_vEDJ58aJKH4daD7i0E", gid: "1104863519" },
 } as const;
-
-function csvUrl(id: string, gid: string) {
-  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
-}
 
 async function getSheetsAccessToken(): Promise<string | null> {
   const saJson = Deno.env.get('GOOGLE_SHEETS_SA_JSON');
@@ -38,10 +34,14 @@ async function fetchSheet(id: string, gid: string, token: string | null) {
     try {
       const meta = await (await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}?fields=sheets.properties`, { headers: { Authorization: `Bearer ${token}` } })).json();
       const tab = meta.sheets?.find((s: any) => String(s.properties?.sheetId) === String(gid))?.properties?.title;
-      if (tab) return (await (await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${tab}`, { headers: { Authorization: `Bearer ${token}` } })).json()).values || [];
+      if (tab) {
+        const data = await (await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${tab}`, { headers: { Authorization: `Bearer ${token}` } })).json();
+        if (data.values) return data.values;
+      }
     } catch {}
   }
-  const res = await fetch(csvUrl(id, gid));
+  const csvUrl = `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
+  const res = await fetch(csvUrl);
   const text = await res.text();
   const rows: string[][] = []; let row: string[] = []; let cur = ""; let inQ = false;
   for (let i = 0; i < text.length; i++) {
@@ -53,19 +53,19 @@ async function fetchSheet(id: string, gid: string, token: string | null) {
   return rows;
 }
 
-function pick(row: string[], headers: string[], ...keys: string[]) {
+function getVal(row: string[], headers: string[], keys: string[], fallbackIdx: number): string {
   for (const k of keys) {
     const idx = headers.findIndex(h => h.toLowerCase() === k.toLowerCase());
     if (idx !== -1 && row[idx]) return row[idx].trim();
   }
-  return "";
+  return (row[fallbackIdx] || "").trim();
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const token = await getSheetsAccessToken();
-  const summary: any = { whatsapp: { total: 0, new: 0, updated: 0, error: null }, instagram: { total: 0, new: 0, updated: 0, error: null }, messenger: { total: 0, new: 0, updated: 0, error: null } };
+  const summary: any = { whatsapp: { total: 0, new: 0, updated: 0 }, instagram: { total: 0, new: 0, updated: 0 }, messenger: { total: 0, new: 0, updated: 0 } };
 
   for (const source of Object.keys(SHEETS) as Array<keyof typeof SHEETS>) {
     try {
@@ -75,23 +75,34 @@ Deno.serve(async (req) => {
       summary[source].total = rows.length - 1;
 
       for (const r of rows.slice(1)) {
-        let unique_key = ""; let full_name = ""; let username = ""; let phone = "";
+        let id = ""; let name = ""; let username = ""; let phone = "";
         
         if (source === "whatsapp") {
-          phone = pick(r, headers, "Phone", "WhatsApp ID");
-          unique_key = pick(r, headers, "Contact ID", "Contact Id", "WhatsApp ID") || phone;
+          phone = getVal(r, headers, ["phone", "wa id", "whatsapp"], 0);
+          id = getVal(r, headers, ["contact id", "id"], 6) || phone;
         } else if (source === "instagram") {
-          username = pick(r, headers, "Username", "Handle", "Instagram Username") || r[12]; // Fallback to col 13
-          unique_key = pick(r, headers, "Contact ID", "Contact Id", "Instagram ID") || username;
+          username = getVal(r, headers, ["username", "handle"], 12);
+          id = getVal(r, headers, ["contact id", "id"], 6) || username;
         } else {
-          unique_key = pick(r, headers, "Contact ID", "Contact Id", "Messenger ID", "PSID") || r[6]; // Fallback to col 7
+          id = getVal(r, headers, ["contact id", "id", "psid"], 6);
         }
         
-        if (!unique_key || unique_key === "null") continue;
-        full_name = pick(r, headers, "Full Name", "Name") || `${pick(r, headers, "First Name")} ${pick(r, headers, "Last Name")}`.trim() || "Unnamed Lead";
+        // CRITICAL: Ignore headers or empty IDs
+        if (!id || id.toLowerCase() === "contact id" || id === "null") continue;
+        
+        const first = getVal(r, headers, ["first name"], 0);
+        const last = getVal(r, headers, ["last name"], 1);
+        name = getVal(r, headers, ["full name", "name"], 2);
+        if (!name || name === "Full Name" || name.toLowerCase().includes("nawisaadi")) {
+           name = (first + " " + last).trim() || username || "Unnamed Lead";
+        }
 
-        const lead = { source, unique_key, full_name, phone: phone || null, username: username || null, raw: r, updated_at: new Date().toISOString() };
-        const { data: existing } = await supabase.from("social_leads").select("id").eq("source", source).eq("unique_key", unique_key).maybeSingle();
+        const lead = { 
+          source, unique_key: id, full_name: name, phone: phone || null, username: username || null, 
+          raw: r, updated_at: new Date().toISOString() 
+        };
+
+        const { data: existing } = await supabase.from("social_leads").select("id").eq("source", source).eq("unique_key", id).maybeSingle();
 
         if (existing) {
           await supabase.from("social_leads").update(lead).eq("id", existing.id);
@@ -101,9 +112,9 @@ Deno.serve(async (req) => {
           const { data: ins } = await supabase.from("social_leads").insert({ ...lead, display_id: (idData as string) || `LEAD-${Date.now()}` }).select().single();
           if (ins) {
             summary[source].new++;
-            const { data: admins } = await supabase.from("user_roles").select("user_id").in("role", ["admin", "superadmin"]);
-            if (admins) {
-              const notifs = admins.map((a: any) => ({ user_id: a.user_id, title: `New ${source} lead`, message: `${ins.full_name} messaged via ${source}.`, type: "lead" }));
+            const { data: adminRoles } = await supabase.from("user_roles").select("user_id").in("role", ["admin", "superadmin"]);
+            if (adminRoles) {
+              const notifs = adminRoles.map((a: any) => ({ user_id: a.user_id, title: `New ${source} lead`, message: `${ins.full_name} messaged via ${source}.`, type: "lead" }));
               await supabase.from("notifications").insert(notifs);
             }
           }
