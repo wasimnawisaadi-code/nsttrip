@@ -1,4 +1,4 @@
-// Visibility-Debug Social Leads Sync
+// Messenger-Rescue Social Leads Sync
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -68,13 +68,16 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const saInfo = await getSheetsAccessToken();
-  const summary: any = { whatsapp: { total: 0, new: 0, debug: "" }, instagram: { total: 0, new: 0, debug: "" }, messenger: { total: 0, new: 0, debug: "" } };
+  const summary: any = { whatsapp: { total: 0, new: 0 }, instagram: { total: 0, new: 0 }, messenger: { total: 0, new: 0 } };
+  const adminRoles = await supabase.from("user_roles").select("user_id").in("role", ["admin", "superadmin"]);
+  const adminIds = (adminRoles.data || []).map(a => a.user_id);
+  const pendingNotifs: any[] = [];
 
   for (const source of Object.keys(SHEETS) as Array<keyof typeof SHEETS>) {
     try {
       const allRows = await fetchSheet(SHEETS[source].id, SHEETS[source].gid, saInfo);
       if (!allRows || allRows.length < 1) continue;
-      let hIdx = allRows.findIndex(r => r.some(c => (c || "").toLowerCase().includes("contact id") || (c || "").toLowerCase().includes("first name")));
+      let hIdx = allRows.findIndex(r => r.some(c => (c || "").toLowerCase().includes("contact id")));
       if (hIdx === -1) hIdx = 0;
       const headers = allRows[hIdx].map(h => (h || "").trim());
       const dataRows = allRows.slice(hIdx + 1);
@@ -82,25 +85,29 @@ Deno.serve(async (req) => {
       
       for (const r of dataRows) {
         let id = ""; let name = ""; let username = ""; let phone = "";
-        if (source === "whatsapp") { phone = getVal(r, headers, ["phone", "whatsapp id"], 4); id = getVal(r, headers, ["contact id", "id"], 6) || phone; }
-        else if (source === "instagram") { username = getVal(r, headers, ["username", "handle"], 12); id = getVal(r, headers, ["contact id", "id"], 6) || username; }
-        else { id = getVal(r, headers, ["contact id", "id", "psid"], 6); }
-        if (!id || id.toLowerCase() === "contact id" || id === "null") continue;
+        if (source === "whatsapp") { phone = getVal(r, headers, ["phone", "whatsapp id"], 4); id = String(getVal(r, headers, ["contact id", "id"], 6) || phone); }
+        else if (source === "instagram") { username = getVal(r, headers, ["username", "handle"], 12); id = String(getVal(r, headers, ["contact id", "id"], 6) || username); }
+        else { id = String(getVal(r, headers, ["contact id", "id", "psid"], 6)); }
+        
+        if (!id || id === "null" || id.length < 5) continue;
+        
         const first = getVal(r, headers, ["first name"], 0); const last = getVal(r, headers, ["last name"], 1); const full = getVal(r, headers, ["full name", "name"], 2);
         name = full; if (!name || name.toLowerCase().includes("nawisaadi")) { name = (first + " " + last).trim() || username || "Unnamed Lead"; }
-        
-        if (!summary[source].debug) summary[source].debug = name;
 
-        const lead = { source, unique_key: id, full_name: name, phone: phone || null, username: username || null, raw: r, last_interaction: new Date().toISOString(), updated_at: new Date().toISOString() };
+        const lead = { source, unique_key: id, full_name: name, phone: phone || null, username: username || null, raw: r, last_interaction: new Date().toISOString(), updated_at: new Date().toISOString(), status: 'NEW' };
+        
         const { data: existing } = await supabase.from("social_leads").select("id").eq("source", source).eq("unique_key", id).maybeSingle();
         if (existing) { await supabase.from("social_leads").update(lead).eq("id", existing.id); }
         else {
-          const { data: idData } = await supabase.rpc("generate_display_id", { prefix: "LEAD" });
-          await supabase.from("social_leads").insert({ ...lead, display_id: (idData as string) || `LEAD-${Date.now()}`, status: "NEW" });
-          summary[source].new++;
+          const { data: ins, error: insErr } = await supabase.from("social_leads").insert({ ...lead, display_id: `LEAD-${Math.floor(Math.random() * 90000) + 10000}` }).select().single();
+          if (ins) {
+            summary[source].new++;
+            adminIds.forEach(uid => { pendingNotifs.push({ user_id: uid, title: `New ${source} lead`, message: `${ins.full_name} messaged.`, type: "lead" }); });
+          } else if (insErr) { console.error(`Insert failed for ${name}:`, insErr); }
         }
       }
     } catch (e) { summary[source].error = e.message; }
   }
+  if (pendingNotifs.length > 0) await supabase.from("notifications").insert(pendingNotifs.slice(0, 100));
   return new Response(JSON.stringify({ success: true, summary }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
