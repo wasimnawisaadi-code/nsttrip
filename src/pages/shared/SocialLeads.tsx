@@ -95,21 +95,13 @@ export default function SocialLeads() {
       if (!res.ok || !json.success) throw new Error(json.error || 'Sync failed');
       
       const t = json.summary;
-      const newCount = (t.whatsapp?.new || 0) + (t.instagram?.new || 0) + (t.messenger?.new || 0);
-      
-      if (newCount > 0) {
-        toast.success(`Sync complete — ${newCount} new leads found!`);
-      } else {
-        toast.info('Sync complete — No new leads found.');
-      }
+      const results = ['whatsapp', 'instagram', 'messenger'].map(s => {
+        const d = t[s];
+        if (!d || d.error) return `${s.toUpperCase()}: Error`;
+        return `${s.toUpperCase()}: ${d.total} total (${d.new} new, ${d.updated} updated)`;
+      }).join(' | ');
 
-      // Check for specific errors in sources
-      ['whatsapp', 'instagram', 'messenger'].forEach(source => {
-        if (t[source]?.error) {
-          toast.error(`${source.toUpperCase()} error: ${t[source].error}`, { duration: 5000 });
-        }
-      });
-
+      toast.success(`Sync complete: ${results}`, { duration: 6000 });
       load();
     } catch (e: any) {
       toast.error(e.message || 'Sync failed');
