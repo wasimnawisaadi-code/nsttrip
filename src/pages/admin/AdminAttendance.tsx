@@ -25,15 +25,12 @@ export default function AdminAttendance() {
   const [weekendDays, setWeekendDays] = useState<number[]>([0]); // Default to Sunday only
 
   const loadData = async () => {
-    const [empRes, attRes, leaveRes, rolesRes] = await Promise.all([
-      supabase.from('profiles').select('*').eq('status', 'active'),
+    const [empRes, attRes, leaveRes] = await Promise.all([
+      supabase.from('profiles').select('*'),
       supabase.from('attendance').select('*'),
       supabase.from('leave_requests').select('*'),
-      supabase.from('user_roles').select('user_id, role'),
     ]);
-    // Admins are bosses — exclude from attendance tracking lists
-    const adminIds = new Set((rolesRes.data || []).filter((r: any) => r.role === 'admin' || r.role === 'superadmin').map((r: any) => r.user_id));
-    setEmployees((empRes.data || []).filter((e: any) => !adminIds.has(e.user_id)));
+    setEmployees(empRes.data || []);
     setAllAttendance(attRes.data || []);
     setAllLeave(leaveRes.data || []);
     

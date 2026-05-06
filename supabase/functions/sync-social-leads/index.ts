@@ -1,4 +1,4 @@
-// Final Clean Social Leads Sync
+// Refined Deep-Scan Social Leads Sync
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -43,8 +43,7 @@ async function fetchSheet(id: string, gid: string, saInfo: { token: string; emai
     } catch {}
   }
   if (!rows || rows.length === 0) {
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
-    const res = await fetch(csvUrl);
+    const res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`);
     const text = await res.text();
     let r: string[] = []; let cur = ""; let inQ = false;
     for (let i = 0; i < text.length; i++) {
@@ -57,61 +56,59 @@ async function fetchSheet(id: string, gid: string, saInfo: { token: string; emai
   return rows;
 }
 
-function getVal(row: string[], headers: string[], keys: string[], fallbackIdx: number): string {
-  for (const k of keys) {
-    // EXACT MATCH ONLY to avoid Page Name vs Full Name confusion
-    const idx = headers.findIndex(h => h.toLowerCase().trim() === k.toLowerCase().trim());
-    if (idx !== -1 && row[idx]) return row[idx].trim();
-  }
-  return (row[fallbackIdx] || "").trim();
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const saInfo = await getSheetsAccessToken();
   const summary: any = { whatsapp: { total: 0, new: 0 }, instagram: { total: 0, new: 0 }, messenger: { total: 0, new: 0 } };
 
-  // 1. HARD DELETE: Clean up any garbage from previous syncs
-  await supabase.from("social_leads").delete().in("full_name", ["FALSE", "TRUE", "Unnamed", "\\", "Page Name", "Refresh", "First Name"]);
-  await supabase.from("social_leads").delete().ilike("full_name", "%nawisaadi%");
+  // Hard delete previous garbage leads
+  await supabase.from("social_leads").delete().in("full_name", ["FALSE", "TRUE", "Unnamed", "\\", "First Name", "Page Name", ""]);
 
   for (const source of Object.keys(SHEETS) as Array<keyof typeof SHEETS>) {
     try {
       const allRows = await fetchSheet(SHEETS[source].id, SHEETS[source].gid, saInfo);
       if (!allRows || allRows.length < 1) continue;
-      let hIdx = allRows.findIndex(r => r.some(c => (c || "").toLowerCase().trim() === "contact id"));
-      if (hIdx === -1) hIdx = 0;
-      const headers = allRows[hIdx].map(h => (h || "").trim());
-      const dataRows = allRows.slice(hIdx + 1);
+      
+      const dataRows = allRows.slice(1); // skip headers
       
       for (const r of dataRows) {
         let id = ""; let name = ""; let username = ""; let phone = "";
         
-        if (source === "whatsapp") { phone = getVal(r, headers, ["phone", "whatsapp id"], 4); id = String(getVal(r, headers, ["contact id"], 6) || phone); }
-        else if (source === "instagram") { username = getVal(r, headers, ["username", "handle"], 12); id = String(getVal(r, headers, ["contact id"], 6) || username); }
-        else { id = String(getVal(r, headers, ["contact id"], 6)); }
+        // Find ID: 10-20 digit number
+        id = r.find(c => c && /^\d{10,20}$/.test(c.trim())) || "";
+        if (!id) continue;
+
+        // Find Name: The first column that has text (not just numbers/dates/booleans)
+        // Usually the first few columns are First Name, Last Name, Full Name
+        // We'll join the first two non-empty text strings
+        const textCols = r.filter(c => c && c.trim() && !/^\d/.test(c.trim()) && !["TRUE", "FALSE", "male", "female", "en_US", "en_GB", "English"].includes(c.trim()) && !c.includes("nawisaadi"));
         
-        if (!id || id === "null" || id.length < 5 || id.toLowerCase().includes("id")) continue;
-        
-        const first = getVal(r, headers, ["first name"], 0); 
-        const last = getVal(r, headers, ["last name"], 1); 
-        const full = getVal(r, headers, ["full name"], 2);
-        
-        name = full;
-        if (!name || name === "Full Name" || name.toLowerCase().includes("nawisaadi") || name === "FALSE") {
-           name = (first + " " + last).trim() || username || "";
+        if (textCols.length > 0) {
+          name = textCols[0].trim();
+          // If the second column is also text, it might be the last name, let's combine if it makes sense, 
+          // or if the second column is full name, use that.
+          if (textCols.length > 1 && textCols[1].includes(name)) {
+             name = textCols[1].trim(); // It was full name
+          } else if (textCols.length > 1 && textCols[0].length < 15 && textCols[1].length < 15) {
+             // Combine first and last name if they are short
+             name = `${textCols[0]} ${textCols[1]}`.trim();
+          }
         }
         
-        if (!name || name.length < 2 || name === "FALSE" || name === "TRUE") continue;
+        // Find Username (for IG)
+        if (source === "instagram") {
+          username = r.find(c => c && /^[a-zA-Z0-9._]{3,20}$/.test(c) && !c.includes(" ") && c !== "TRUE" && c !== "FALSE") || "";
+        }
+
+        if (!name || name.length < 2) name = username || id; // Fallback to username or ID if name is truly missing
 
         const lead = { source, unique_key: id, full_name: name, phone: phone || null, username: username || null, raw: r, last_interaction: new Date().toISOString(), updated_at: new Date().toISOString(), status: "NEW" };
-        
         const { data: existing } = await supabase.from("social_leads").select("id").eq("source", source).eq("unique_key", id).maybeSingle();
         if (existing) { await supabase.from("social_leads").update(lead).eq("id", existing.id); }
         else {
-          const { data: ins } = await supabase.from("social_leads").insert({ ...lead, display_id: `LEAD-${Math.floor(Math.random() * 89999) + 10000}` }).select().single();
-          if (ins) summary[source].new++;
+          await supabase.from("social_leads").insert({ ...lead, display_id: `LEAD-${Math.floor(Math.random() * 89999) + 10000}` });
+          summary[source].new++;
         }
       }
     } catch (e) { summary[source].error = e.message; }
