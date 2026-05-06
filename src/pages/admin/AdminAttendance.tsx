@@ -282,11 +282,11 @@ export default function AdminAttendance() {
         <div className="card-nawi">
           <div className="flex items-center gap-3 mb-4">
             <select value={selectedEmpId} onChange={e => setSelectedEmpId(e.target.value)} className="input-nawi w-auto">
-              <option value="">Select Employee</option>
+              <option value="">All Employees</option>
               {employees.map(e => <option key={e.user_id} value={e.user_id}>{e.name}</option>)}
             </select>
           </div>
-          {selectedEmpId && (() => {
+          {selectedEmpId ? (() => {
             const emp = employees.find(e => e.user_id === selectedEmpId);
             const empRecs = allAttendance.filter(a => a.employee_id === selectedEmpId && a.date?.startsWith(yearMonth)).sort((a, b) => b.date.localeCompare(a.date));
             return (
@@ -320,7 +320,44 @@ export default function AdminAttendance() {
                 </div>
               </div>
             );
-          })()}
+          })() : (
+            <div className="space-y-8 mt-6">
+              {employees.map(emp => {
+                const empRecs = allAttendance.filter(a => a.employee_id === emp.user_id && a.date?.startsWith(yearMonth)).sort((a, b) => b.date.localeCompare(a.date));
+                return (
+                  <div key={emp.user_id} className="space-y-4 border border-border rounded-xl p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center font-bold text-primary-foreground">{emp?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>
+                      <div><p className="font-semibold">{emp?.name}</p></div>
+                    </div>
+                    <div className="table-container">
+                      <table className="table-nawi w-full text-sm">
+                        <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Hours</th><th>Status</th><th>Work Summary</th></tr></thead>
+                        <tbody>
+                          {empRecs.map(a => (
+                            <tr key={a.id}>
+                              <td>{formatDate(a.date)}</td>
+                              <td>{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                              <td>{a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                              <td>
+                                {a.logout_time ? `${a.hours_worked || 0}h` : 
+                                  a.login_time && a.date === new Date().toISOString().split('T')[0] ? 
+                                  `${Math.round(((new Date().getTime() - new Date(a.login_time).getTime()) / 3600000) * 10) / 10}h (Active)` : 
+                                  '—'}
+                              </td>
+                              <td><StatusBadge status={a.status} /></td>
+                              <td className="max-w-[200px] truncate text-xs">{a.work_summary || '—'}</td>
+                            </tr>
+                          ))}
+                          {empRecs.length === 0 && <tr><td colSpan={6} className="text-center text-muted-foreground py-4">No records for this month</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
