@@ -58,6 +58,8 @@ export default function SocialLeads() {
   const [quickFilter, setQuickFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'month' | 'custom'>('all');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [openLead, setOpenLead] = useState<Lead | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [activeTab, setActiveTab] = useState<'pool' | 'mine' | 'all'>('pool');
 
   const load = async () => {
     const { data } = await supabase
@@ -76,12 +78,19 @@ export default function SocialLeads() {
 
   useEffect(() => {
     load(); loadEmps();
+    if (user) {
+      supabase.from('user_roles').select('role').eq('user_id', user.id).single().then(({ data }) => {
+        const admin = data?.role === 'admin' || data?.role === 'superadmin' || profile?.email === 'admin@nawisaadi.com';
+        setIsAdmin(admin);
+        if (admin) setActiveTab('all');
+      });
+    }
     const channel = supabase
       .channel('social-leads-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'social_leads' }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [user]);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -139,7 +148,7 @@ export default function SocialLeads() {
   };
 
   const untakeLead = async (lead: Lead) => {
-    if (lead.assigned_to !== user?.id && profile?.email !== 'admin@nawisaadi.com') {
+    if (lead.assigned_to !== user?.id && !isAdmin) {
       toast.error('Only the owner or admin can untake');
       return;
     }
@@ -160,6 +169,13 @@ export default function SocialLeads() {
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
     return leads.filter(l => {
+      // Tab Filtering
+      if (activeTab === 'pool') {
+        if (l.assigned_to) return false;
+      } else if (activeTab === 'mine') {
+        if (l.assigned_to !== user?.id) return false;
+      }
+
       // Source & Status
       if (filterSource !== 'all' && l.source !== filterSource) return false;
       if (filterStatus !== 'all' && l.status !== filterStatus) return false;
@@ -199,7 +215,7 @@ export default function SocialLeads() {
 
       return true;
     });
-  }, [leads, filterSource, filterStatus, search, quickFilter, dateRange]);
+  }, [leads, filterSource, filterStatus, search, quickFilter, dateRange, activeTab, user]);
 
   const counts = useMemo(() => ({
     total: leads.length,
@@ -246,7 +262,7 @@ export default function SocialLeads() {
       'Assigned To': l.assigned_to ? (employees[l.assigned_to]?.name || l.assigned_to) : 'Unassigned',
       'Last Interaction': l.last_interaction ? new Date(l.last_interaction).toLocaleString('en-GB') : '',
       'Created At': new Date(l.created_at).toLocaleString('en-GB'),
-      'Converted At': l.converted_at ? new Date(l.converted_at).toLocaleString('en-GB') : '',
+      'Converted At': l.converted_at ? l.converted_at : '',
       'Proof URL': l.proof_url || '',
     }));
     exportToExcel(rows, `social-leads-${new Date().toISOString().slice(0, 10)}`, 'Leads');
@@ -279,7 +295,7 @@ export default function SocialLeads() {
       </div>
 
       {/* Conversion Analytics — by source × period */}
-      <div className="card-nawi space-y-3">
+      <div className="card-nawi space-y-3 hidden sm:block">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="text-sm font-semibold font-display flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-success" /> Conversion Analytics
@@ -313,6 +329,14 @@ export default function SocialLeads() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="flex border-b border-border overflow-x-auto hide-scrollbar">
+        <button onClick={() => setActiveTab('pool')} className={`whitespace-nowrap px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'pool' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>Open Pool</button>
+        <button onClick={() => setActiveTab('mine')} className={`whitespace-nowrap px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'mine' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>My Leads</button>
+        {isAdmin && (
+          <button onClick={() => setActiveTab('all')} className={`whitespace-nowrap px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'all' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>All Active (Admin)</button>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2 items-center bg-muted/30 p-3 rounded-lg border border-border">
@@ -370,9 +394,9 @@ export default function SocialLeads() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={<MessageCircle className="w-8 h-8 text-muted-foreground" />}
-          title="No leads yet"
-          description="Click 'Sync Now' to pull the latest leads from your Google Sheets."
-          action={<button onClick={handleSync} className="btn-primary"><RefreshCw className="w-4 h-4" /> Sync Now</button>}
+          title={activeTab === 'pool' ? "Open Pool is empty" : activeTab === 'mine' ? "You have no assigned leads" : "No leads found"}
+          description={activeTab === 'pool' ? "Click 'Sync Now' to pull the latest leads." : "Take a lead from the Open Pool to start working."}
+          action={activeTab === 'pool' && <button onClick={handleSync} className="btn-primary"><RefreshCw className="w-4 h-4" /> Sync Now</button>}
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -470,9 +494,11 @@ export default function SocialLeads() {
           lead={openLead}
           onClose={() => setOpenLead(null)}
           onSaved={() => { setOpenLead(null); load(); }}
-          canEdit={!openLead.assigned_to || openLead.assigned_to === user?.id || profile?.email === 'admin@nawisaadi.com'}
+          canEdit={!openLead.assigned_to || openLead.assigned_to === user?.id || isAdmin}
           currentUserId={user!.id}
           currentUserName={profile?.name || 'Unknown'}
+          isAdmin={isAdmin}
+          allEmployees={employees}
         />
       )}
     </div>
@@ -488,12 +514,12 @@ function StatCard({ label, value, color }: { label: string; value: number; color
   );
 }
 
-function LeadModal({ lead, onClose, onSaved, canEdit, currentUserId, currentUserName }: {
-  lead: Lead; onClose: () => void; onSaved: () => void; canEdit: boolean; currentUserId: string; currentUserName: string;
+function LeadModal({ lead, onClose, onSaved, canEdit, currentUserId, currentUserName, isAdmin, allEmployees }: {
+  lead: Lead; onClose: () => void; onSaved: () => void; canEdit: boolean; currentUserId: string; currentUserName: string; isAdmin: boolean; allEmployees: Record<string, { name: string }>;
 }) {
   const [form, setForm] = useState({
     status: lead.status, client_need: lead.client_need || '', notes: lead.notes || '',
-    follow_up_date: lead.follow_up_date || '',
+    follow_up_date: lead.follow_up_date || '', assigned_to: lead.assigned_to || '',
   });
   const [notes, setNotes] = useState<Note[]>([]);
   const [newNote, setNewNote] = useState('');
@@ -532,6 +558,14 @@ function LeadModal({ lead, onClose, onSaved, canEdit, currentUserId, currentUser
       follow_up_date: form.follow_up_date || null,
       proof_url: finalProof,
     };
+    
+    // Handle Admin assignment change
+    if (isAdmin && form.assigned_to !== (lead.assigned_to || '')) {
+      update.assigned_to = form.assigned_to || null;
+      update.assigned_at = form.assigned_to ? new Date().toISOString() : null;
+      if (form.assigned_to && update.status === 'NEW') update.status = 'IN_PROGRESS';
+    }
+
     const isNewConversion = form.status === 'CONVERTED' && !lead.converted_at;
     if (isNewConversion) update.converted_at = new Date().toISOString();
     const { error } = await supabase.from('social_leads').update(update).eq('id', lead.id);
@@ -560,6 +594,16 @@ function LeadModal({ lead, onClose, onSaved, canEdit, currentUserId, currentUser
     }
 
     toast.success(isNewConversion ? '🎉 Conversion logged & admins notified' : 'Lead updated');
+    onSaved();
+  };
+
+  const deleteLead = async () => {
+    if (!isAdmin) return;
+    if (!confirm('Are you sure you want to PERMANENTLY delete this lead? This cannot be undone.')) return;
+    setSaving(true);
+    const { error } = await supabase.from('social_leads').delete().eq('id', lead.id);
+    if (error) { toast.error(error.message); setSaving(false); return; }
+    toast.success('Lead permanently deleted');
     onSaved();
   };
 
@@ -595,6 +639,17 @@ function LeadModal({ lead, onClose, onSaved, canEdit, currentUserId, currentUser
           </div>
 
           <div className="space-y-3 pt-2 border-t border-border">
+            {isAdmin && (
+              <div>
+                <label className="block text-xs font-medium mb-1">Assign To Employee (Admin Only)</label>
+                <select value={form.assigned_to} onChange={e => setForm({ ...form, assigned_to: e.target.value })} className="input-nawi">
+                  <option value="">Unassigned (Open Pool)</option>
+                  {Object.entries(allEmployees).map(([id, emp]) => (
+                    <option key={id} value={id}>{emp.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium mb-1">Status</label>
               <select disabled={!canEdit} value={form.status} onChange={e => setForm({ ...form, status: e.target.value as Status })} className="input-nawi disabled:opacity-60">
@@ -617,9 +672,16 @@ function LeadModal({ lead, onClose, onSaved, canEdit, currentUserId, currentUser
               <textarea disabled={!canEdit} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={3} className="input-nawi disabled:opacity-60" />
             </div>
             {canEdit && (
-              <button onClick={save} disabled={saving} className="btn-primary w-full disabled:opacity-50">
-                {saving ? 'Saving…' : 'Save Changes'}
-              </button>
+              <div className="flex gap-2 pt-2">
+                <button onClick={save} disabled={saving} className="btn-primary flex-1 disabled:opacity-50">
+                  {saving ? 'Saving…' : 'Save Changes'}
+                </button>
+                {isAdmin && (
+                  <button onClick={deleteLead} disabled={saving} className="btn-outline border-destructive text-destructive hover:bg-destructive/10 px-3" title="Delete Lead permanently">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             )}
             {!canEdit && (
               <p className="text-xs text-muted-foreground text-center italic">Read-only — only the assigned employee or admin can edit.</p>
