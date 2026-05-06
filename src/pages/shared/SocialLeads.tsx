@@ -457,7 +457,7 @@ export default function SocialLeads() {
                 )}
 
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-muted-foreground flex items-center flex-wrap gap-2">
                     {owner ? (
                       <span className="flex items-center gap-1">
                         {owner.photo
@@ -466,6 +466,28 @@ export default function SocialLeads() {
                         Handled by <strong>{isMine ? 'you' : owner.name}</strong>
                       </span>
                     ) : <span className="text-warning font-medium">Unassigned</span>}
+
+                    {isAdmin && (
+                      <select
+                        value={lead.assigned_to || ''}
+                        onChange={async (e) => {
+                          const newOwner = e.target.value || null;
+                          const { error } = await supabase.from('social_leads').update({
+                            assigned_to: newOwner,
+                            assigned_at: newOwner ? new Date().toISOString() : null,
+                            status: newOwner && lead.status === 'NEW' ? 'IN_PROGRESS' : lead.status
+                          }).eq('id', lead.id);
+                          if (!error) { toast.success('Lead reassigned'); load(); }
+                          else { toast.error(error.message); }
+                        }}
+                        className="bg-transparent border border-border rounded text-[10px] px-1 py-0.5"
+                      >
+                        <option value="">Unassign</option>
+                        {Object.entries(employees).map(([id, emp]) => (
+                          <option key={id} value={id}>{emp.name}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     {!lead.assigned_to && (
@@ -481,6 +503,19 @@ export default function SocialLeads() {
                     <button onClick={() => setOpenLead(lead)} className="btn-primary text-xs">
                       <StickyNote className="w-3 h-3" /> Manage
                     </button>
+                    {isAdmin && (
+                      <button 
+                        onClick={async () => {
+                          if (!confirm('Permanently delete this lead?')) return;
+                          const { error } = await supabase.from('social_leads').delete().eq('id', lead.id);
+                          if (!error) { toast.success('Deleted'); load(); }
+                        }} 
+                        className="btn-outline text-xs border-destructive text-destructive hover:bg-destructive/10 px-2" 
+                        title="Delete Lead"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
