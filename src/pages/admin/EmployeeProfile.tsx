@@ -7,6 +7,8 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import PasswordConfirmDialog from '@/components/PasswordConfirmDialog';
 import { getAttendanceSettings, getAttendanceOverrides, saveAttendanceOverrides, type EmployeeOverride } from '@/lib/settings';
 import { toast } from 'sonner';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 export default function EmployeeProfile() {
   const { id } = useParams();
@@ -283,6 +285,28 @@ export default function EmployeeProfile() {
                     ))}
                   </select>
                   {savingZone && <p className="text-[10px] text-primary animate-pulse mt-1">Saving workplace...</p>}
+                </div>
+
+                <div className="p-4 rounded-xl bg-muted/30 border border-border flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-bold">Bypass Geofence</Label>
+                    <p className="text-[10px] text-muted-foreground">Allow login from any location (disables location check)</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <Switch 
+                      checked={override.enforce_geofence === false} 
+                      onCheckedChange={(checked) => {
+                        setOverride(prev => ({ ...prev, enforce_geofence: !checked }));
+                      }}
+                    />
+                    <button 
+                      onClick={handleSaveSchedule} 
+                      disabled={savingSchedule}
+                      className="text-[10px] font-bold text-primary hover:underline disabled:opacity-50"
+                    >
+                      {savingSchedule ? 'Saving...' : 'Apply Bypass'}
+                    </button>
+                  </div>
                 </div>
 
                 {assignedZone && (
