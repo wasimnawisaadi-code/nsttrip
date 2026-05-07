@@ -599,6 +599,11 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+      <footer className="mt-16 pb-8 text-center border-t border-border/10 pt-8">
+        <p className="text-[10px] tracking-wider text-muted-foreground/60 font-medium italic">
+          Designed and Developed by Mhd Wasim
+        </p>
+      </footer>
     </div>
   );
 }
