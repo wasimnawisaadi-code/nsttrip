@@ -113,11 +113,18 @@ export default function DailyStatusReport() {
     } else if (preset === 'lastMonth') {
       start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       end = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else if (preset === '6m') {
+      start.setMonth(now.getMonth() - 6);
+    } else if (preset === '1y') {
+      start.setFullYear(now.getFullYear() - 1);
     }
 
     setFromDate(start.toISOString().split('T')[0]);
     setToDate(end.toISOString().split('T')[0]);
+    if (preset !== 'custom') setShowAdvanced(false);
   };
+
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Aggregate KPIs for current view
   const kpis = useMemo(() => {
@@ -248,21 +255,28 @@ export default function DailyStatusReport() {
       <div className="bg-card p-4 rounded-xl border border-border shadow-card mb-6">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2 pr-4 border-r border-border/50">
-            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-2">Range</Label>
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-2">Quick View</Label>
             <div className="flex gap-1 bg-muted p-1 rounded-lg">
               <Button size="sm" variant="ghost" className="h-7 text-[10px] px-2 font-bold" onClick={() => setRangePreset('today')}>Today</Button>
               <Button size="sm" variant="ghost" className="h-7 text-[10px] px-2 font-bold" onClick={() => setRangePreset('7d')}>7 Days</Button>
               <Button size="sm" variant="ghost" className="h-7 text-[10px] px-2 font-bold" onClick={() => setRangePreset('month')}>Month</Button>
+              <Button size="sm" variant="ghost" className="h-7 text-[10px] px-2 font-bold" onClick={() => setRangePreset('6m')}>6 Months</Button>
+              <Button size="sm" variant="ghost" className="h-7 text-[10px] px-2 font-bold" onClick={() => setRangePreset('1y')}>1 Year</Button>
             </div>
+            <Button size="sm" variant={showAdvanced ? 'secondary' : 'outline'} className="h-7 text-[10px] px-2 font-bold ml-2" onClick={() => setShowAdvanced(!showAdvanced)}>
+              Advanced Range {showAdvanced ? '↑' : '↓'}
+            </Button>
           </div>
 
-          <div className="flex items-center gap-3 pr-4 border-r border-border/50">
-            <div className="flex items-center gap-2">
-              <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-36 h-9 input-nawi text-xs" />
-              <span className="text-muted-foreground font-medium">-</span>
-              <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="w-36 h-9 input-nawi text-xs" />
+          {showAdvanced && (
+            <div className="flex items-center gap-3 pr-4 border-r border-border/50 animate-in fade-in slide-in-from-top-1">
+              <div className="flex items-center gap-2">
+                <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-36 h-9 input-nawi text-xs" />
+                <span className="text-muted-foreground font-medium">-</span>
+                <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="w-36 h-9 input-nawi text-xs" />
+              </div>
             </div>
-          </div>
+          )}
 
           {isAdmin && (
             <div className="flex items-center gap-3 pr-4 border-r border-border/50">
