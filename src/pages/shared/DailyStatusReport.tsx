@@ -17,13 +17,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import DSRGridEditor from '@/components/DSRGridEditor';
 import {
   ClipboardList, Plus, Upload, Download, FileSpreadsheet, Calendar, CalendarClock, Pencil, Trash2,
   Settings as SettingsIcon, TrendingUp, DollarSign, Users, AlertCircle, CheckCircle2, ExternalLink, BarChart3,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import DSRGridEditor from '@/components/DSRGridEditor';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip as RTooltip, Legend, Cell,
@@ -147,7 +147,7 @@ export default function DailyStatusReport() {
     sales: Math.round(e.sale),
   })), [empBreakdown]);
 
-  const BAR_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+  const BAR_COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--success))', 'hsl(var(--warning))', '#8b5cf6', '#06b6d4', '#ec4899'];
 
   const handleSaveEntry = async (data: Record<string, any>) => {
     if (!activeTemplate || !user || !profile) return;
@@ -208,64 +208,63 @@ export default function DailyStatusReport() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <ClipboardList className="h-7 w-7 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold">Daily Status Report</h1>
-            <p className="text-sm text-muted-foreground">
-              {isAdmin ? 'Monitor all employee DSR submissions' : 'Submit your daily reports'}
-            </p>
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold font-display text-primary">Daily Status Report</h1>
+          <p className="text-sm text-muted-foreground">
+            {isAdmin ? 'Monitor organizational performance and employee DSRs' : 'Track and submit your daily operational reports'}
+          </p>
         </div>
-        {isAdmin && (
-          <Button asChild variant="outline">
-            <Link to="/admin/dsr-assignments"><SettingsIcon className="h-4 w-4 mr-2" />Manage Assignments</Link>
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          {isAdmin && (
+            <Button asChild variant="outline" className="rounded-lg shadow-sm">
+              <Link to="/admin/dsr-assignments"><SettingsIcon className="h-4 w-4 mr-2" />Manage Assignments</Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Unified Control Bar */}
-      <div className="bg-background/80 backdrop-blur-md sticky top-0 z-20 border-b border-border/50 pb-4 -mx-6 px-6">
+      <div className="bg-card p-4 rounded-xl border border-border shadow-card mb-6">
         <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2 p-1.5 bg-muted/40 rounded-2xl border border-border/50">
-            <Label className="px-3 text-[10px] font-black uppercase tracking-tighter text-muted-foreground whitespace-nowrap border-r border-border/50 mr-1">Report Period</Label>
-            <div className="flex items-center gap-2 pr-2">
-              <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-40 h-8 text-[11px] font-bold bg-background border-none shadow-none focus-visible:ring-1 focus-visible:ring-primary/30" />
-              <span className="text-[10px] font-bold text-muted-foreground">→</span>
-              <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="w-40 h-8 text-[11px] font-bold bg-background border-none shadow-none focus-visible:ring-1 focus-visible:ring-primary/30" />
+          <div className="flex items-center gap-3 pr-4 border-r border-border/50">
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Period</Label>
+            <div className="flex items-center gap-2">
+              <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-40 h-9 input-nawi" />
+              <span className="text-muted-foreground font-medium">-</span>
+              <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="w-40 h-9 input-nawi" />
             </div>
           </div>
 
           {isAdmin && (
-            <div className="flex items-center gap-2 p-1.5 bg-muted/40 rounded-2xl border border-border/50">
-              <Label className="px-3 text-[10px] font-black uppercase tracking-tighter text-muted-foreground border-r border-border/50 mr-1">Team Filter</Label>
+            <div className="flex items-center gap-3 pr-4 border-r border-border/50">
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Employee</Label>
               <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
-                <SelectTrigger className="h-8 text-[11px] font-bold bg-transparent border-none shadow-none w-44 focus:ring-0">
+                <SelectTrigger className="h-9 input-nawi w-44">
                   <SelectValue placeholder="All Employees" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="text-xs">All Employees</SelectItem>
-                  {employees.map(e => <SelectItem key={e.user_id} value={e.user_id} className="text-xs">{e.name}</SelectItem>)}
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {employees.map(e => <SelectItem key={e.user_id} value={e.user_id}>{e.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           )}
 
           {!isAdmin && (
-            <div className="flex items-center gap-2 p-1.5 bg-primary/5 rounded-2xl border border-primary/20">
-              <Label className="px-3 text-[10px] font-black uppercase tracking-tighter text-primary border-r border-primary/20 mr-1 flex items-center gap-1">
-                <CalendarClock className="w-3 h-3" /> Working Date
+            <div className="flex items-center gap-3 pr-4 border-r border-border/50">
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-primary flex items-center gap-1">
+                <CalendarClock className="w-3.5 h-3.5" /> Work Date
               </Label>
-              <Input type="date" value={workingDate} onChange={e => handleWorkingDateChange(e.target.value)} className="w-40 h-8 text-[11px] font-black bg-transparent border-none shadow-none focus-visible:ring-0" />
+              <Input type="date" value={workingDate} onChange={e => handleWorkingDateChange(e.target.value)} className="w-40 h-9 input-nawi font-bold" />
             </div>
           )}
 
           <div className="ml-auto flex gap-2">
             {activeTemplate && (
               <>
-                <Button variant="outline" size="sm" className="rounded-xl h-8 text-[10px] font-black border-dashed" onClick={() => downloadTemplateExcel(activeTemplate)}><Download className="h-3.5 w-3.5 mr-1.5" />Template</Button>
-                <Button variant="outline" size="sm" className="rounded-xl h-8 text-[10px] font-black border-dashed" onClick={() => exportEntriesToExcel(activeTemplate, entries)} disabled={entries.length === 0}><FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />Export</Button>
+                <Button variant="outline" size="sm" className="rounded-lg h-9 border-dashed" onClick={() => downloadTemplateExcel(activeTemplate)}><Download className="h-4 w-4 mr-2" />Template</Button>
+                <Button variant="outline" size="sm" className="rounded-lg h-9 border-dashed" onClick={() => exportEntriesToExcel(activeTemplate, entries)} disabled={entries.length === 0}><FileSpreadsheet className="h-4 w-4 mr-2" />Export</Button>
                 {!isAdmin && <ExcelUploadButton template={activeTemplate} userId={user!.id} userName={profile!.name} entryDate={workingDate} onDone={loadEntries} />}
               </>
             )}
@@ -281,229 +280,190 @@ export default function DailyStatusReport() {
         }}
         className="space-y-6"
       >
-        <div className="flex items-center justify-between border-b border-border/50 pb-1">
+        <div className="border-b border-border">
           <TabsList className="bg-transparent h-auto p-0 gap-6 overflow-x-auto no-scrollbar justify-start">
             {isAdmin && (
               <TabsTrigger 
                 value="dashboard" 
-                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 h-auto text-xs font-black uppercase tracking-widest text-muted-foreground data-[state=active]:text-primary transition-all"
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-2 h-auto text-sm font-semibold text-muted-foreground data-[state=active]:text-primary transition-all"
               >
-                <BarChart3 className="w-3.5 h-3.5 mr-2" />
-                Advanced Dashboard
+                <BarChart3 className="w-4 h-4 mr-2" /> Dashboard
               </TabsTrigger>
             )}
             {templates.map(t => (
               <TabsTrigger 
                 key={t.id} 
                 value={t.id} 
-                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 h-auto text-xs font-black uppercase tracking-widest text-muted-foreground data-[state=active]:text-primary transition-all whitespace-nowrap"
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-2 h-auto text-sm font-semibold text-muted-foreground data-[state=active]:text-primary transition-all whitespace-nowrap"
               >
-                <span className="mr-2 text-base">{t.icon}</span> {t.name}
+                <span className="mr-2">{t.icon}</span> {t.name}
               </TabsTrigger>
             ))}
           </TabsList>
         </div>
 
-        <TabsContent value="dashboard" className="space-y-8 animate-in fade-in duration-500 mt-0">
-          {/* Premium KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
-            <Card className="relative overflow-hidden border-none shadow-xl bg-gradient-to-br from-indigo-600 to-blue-700 text-white group hover:scale-[1.02] transition-transform duration-300">
-              <CardContent className="pt-6">
-                <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest">Total Volume</p>
-                <div className="flex items-end justify-between mt-1">
-                  <p className="text-3xl font-black">{formatCurrency(kpis.totalSale)}</p>
-                  <div className="p-2 bg-white/20 rounded-xl"><DollarSign className="w-5 h-5" /></div>
-                </div>
-              </p>
-              <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform"><DollarSign className="w-32 h-32" /></div>
-            </CardContent>
-            </Card>
+        <TabsContent value="dashboard" className="space-y-6 animate-in fade-in duration-500 mt-0">
+          {/* KPI Stat Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="stat-card">
+              <div className="stat-card-icon bg-primary/10 text-primary"><DollarSign className="w-6 h-6" /></div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Total Volume</p>
+                <p className="text-xl font-bold font-display">{formatCurrency(kpis.totalSale)}</p>
+              </div>
+            </div>
 
-            <Card className="relative overflow-hidden border-none shadow-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white group hover:scale-[1.02] transition-transform duration-300">
-              <CardContent className="pt-6">
-                <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest">Net Profit</p>
-                <div className="flex items-end justify-between mt-1">
-                  <p className="text-3xl font-black">{formatCurrency(kpis.totalProfit)}</p>
-                  <div className="p-2 bg-white/20 rounded-xl"><BarChart3 className="w-5 h-5" /></div>
-                </div>
-              </CardContent>
-              <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform"><BarChart3 className="w-32 h-32" /></div>
-            </Card>
+            <div className="stat-card">
+              <div className="stat-card-icon bg-success/10 text-success"><CheckCircle2 className="w-6 h-6" /></div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Net Profit</p>
+                <p className="text-xl font-bold font-display">{formatCurrency(kpis.totalProfit)}</p>
+              </div>
+            </div>
 
-            <Card className="relative overflow-hidden border-none shadow-xl bg-gradient-to-br from-orange-500 to-rose-500 text-white group hover:scale-[1.02] transition-transform duration-300">
-              <CardContent className="pt-6">
-                <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest">Operating Cost</p>
-                <div className="flex items-end justify-between mt-1">
-                  <p className="text-3xl font-black">{formatCurrency(kpis.totalCost)}</p>
-                  <div className="p-2 bg-white/20 rounded-xl"><ClipboardList className="w-5 h-5" /></div>
-                </div>
-              </CardContent>
-              <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform"><ClipboardList className="w-32 h-32" /></div>
-            </Card>
+            <div className="stat-card">
+              <div className="stat-card-icon bg-warning/10 text-warning"><FileSpreadsheet className="w-6 h-6" /></div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Operating Cost</p>
+                <p className="text-xl font-bold font-display">{formatCurrency(kpis.totalCost)}</p>
+              </div>
+            </div>
 
-            <Card className="relative overflow-hidden border-none shadow-xl bg-gradient-to-br from-purple-600 to-fuchsia-700 text-white group hover:scale-[1.02] transition-transform duration-300">
-              <CardContent className="pt-6">
-                <p className="text-white/70 text-[10px] font-bold uppercase tracking-widest">Team Performance</p>
-                <div className="flex items-end justify-between mt-1">
-                  <p className="text-3xl font-black">{kpis.uniqueEmployees}</p>
-                  <div className="p-2 bg-white/20 rounded-xl"><Users className="w-5 h-5" /></div>
-                </div>
-              </CardContent>
-              <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform"><Users className="w-32 h-32" /></div>
-            </Card>
+            <div className="stat-card">
+              <div className="stat-card-icon bg-secondary/10 text-secondary"><Users className="w-6 h-6" /></div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Active Agents</p>
+                <p className="text-xl font-bold font-display">{kpis.uniqueEmployees}</p>
+              </div>
+            </div>
           </div>
 
-          {/* Charts & Analytics */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="border-none shadow-lg bg-background/50 backdrop-blur-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-border/50 mx-6 px-0">
-                <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-primary" /> Growth Analysis
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="h-[320px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={dailyTrend}>
-                      <defs>
-                        <linearGradient id="chartColor" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
-                      <XAxis dataKey="label" tick={{ fontSize: 10, fontWeight: 700 }} />
-                      <YAxis tick={{ fontSize: 10, fontWeight: 700 }} tickFormatter={val => formatCurrency(val)} />
-                      <RTooltip 
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} 
-                        formatter={(val: any) => formatCurrency(val)}
-                      />
-                      <Area type="monotone" dataKey="profit" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#chartColor)" strokeWidth={4} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="card-nawi">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-sm font-bold font-display flex items-center gap-2"><TrendingUp className="w-4 h-4 text-primary" /> Growth Trend</h3>
+              </div>
+              <div className="h-[280px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={dailyTrend}>
+                    <defs>
+                      <linearGradient id="chartColor" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} tickFormatter={val => formatCurrency(val)} />
+                    <RTooltip 
+                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', boxShadow: 'var(--shadow-elevated)' }} 
+                      formatter={(val: any) => formatCurrency(val)}
+                    />
+                    <Area type="monotone" dataKey="profit" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#chartColor)" strokeWidth={3} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
 
-            <Card className="border-none shadow-lg bg-background/50 backdrop-blur-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-border/50 mx-6 px-0">
-                <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <Users className="w-4 h-4 text-indigo-500" /> Leaderboard (By {analysisSort})
-                </CardTitle>
-                <div className="flex gap-1 bg-muted/30 p-0.5 rounded-lg">
-                  <Button size="xs" variant={analysisSort === 'profit' ? 'default' : 'ghost'} className="h-6 text-[9px] px-2 font-bold" onClick={() => setAnalysisSort('profit')}>Profit</Button>
-                  <Button size="xs" variant={analysisSort === 'sale' ? 'default' : 'ghost'} className="h-6 text-[9px] px-2 font-bold" onClick={() => setAnalysisSort('sale')}>Sales</Button>
+            <div className="card-nawi">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-sm font-bold font-display flex items-center gap-2"><Trophy className="w-4 h-4 text-warning" /> Leaderboard</h3>
+                <div className="flex gap-1 bg-muted p-1 rounded-lg">
+                  <Button size="xs" variant={analysisSort === 'profit' ? 'secondary' : 'ghost'} className="h-6 text-[10px] px-2 font-bold" onClick={() => setAnalysisSort('profit')}>Profit</Button>
+                  <Button size="xs" variant={analysisSort === 'sale' ? 'secondary' : 'ghost'} className="h-6 text-[10px] px-2 font-bold" onClick={() => setAnalysisSort('sale')}>Sales</Button>
                 </div>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="h-[320px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={topPerformers} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.2} />
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 11, fontWeight: 800 }} />
-                      <RTooltip 
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} 
-                        formatter={(val: any) => formatCurrency(val)}
-                      />
-                      <Bar dataKey={analysisSort === 'profit' ? 'profit' : 'sales'} radius={[0, 8, 8, 0]} barSize={24}>
-                        {topPerformers.map((_, i) => <Cell key={i} fill={analysisSort === 'profit' ? BAR_COLORS[i % BAR_COLORS.length] : '#6366f1'} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+              <div className="h-[280px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topPerformers} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.1} />
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 11, fontWeight: 600 }} />
+                    <RTooltip 
+                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', boxShadow: 'var(--shadow-elevated)' }} 
+                      formatter={(val: any) => formatCurrency(val)}
+                    />
+                    <Bar dataKey={analysisSort === 'profit' ? 'profit' : 'sales'} radius={[0, 4, 4, 0]} barSize={20}>
+                      {topPerformers.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
 
-          <Card className="border-none shadow-lg bg-background/50 backdrop-blur-sm overflow-hidden">
-            <CardHeader className="bg-muted/20 border-b border-border/50">
-              <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                <Users className="w-4 h-4 text-indigo-500" /> Comprehensive Performance Audit
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-muted/10 text-[10px] uppercase font-black tracking-widest text-muted-foreground border-b border-border/50">
-                    <tr>
-                      <th className="p-4 text-left">Employee Name</th>
-                      <th className="p-4 text-center">Transactions</th>
-                      <th className="p-4 text-right">Total Revenue</th>
-                      <th className="p-4 text-right text-muted-foreground">Direct Cost</th>
-                      <th className="p-4 text-right">Net Profit</th>
-                      <th className="p-4 text-center">Profit %</th>
+          <div className="card-nawi overflow-hidden">
+            <h3 className="text-sm font-bold font-display flex items-center gap-2 mb-4"><Users className="w-4 h-4 text-primary" /> Performance Audit</h3>
+            <div className="overflow-x-auto -mx-5 px-5">
+              <table className="w-full table-nawi">
+                <thead>
+                  <tr>
+                    <th className="p-3">Employee Name</th>
+                    <th className="p-3 text-center">Orders</th>
+                    <th className="p-3 text-right">Revenue</th>
+                    <th className="p-3 text-right">Net Profit</th>
+                    <th className="p-3 text-center">Efficiency</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {empBreakdown.map((e, i) => (
+                    <tr key={i}>
+                      <td className="p-3 font-medium">{e.name}</td>
+                      <td className="p-3 text-center">{e.count}</td>
+                      <td className="p-3 text-right font-semibold text-primary">{formatCurrency(e.sale)}</td>
+                      <td className="p-3 text-right font-bold text-success-foreground">{formatCurrency(e.profit)}</td>
+                      <td className="p-3 text-center">
+                        <span className="badge-new bg-primary/5 text-primary">
+                          {((e.profit / (e.sale || 1)) * 100).toFixed(1)}%
+                        </span>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/30">
-                    {empBreakdown.map((e, i) => (
-                      <tr key={i} className="hover:bg-primary/5 transition-colors">
-                        <td className="p-4 text-sm font-bold">{e.name}</td>
-                        <td className="p-4 text-center text-xs font-semibold">{e.count}</td>
-                        <td className="p-4 text-right text-xs font-bold text-primary">{formatCurrency(e.sale)}</td>
-                        <td className="p-4 text-right text-xs font-medium text-muted-foreground">{formatCurrency(e.sale - e.profit)}</td>
-                        <td className="p-4 text-right">
-                          <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-100 shadow-sm">
-                            {formatCurrency(e.profit)}
-                          </span>
-                        </td>
-                        <td className="p-4 text-center">
-                          <Badge variant="secondary" className="font-bold text-[10px] bg-indigo-50 text-indigo-700 border-indigo-100">
-                            {((e.profit / (e.sale || 1)) * 100).toFixed(1)}%
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-          <Card className="border-none shadow-2xl rounded-3xl overflow-hidden ring-1 ring-border/50">
-            <CardHeader className="bg-muted/30 border-b border-border/50 py-6">
-              <CardTitle className="text-lg font-black uppercase tracking-tighter">Consolidated Business Operations</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-muted/10 text-[10px] uppercase font-black tracking-widest text-muted-foreground border-b border-border/50">
-                    <tr>
-                      <th className="p-5 text-left">Date</th>
-                      <th className="p-5 text-left">Category</th>
-                      <th className="p-5 text-left">Employee</th>
-                      <th className="p-5 text-right">Revenue</th>
-                      <th className="p-5 text-right">Profit</th>
+          <div className="card-nawi overflow-hidden">
+            <h3 className="text-sm font-bold font-display flex items-center gap-2 mb-4"><ClipboardList className="w-4 h-4 text-primary" /> Recent Operations</h3>
+            <div className="overflow-x-auto -mx-5 px-5">
+              <table className="w-full table-nawi">
+                <thead>
+                  <tr>
+                    <th className="p-3">Date</th>
+                    <th className="p-3">Category</th>
+                    <th className="p-3">Employee</th>
+                    <th className="p-3 text-right">Revenue</th>
+                    <th className="p-3 text-right">Profit</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {entries.slice(0, 50).map(e => (
+                    <tr key={e.id}>
+                      <td className="p-3 text-xs text-muted-foreground">{e.entry_date}</td>
+                      <td className="p-3">
+                        <span className="badge-new">
+                          {templates.find(t => t.id === e.template_id)?.name || 'Misc'}
+                        </span>
+                      </td>
+                      <td className="p-3 font-medium">{e.employee_name}</td>
+                      <td className="p-3 text-right font-semibold">{formatCurrency(e.sale_amount)}</td>
+                      <td className="p-3 text-right">
+                        <span className="badge-success">
+                          {formatCurrency(e.profit_amount)}
+                        </span>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/30">
-                    {entries.slice(0, 50).map(e => (
-                      <tr key={e.id} className="hover:bg-primary/5 transition-colors group">
-                        <td className="p-5 text-xs font-bold text-muted-foreground">{e.entry_date}</td>
-                        <td className="p-5">
-                          <Badge variant="outline" className="font-black text-[9px] uppercase border-primary/20 text-primary bg-primary/5 px-2 py-0.5 rounded-md">
-                            {templates.find(t => t.id === e.template_id)?.name || 'Misc'}
-                          </Badge>
-                        </td>
-                        <td className="p-5 text-xs font-semibold">{e.employee_name}</td>
-                        <td className="p-5 text-right font-bold text-sm">{formatCurrency(e.sale_amount)}</td>
-                        <td className="p-5 text-right">
-                          <span className="font-black text-sm text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 shadow-sm">
-                            {formatCurrency(e.profit_amount)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </TabsContent>
 
         {templates.map(t => (
-          <TabsContent key={t.id} value={t.id} className="animate-in fade-in zoom-in duration-500 mt-0">
-            <Card className="border-none shadow-2xl overflow-hidden rounded-3xl ring-1 ring-border/50">
+          <TabsContent key={t.id} value={t.id} className="animate-in fade-in duration-300 mt-0">
+            <div className="card-nawi overflow-hidden !p-0">
               <DSRGridEditor 
                 template={t} 
                 fromDate={fromDate} 
@@ -514,7 +474,7 @@ export default function DailyStatusReport() {
                 onWorkingDateChange={handleWorkingDateChange}
                 onChanged={() => setRefreshCount(prev => prev + 1)}
               />
-            </Card>
+            </div>
           </TabsContent>
         ))}
       </Tabs>
