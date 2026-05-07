@@ -43,6 +43,7 @@ export default function DailyStatusReport() {
   const [editingEntry, setEditingEntry] = useState<DSREntry | null>(null);
   const [workingDate, setWorkingDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [refreshCount, setRefreshCount] = useState(0);
+  const [analysisSort, setAnalysisSort] = useState<'profit' | 'sale'>('profit');
 
   const loadTemplates = async () => {
     if (!user) return;
@@ -118,8 +119,10 @@ export default function DailyStatusReport() {
       existing.profit += Number(e.profit_amount || 0);
       map.set(k, existing);
     });
-    return Array.from(map.values()).sort((a, b) => b.profit - a.profit);
-  }, [entries]);
+    return Array.from(map.values()).sort((a, b) => {
+      return analysisSort === 'profit' ? b.profit - a.profit : b.sale - a.sale;
+    });
+  }, [entries, analysisSort]);
 
   // Daily trend for charts (sales/profit/count over time)
   const dailyTrend = useMemo(() => {
@@ -398,8 +401,22 @@ export default function DailyStatusReport() {
             <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-border/50 mx-6 px-0">
               <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                 <Users className="w-4 h-4 text-indigo-500" /> 
-                Leaderboard & Contributions
+                {analysisSort === 'profit' ? 'Top Profit Earners' : 'Top Sales Volume'}
               </CardTitle>
+              <div className="flex gap-1 bg-muted/30 p-1 rounded-lg">
+                <Button 
+                  size="xs" 
+                  variant={analysisSort === 'profit' ? 'default' : 'ghost'} 
+                  className="h-6 text-[9px] px-2 rounded-md font-bold"
+                  onClick={() => setAnalysisSort('profit')}
+                >Profit</Button>
+                <Button 
+                  size="xs" 
+                  variant={analysisSort === 'sale' ? 'default' : 'ghost'} 
+                  className="h-6 text-[9px] px-2 rounded-md font-bold"
+                  onClick={() => setAnalysisSort('sale')}
+                >Sales</Button>
+              </div>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="h-[320px] w-full">
@@ -412,8 +429,8 @@ export default function DailyStatusReport() {
                       contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} 
                       formatter={(val: any) => formatCurrency(val)}
                     />
-                    <Bar dataKey="profit" radius={[0, 8, 8, 0]} barSize={24}>
-                      {topPerformers.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
+                    <Bar dataKey={analysisSort === 'profit' ? 'profit' : 'sales'} radius={[0, 8, 8, 0]} barSize={24}>
+                      {topPerformers.map((_, i) => <Cell key={i} fill={analysisSort === 'profit' ? BAR_COLORS[i % BAR_COLORS.length] : '#6366f1'} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -421,6 +438,53 @@ export default function DailyStatusReport() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Full Performance Table (Only for Overall or Admin) */}
+        {isAdmin && !activeTemplate && (
+          <Card className="border-none shadow-lg bg-background/50 backdrop-blur-sm overflow-hidden mb-6">
+            <CardHeader className="bg-muted/20 border-b border-border/50">
+              <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <Users className="w-4 h-4 text-indigo-500" /> Comprehensive Performance Audit
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-muted/10 text-[10px] uppercase font-black tracking-widest text-muted-foreground border-b border-border/50">
+                    <tr>
+                      <th className="p-4 text-left">Employee Name</th>
+                      <th className="p-4 text-center">Transactions</th>
+                      <th className="p-4 text-right">Total Revenue</th>
+                      <th className="p-4 text-right text-muted-foreground">Direct Cost</th>
+                      <th className="p-4 text-right">Net Profit</th>
+                      <th className="p-4 text-center">Profit %</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/30">
+                    {empBreakdown.map((e, i) => (
+                      <tr key={i} className="hover:bg-primary/5 transition-colors">
+                        <td className="p-4 text-sm font-bold">{e.name}</td>
+                        <td className="p-4 text-center text-xs font-semibold">{e.count}</td>
+                        <td className="p-4 text-right text-xs font-bold text-primary">{formatCurrency(e.sale)}</td>
+                        <td className="p-4 text-right text-xs font-medium text-muted-foreground">{formatCurrency(e.sale - e.profit)}</td>
+                        <td className="p-4 text-right">
+                          <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-100 shadow-sm">
+                            {formatCurrency(e.profit)}
+                          </span>
+                        </td>
+                        <td className="p-4 text-center">
+                          <Badge variant="secondary" className="font-bold text-[10px] bg-indigo-50 text-indigo-700 border-indigo-100">
+                            {((e.profit / (e.sale || 1)) * 100).toFixed(1)}%
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Detailed Data View */}
         {activeTemplate ? (
