@@ -159,6 +159,14 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
     }
   };
 
+  const clearAllDrafts = () => {
+    const dirty = rows.filter(r => r.dirty);
+    if (dirty.length === 0) return;
+    if (!confirm(`Clear all ${dirty.length} unsaved changes?`)) return;
+    load(); // Simply reload from server to discard all local changes
+    toast.success('Drafts cleared');
+  };
+
   const saveAll = async () => {
     if (!user || !profile) return;
     const dirty = rows.map((r, i) => ({ r, i })).filter(x => x.r.dirty);
@@ -210,9 +218,14 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
             <RotateCcw className="w-3.5 h-3.5 mr-1" />Reload
           </Button>
           {!isAdmin && (
-            <Button size="sm" onClick={addRow} className="bg-primary hover:bg-primary/90">
-              <Plus className="w-3.5 h-3.5 mr-1" />Add Row
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={clearAllDrafts} disabled={dirtyCount === 0} className="text-destructive hover:bg-destructive/10">
+                <Trash2 className="w-3.5 h-3.5 mr-1" />Delete All
+              </Button>
+              <Button size="sm" onClick={addRow} className="bg-primary hover:bg-primary/90">
+                <Plus className="w-3.5 h-3.5 mr-1" />Add Row
+              </Button>
+            </div>
           )}
           <Button size="sm" onClick={saveAll} disabled={saving || dirtyCount === 0} className="bg-success hover:bg-success/90 text-white">
             <Save className="w-3.5 h-3.5 mr-1" />{saving ? 'Saving…' : 'Save All Changes'}
