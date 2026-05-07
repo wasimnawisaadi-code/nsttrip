@@ -23,6 +23,8 @@ interface Props {
   toDate: string;
   isAdmin: boolean;
   employeeFilter: string; // "all" or user_id
+  workingDate: string;
+  onWorkingDateChange: (date: string) => void;
   onChanged?: () => void;
 }
 
@@ -32,12 +34,12 @@ interface Props {
  * - Auto-detect today date OR manual per-row date selection
  * - Save dirty rows in batch
  */
-export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, employeeFilter, onChanged }: Props) {
+export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, employeeFilter, workingDate, onWorkingDateChange, onChanged }: Props) {
   const { user, profile } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [workingDate, setWorkingDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -226,7 +228,7 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
             <Input 
               type="date" 
               value={workingDate} 
-              onChange={e => setWorkingDate(e.target.value)} 
+              onChange={e => onWorkingDateChange(e.target.value)} 
               className="w-40 h-8 text-xs font-medium border-primary/30 focus:border-primary" 
             />
           </div>

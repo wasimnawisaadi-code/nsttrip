@@ -41,6 +41,7 @@ export default function DailyStatusReport() {
   const [employees, setEmployees] = useState<{ user_id: string; name: string }[]>([]);
   const [showEntryModal, setShowEntryModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState<DSREntry | null>(null);
+  const [workingDate, setWorkingDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [refreshCount, setRefreshCount] = useState(0);
 
   const loadTemplates = async () => {
@@ -84,6 +85,12 @@ export default function DailyStatusReport() {
 
   useEffect(() => { loadTemplates(); loadEmployees(); }, [user, isAdmin]);
   useEffect(() => { loadEntries(); }, [activeTemplate, fromDate, toDate, employeeFilter, refreshCount]);
+
+  const handleWorkingDateChange = (date: string) => {
+    setWorkingDate(date);
+    setFromDate(date);
+    setToDate(date);
+  };
 
   // Aggregate KPIs for current view
   const kpis = useMemo(() => {
@@ -284,8 +291,8 @@ export default function DailyStatusReport() {
                   <Button variant="outline" size="sm" onClick={() => exportEntriesToExcel(activeTemplate, entries)} disabled={entries.length === 0}>
                     <FileSpreadsheet className="h-4 w-4 mr-1" />Export
                   </Button>
-                  {!isAdmin && (
-                    <ExcelUploadButton template={activeTemplate} userId={user!.id} userName={profile!.name} entryDate={fromDate} onDone={loadEntries} />
+                   {!isAdmin && (
+                    <ExcelUploadButton template={activeTemplate} userId={user!.id} userName={profile!.name} entryDate={workingDate} onDone={loadEntries} />
                   )}
                 </div>
               </CardContent>
@@ -461,6 +468,8 @@ export default function DailyStatusReport() {
                     toDate={toDate}
                     isAdmin={isAdmin}
                     employeeFilter={employeeFilter}
+                    workingDate={workingDate}
+                    onWorkingDateChange={handleWorkingDateChange}
                     onChanged={() => setRefreshCount(prev => prev + 1)}
                   />
                 ) : (
