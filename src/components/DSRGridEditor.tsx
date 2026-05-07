@@ -38,6 +38,7 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [workingDate, setWorkingDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [searchTerm, setSearchTerm] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const STORAGE_KEY = useMemo(() => `dsr-draft-${template.id}-${user?.id}`, [template.id, user?.id]);
@@ -191,11 +192,33 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
   const dirtyCount = useMemo(() => rows.filter(r => r.dirty).length, [rows]);
   const ownsRow = (r: Row) => isAdmin || !r.id || (r.employee_id === user?.id);
 
+  const filteredRows = useMemo(() => {
+    if (!searchTerm.trim()) return rows;
+    const s = searchTerm.toLowerCase();
+    return rows.filter(r => {
+      return Object.values(r.data).some(val => String(val || '').toLowerCase().includes(s)) ||
+             r.entry_date.includes(s) ||
+             (r.data.__employee && String(r.data.__employee).toLowerCase().includes(s));
+    });
+  }, [rows, searchTerm]);
+
+  const SkeletonRow = () => (
+    <tr className="border-t animate-pulse">
+      <td className="p-2"><div className="h-4 w-4 bg-muted rounded" /></td>
+      <td className="p-2"><div className="h-8 w-full bg-muted rounded" /></td>
+      {isAdmin && <td className="p-2"><div className="h-4 w-24 bg-muted rounded" /></td>}
+      {template.columns.map(c => (
+        <td key={c.key} className="p-2"><div className="h-8 w-full bg-muted rounded" /></td>
+      ))}
+      <td className="p-2"></td>
+    </tr>
+  );
+
   return (
     <div className="space-y-3">
       {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-2 p-3 bg-muted/30 rounded-lg border border-border">
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-4 flex-wrap flex-1">
           <div className="flex items-center gap-2">
             <Label className="text-xs font-semibold text-primary flex items-center gap-1.5 uppercase tracking-wider">
               <CalendarClock className="w-3.5 h-3.5" /> Working Date
@@ -207,8 +230,19 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
               className="w-40 h-8 text-xs font-medium border-primary/30 focus:border-primary" 
             />
           </div>
+          
+          <div className="relative flex-1 max-w-xs">
+            <Plus className="absolute left-2.5 top-2.5 h-3 w-3 text-muted-foreground rotate-45" />
+            <Input 
+              placeholder="Search in grid..." 
+              value={searchTerm} 
+              onChange={e => setSearchTerm(e.target.value)}
+              className="h-8 pl-8 text-xs bg-background/50 focus:bg-background"
+            />
+          </div>
+
           {dirtyCount > 0 && (
-            <span className="text-xs px-2 py-1 bg-warning/15 text-warning rounded-full font-medium flex items-center gap-1">
+            <span className="text-xs px-2 py-1 bg-warning/15 text-warning rounded-full font-medium flex items-center gap-1 animate-in fade-in zoom-in duration-300">
               <Save className="w-3 h-3" /> {dirtyCount} unsaved rows
             </span>
           )}
@@ -250,14 +284,22 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={template.columns.length + 4} className="text-center py-8 text-muted-foreground">Loading…</td></tr>}
-            {!loading && rows.length === 0 && (
+            {loading && (
+              <>
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+              </>
+            )}
+            {!loading && filteredRows.length === 0 && (
               <tr><td colSpan={template.columns.length + 4} className="text-center py-12 text-muted-foreground">
-                No rows. {!isAdmin && 'Click "Add Row" to start.'}
+                {searchTerm ? 'No matches found for your search.' : 'No rows. Click "Add Row" to start.'}
               </td></tr>
             )}
-            {rows.map((r, idx) => (
-              <tr key={r.id || `new-${idx}`} className={`border-t hover:bg-muted/20 ${r.dirty ? 'bg-warning/5' : ''}`}>
+            {filteredRows.map((r, idx) => (
+              <tr key={r.id || `new-${idx}`} className={`border-t hover:bg-muted/20 transition-colors animate-in fade-in slide-in-from-left-2 duration-300 ${r.dirty ? 'bg-warning/5' : ''}`}>
                 <td className="p-2 text-xs text-muted-foreground">{idx + 1}</td>
                 <td className="p-1">
                   <Input type="date" value={r.entry_date} onChange={e => updateDate(idx, e.target.value)}
@@ -296,8 +338,28 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
         </table>
       </div>
 
+      {/* Floating Action Bar for Unsaved Changes */}
+      {dirtyCount > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-8 duration-500">
+          <div className="bg-background/80 backdrop-blur-md border border-warning/50 shadow-2xl rounded-full p-2 pl-6 flex items-center gap-6 ring-4 ring-warning/5">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-tight text-warning leading-none">Unsaved Changes</span>
+              <span className="text-xs font-medium text-muted-foreground">{dirtyCount} row{dirtyCount !== 1 ? 's' : ''} modified</span>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" onClick={clearAllDrafts} className="rounded-full text-muted-foreground hover:text-destructive">
+                Discard
+              </Button>
+              <Button size="sm" onClick={saveAll} disabled={saving} className="rounded-full bg-success hover:bg-success/90 text-white shadow-lg shadow-success/20 px-6">
+                {saving ? 'Saving...' : 'Save All Changes'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <p className="text-xs text-muted-foreground">
-        💡 Tip: Edit any cell directly. Date auto-fills to today (toggle off to apply a custom date). Click <strong>Save All</strong> when done.
+        💡 Tip: Edit any cell directly. Use the <strong>Search</strong> to find rows. Unsaved changes are kept even if you refresh!
       </p>
     </div>
   );
