@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import DSRGridEditor from '@/components/DSRGridEditor';
 import {
   ClipboardList, Plus, Upload, Download, FileSpreadsheet, Calendar, CalendarClock, Pencil, Trash2,
-  Settings as SettingsIcon, TrendingUp, DollarSign, Users, AlertCircle, CheckCircle2, ExternalLink, BarChart3,
+  Settings as SettingsIcon, TrendingUp, DollarSign, Users, AlertCircle, CheckCircle2, ExternalLink, BarChart3, Trophy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -136,8 +136,8 @@ export default function DailyStatusReport() {
       map.set(d, cur);
     });
     return Array.from(map.values())
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map(r => ({ ...r, label: r.date.slice(5) })); // MM-DD
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+      .map(r => ({ ...r, label: r.date ? r.date.slice(5) : '?' })); // MM-DD
   }, [entries]);
 
   // Top performers (top 7 by profit) for bar chart
@@ -369,8 +369,8 @@ export default function DailyStatusReport() {
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-sm font-bold font-display flex items-center gap-2"><Trophy className="w-4 h-4 text-warning" /> Leaderboard</h3>
                 <div className="flex gap-1 bg-muted p-1 rounded-lg">
-                  <Button size="xs" variant={analysisSort === 'profit' ? 'secondary' : 'ghost'} className="h-6 text-[10px] px-2 font-bold" onClick={() => setAnalysisSort('profit')}>Profit</Button>
-                  <Button size="xs" variant={analysisSort === 'sale' ? 'secondary' : 'ghost'} className="h-6 text-[10px] px-2 font-bold" onClick={() => setAnalysisSort('sale')}>Sales</Button>
+                  <Button size="sm" variant={analysisSort === 'profit' ? 'secondary' : 'ghost'} className="h-6 text-[10px] px-2 font-bold" onClick={() => setAnalysisSort('profit')}>Profit</Button>
+                  <Button size="sm" variant={analysisSort === 'sale' ? 'secondary' : 'ghost'} className="h-6 text-[10px] px-2 font-bold" onClick={() => setAnalysisSort('sale')}>Sales</Button>
                 </div>
               </div>
               <div className="h-[280px] w-full">
