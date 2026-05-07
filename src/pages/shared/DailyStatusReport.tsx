@@ -558,10 +558,7 @@ function ExcelUploadButton({ template, userId, userName, entryDate, onDone }: { 
     setBusy(true);
     try {
       const rows = result.parsedRows.map(pr => pr.data);
-      // Use detected dates only if strategy is 'auto'
-      const dates = dateStrategy === 'auto' 
-        ? result.parsedRows.map(pr => pr.detectedDate)
-        : result.parsedRows.map(() => null); // Force fallback to entryDate
+      const dates = result.parsedRows.map(() => null); // Always use entryDate fallback
       
       const n = await bulkCreateEntries(template, userId, userName, entryDate || today, rows, dates);
       toast.success(`Imported ${n} rows`);
@@ -593,48 +590,13 @@ function ExcelUploadButton({ template, userId, userName, entryDate, onDone }: { 
 
               {result.ok && (
                 <div className="space-y-4">
-                  <div className="p-3 bg-green-500/10 text-green-700 rounded flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Detected <strong>{result.parsedRows?.length}</strong> rows.
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold">How should we handle dates?</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button 
-                        onClick={() => setDateStrategy('auto')}
-                        className={`p-3 rounded-lg border-2 text-left transition-all ${dateStrategy === 'auto' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:border-primary/50'}`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <FileSpreadsheet className={`w-4 h-4 ${dateStrategy === 'auto' ? 'text-primary' : 'text-muted-foreground'}`} />
-                          <span className="font-bold text-xs uppercase tracking-tight">Auto-Detect</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground leading-tight">
-                          Use dates found inside your Excel file (if available).
-                        </p>
-                      </button>
-
-                      <button 
-                        onClick={() => setDateStrategy('manual')}
-                        className={`p-3 rounded-lg border-2 text-left transition-all ${dateStrategy === 'manual' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:border-primary/50'}`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Calendar className={`w-4 h-4 ${dateStrategy === 'manual' ? 'text-primary' : 'text-muted-foreground'}`} />
-                          <span className="font-bold text-xs uppercase tracking-tight">Apply Single Date</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground leading-tight">
-                          Use <strong>{entryDate || today}</strong> for every row in the file.
-                        </p>
-                      </button>
+                  <div className="p-4 bg-primary/10 text-primary rounded-xl flex items-center gap-3 border border-primary/20">
+                    <CheckCircle2 className="h-6 w-6" />
+                    <div>
+                      <p className="font-bold text-sm">Ready to Import {result.parsedRows?.length} Rows</p>
+                      <p className="text-xs opacity-80">All rows will be imported using the selected date: <strong>{entryDate || today}</strong></p>
                     </div>
                   </div>
-
-                  {dateStrategy === 'auto' && !result.hasDateColumn && (
-                    <div className="p-2 bg-warning/10 text-warning text-[10px] rounded border border-warning/20 flex items-center gap-2">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      No Date column found in file. It will fallback to <strong>{entryDate || today}</strong> automatically.
-                    </div>
-                  )}
                 </div>
               )}
 
