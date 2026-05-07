@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import DSRGridEditor from '@/components/DSRGridEditor';
 import {
   ClipboardList, Plus, Upload, Download, FileSpreadsheet, Calendar, CalendarClock, Pencil, Trash2,
-  Settings as SettingsIcon, TrendingUp, DollarSign, Users, AlertCircle, CheckCircle2, ExternalLink, BarChart3, Trophy,
+  Settings as SettingsIcon, TrendingUp, DollarSign, Users, AlertCircle, CheckCircle2, ExternalLink, BarChart2, Star, LayoutDashboard,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -265,7 +265,7 @@ export default function DailyStatusReport() {
               <>
                 <Button variant="outline" size="sm" className="rounded-lg h-9 border-dashed" onClick={() => downloadTemplateExcel(activeTemplate)}><Download className="h-4 w-4 mr-2" />Template</Button>
                 <Button variant="outline" size="sm" className="rounded-lg h-9 border-dashed" onClick={() => exportEntriesToExcel(activeTemplate, entries)} disabled={entries.length === 0}><FileSpreadsheet className="h-4 w-4 mr-2" />Export</Button>
-                {!isAdmin && <ExcelUploadButton template={activeTemplate} userId={user!.id} userName={profile!.name} entryDate={workingDate} onDone={loadEntries} />}
+                {!isAdmin && <ExcelUploadButton template={activeTemplate} userId={user?.id || ''} userName={profile?.name || 'User'} entryDate={workingDate} onDone={loadEntries} />}
               </>
             )}
           </div>
@@ -287,7 +287,7 @@ export default function DailyStatusReport() {
                 value="dashboard" 
                 className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-2 h-auto text-sm font-semibold text-muted-foreground data-[state=active]:text-primary transition-all"
               >
-                <BarChart3 className="w-4 h-4 mr-2" /> Dashboard
+                <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
               </TabsTrigger>
             )}
             {templates.map(t => (
@@ -367,7 +367,7 @@ export default function DailyStatusReport() {
 
             <div className="card-nawi">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-bold font-display flex items-center gap-2"><Trophy className="w-4 h-4 text-warning" /> Leaderboard</h3>
+                <h3 className="text-sm font-bold font-display flex items-center gap-2"><Star className="w-4 h-4 text-warning" /> Leaderboard</h3>
                 <div className="flex gap-1 bg-muted p-1 rounded-lg">
                   <Button size="sm" variant={analysisSort === 'profit' ? 'secondary' : 'ghost'} className="h-6 text-[10px] px-2 font-bold" onClick={() => setAnalysisSort('profit')}>Profit</Button>
                   <Button size="sm" variant={analysisSort === 'sale' ? 'secondary' : 'ghost'} className="h-6 text-[10px] px-2 font-bold" onClick={() => setAnalysisSort('sale')}>Sales</Button>
@@ -393,7 +393,7 @@ export default function DailyStatusReport() {
           </div>
 
           <div className="card-nawi overflow-hidden">
-            <h3 className="text-sm font-bold font-display flex items-center gap-2 mb-4"><Users className="w-4 h-4 text-primary" /> Performance Audit</h3>
+            <h3 className="text-sm font-bold font-display flex items-center gap-2 mb-4"><BarChart2 className="w-4 h-4 text-primary" /> Performance Audit</h3>
             <div className="overflow-x-auto -mx-5 px-5">
               <table className="w-full table-nawi">
                 <thead>
