@@ -115,7 +115,23 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
   const updateCell = (idx: number, key: string, value: any) => {
     setRows(prev => {
       const next = [...prev];
-      next[idx] = { ...next[idx], data: { ...next[idx].data, [key]: value }, dirty: true };
+      const rowData = { ...next[idx].data, [key]: value };
+      
+      // Auto-calculate profit if this is a financial field update
+      const col = template.columns.find(c => c.key === key);
+      if (col?.financial === 'sale' || col?.financial === 'cost') {
+        const saleCol = template.columns.find(c => c.financial === 'sale');
+        const costCol = template.columns.find(c => c.financial === 'cost');
+        const profitCol = template.columns.find(c => c.financial === 'profit');
+        
+        if (saleCol && costCol && profitCol) {
+          const saleVal = parseFloat(rowData[saleCol.key]) || 0;
+          const costVal = parseFloat(rowData[costCol.key]) || 0;
+          rowData[profitCol.key] = (saleVal - costVal).toString();
+        }
+      }
+
+      next[idx] = { ...next[idx], data: rowData, dirty: true };
       return next;
     });
   };

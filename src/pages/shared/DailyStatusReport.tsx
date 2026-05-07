@@ -224,26 +224,59 @@ export default function DailyStatusReport() {
             {/* Filters & actions */}
             <Card>
               <CardContent className="pt-6 flex flex-wrap items-end gap-3">
-                <div>
-                  <Label className="text-xs">From</Label>
-                  <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-40" />
-                </div>
-                <div>
-                  <Label className="text-xs">To</Label>
-                  <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="w-40" />
-                </div>
-                {isAdmin && (
-                  <div>
-                    <Label className="text-xs">Employee</Label>
-                    <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
-                      <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Employees</SelectItem>
-                        {employees.map(e => <SelectItem key={e.user_id} value={e.user_id}>{e.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                <div className="flex-1 min-w-[300px] p-4 bg-muted/20 rounded-xl border border-border/50">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Report Period Selection</Label>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative">
+                      <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input 
+                        type="date" 
+                        value={fromDate} 
+                        onChange={e => setFromDate(e.target.value)} 
+                        className="w-40 h-9 pl-9 text-xs font-medium bg-background" 
+                      />
+                    </div>
+                    <span className="text-muted-foreground text-xs font-bold">—</span>
+                    <div className="relative">
+                      <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input 
+                        type="date" 
+                        value={toDate} 
+                        onChange={e => setToDate(e.target.value)} 
+                        className="w-40 h-9 pl-9 text-xs font-medium bg-background" 
+                      />
+                    </div>
+                    
+                    <div className="flex gap-1 ml-2">
+                      <Button variant="ghost" size="sm" className="h-8 text-[10px] px-2" onClick={() => {
+                        const today = new Date().toISOString().split('T')[0];
+                        setFromDate(today); setToDate(today);
+                      }}>Today</Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-[10px] px-2" onClick={() => {
+                        const d = new Date(); d.setDate(d.getDate() - 7);
+                        setFromDate(d.toISOString().split('T')[0]);
+                        setToDate(new Date().toISOString().split('T')[0]);
+                      }}>Last 7d</Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-[10px] px-2" onClick={() => {
+                        const d = new Date(); d.setDate(1);
+                        setFromDate(d.toISOString().split('T')[0]);
+                        setToDate(new Date().toISOString().split('T')[0]);
+                      }}>This Month</Button>
+                    </div>
+
+                    {isAdmin && (
+                      <div className="ml-auto min-w-[180px]">
+                        <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
+                          <SelectTrigger className="h-9 text-xs bg-background"><SelectValue placeholder="All Employees" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Employees</SelectItem>
+                            {employees.map(e => <SelectItem key={e.user_id} value={e.user_id}>{e.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
                 <div className="flex gap-2 ml-auto flex-wrap">
                   <Button variant="outline" size="sm" onClick={() => downloadTemplateExcel(activeTemplate)}>
                     <Download className="h-4 w-4 mr-1" />Template
@@ -508,7 +541,7 @@ function ExcelUploadButton({ template, userId, userName, entryDate, onDone }: { 
   const inputRef = useRef<HTMLInputElement>(null);
   const [result, setResult] = useState<ExcelParseResult | null>(null);
   const [busy, setBusy] = useState(false);
-  const [dateStrategy, setDateStrategy] = useState<'auto' | 'manual'>('auto');
+  const [dateStrategy, setDateStrategy] = useState<'auto' | 'manual'>('manual');
   const today = new Date().toISOString().split('T')[0];
 
   const handleFile = async (file: File) => {
