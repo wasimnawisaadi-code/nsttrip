@@ -284,6 +284,20 @@ export default function DailyStatusReport() {
                     )}
                   </div>
                 </div>
+
+                {!isAdmin && (
+                  <div className="p-4 bg-primary/5 rounded-xl border border-primary/20 min-w-[200px]">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-primary mb-2 block flex items-center gap-1.5">
+                      <CalendarClock className="w-3.5 h-3.5" /> Select Date (For Add Row / Excel)
+                    </Label>
+                    <Input 
+                      type="date" 
+                      value={workingDate} 
+                      onChange={e => handleWorkingDateChange(e.target.value)} 
+                      className="w-full h-9 text-xs font-medium border-primary/30 focus:border-primary bg-background" 
+                    />
+                  </div>
+                )}
                 <div className="flex gap-2 ml-auto flex-wrap">
                   <Button variant="outline" size="sm" onClick={() => downloadTemplateExcel(activeTemplate)}>
                     <Download className="h-4 w-4 mr-1" />Template

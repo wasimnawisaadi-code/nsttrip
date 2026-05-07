@@ -220,18 +220,6 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
       {/* Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-2 p-3 bg-muted/30 rounded-lg border border-border">
         <div className="flex items-center gap-4 flex-wrap flex-1">
-          <div className="flex items-center gap-2">
-            <Label className="text-xs font-semibold text-primary flex items-center gap-1.5 uppercase tracking-wider">
-              <CalendarClock className="w-3.5 h-3.5" /> Working Date
-            </Label>
-            <Input 
-              type="date" 
-              value={workingDate} 
-              onChange={e => onWorkingDateChange(e.target.value)} 
-              className="w-40 h-8 text-xs font-medium border-primary/30 focus:border-primary" 
-            />
-          </div>
-          
           <div className="relative flex-1 max-w-xs">
             <Plus className="absolute left-2.5 top-2.5 h-3 w-3 text-muted-foreground rotate-45" />
             <Input 
