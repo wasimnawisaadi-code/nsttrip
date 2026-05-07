@@ -164,9 +164,17 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
   const clearAllDrafts = () => {
     const dirty = rows.filter(r => r.dirty);
     if (dirty.length === 0) return;
-    if (!confirm(`Clear all ${dirty.length} unsaved changes?`)) return;
-    load(); // Simply reload from server to discard all local changes
-    toast.success('Drafts cleared');
+    if (!confirm(`Are you sure you want to delete all ${dirty.length} unsaved rows?`)) return;
+    
+    // If we have edits to existing rows, we must reload to revert them properly.
+    // Otherwise, we can just filter out the new unsaved rows locally for speed.
+    const hasExistingDirty = dirty.some(r => r.id);
+    if (hasExistingDirty) {
+      load();
+    } else {
+      setRows(prev => prev.filter(r => !r.dirty));
+    }
+    toast.success('Unsaved rows deleted');
   };
 
   const saveAll = async () => {
@@ -241,11 +249,13 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
             <RotateCcw className="w-3.5 h-3.5 mr-1" />Reload
           </Button>
           {!isAdmin && (
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={clearAllDrafts} disabled={dirtyCount === 0} className="text-destructive hover:bg-destructive/10">
-                <Trash2 className="w-3.5 h-3.5 mr-1" />Delete All
-              </Button>
-              <Button size="sm" onClick={addRow} className="bg-primary hover:bg-primary/90">
+            <div className="flex gap-2 items-center">
+              {dirtyCount > 0 && (
+                <Button size="sm" variant="ghost" onClick={clearAllDrafts} className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 px-2">
+                  <Trash2 className="w-3.5 h-3.5 mr-1" />Delete All ({dirtyCount})
+                </Button>
+              )}
+              <Button size="sm" onClick={addRow} className="bg-primary hover:bg-primary/90 h-8">
                 <Plus className="w-3.5 h-3.5 mr-1" />Add Row
               </Button>
             </div>
