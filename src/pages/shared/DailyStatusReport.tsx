@@ -501,6 +501,12 @@ export default function DailyStatusReport() {
               </table>
             </div>
           </div>
+          
+          <footer className="mt-12 pb-4 text-center">
+            <p className="text-[9px] uppercase tracking-widest text-muted-foreground/40 font-medium">
+              Designed and Developed by Mhd Wasim
+            </p>
+          </footer>
         </TabsContent>
 
         {templates.map(t => (
