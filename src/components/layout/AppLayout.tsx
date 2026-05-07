@@ -256,6 +256,13 @@ export default function AppLayout() {
               </button>
             )}
           </div>
+          {!collapsed && (
+            <div className="mt-4 pt-4 border-t border-sidebar-border/30 text-center">
+              <p className="text-[8px] uppercase tracking-tighter text-sidebar-muted/30 font-medium">
+                Designed and Developed by Mhd Wasim
+              </p>
+            </div>
+          )}
         </div>
       </aside>
 
