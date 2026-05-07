@@ -99,6 +99,26 @@ export default function DailyStatusReport() {
     setToDate(date);
   };
 
+  const setRangePreset = (preset: 'today' | '7d' | 'month' | 'lastMonth' | 'custom') => {
+    const now = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    if (preset === 'today') {
+      // already set
+    } else if (preset === '7d') {
+      start.setDate(now.getDate() - 7);
+    } else if (preset === 'month') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (preset === 'lastMonth') {
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      end = new Date(now.getFullYear(), now.getMonth(), 0);
+    }
+
+    setFromDate(start.toISOString().split('T')[0]);
+    setToDate(end.toISOString().split('T')[0]);
+  };
+
   // Aggregate KPIs for current view
   const kpis = useMemo(() => {
     const totalSale = entries.reduce((s, e) => s + Number(e.sale_amount || 0), 0);
@@ -227,12 +247,20 @@ export default function DailyStatusReport() {
       {/* Unified Control Bar */}
       <div className="bg-card p-4 rounded-xl border border-border shadow-card mb-6">
         <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2 pr-4 border-r border-border/50">
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-2">Range</Label>
+            <div className="flex gap-1 bg-muted p-1 rounded-lg">
+              <Button size="sm" variant="ghost" className="h-7 text-[10px] px-2 font-bold" onClick={() => setRangePreset('today')}>Today</Button>
+              <Button size="sm" variant="ghost" className="h-7 text-[10px] px-2 font-bold" onClick={() => setRangePreset('7d')}>7 Days</Button>
+              <Button size="sm" variant="ghost" className="h-7 text-[10px] px-2 font-bold" onClick={() => setRangePreset('month')}>Month</Button>
+            </div>
+          </div>
+
           <div className="flex items-center gap-3 pr-4 border-r border-border/50">
-            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Period</Label>
             <div className="flex items-center gap-2">
-              <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-40 h-9 input-nawi" />
+              <Input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)} className="w-36 h-9 input-nawi text-xs" />
               <span className="text-muted-foreground font-medium">-</span>
-              <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="w-40 h-9 input-nawi" />
+              <Input type="date" value={toDate} onChange={e => setToDate(e.target.value)} className="w-36 h-9 input-nawi text-xs" />
             </div>
           </div>
 
