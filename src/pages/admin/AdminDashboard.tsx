@@ -10,6 +10,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import DSRDashboardWidget from '@/components/dashboard/DSRDashboardWidget';
 import SocialLeadsDashboardWidget from '@/components/dashboard/SocialLeadsDashboardWidget';
 
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
 const COLORS = ['#052F59', '#1A5B96', '#0A7040', '#C45000', '#C0392B', '#64748B', '#7C3AED', '#0891B2'];
 
 export default function AdminDashboard() {
@@ -76,7 +78,13 @@ export default function AdminDashboard() {
       const completedTasks = tasks.filter((t: any) => t.status === 'Completed' && matchesFilter(t.completed_date)).length;
       
       const activeEmployeeIds = new Set(employees.filter(e => e.status === 'active').map(e => e.user_id));
-      const employeesOnline = attendance.filter((a: any) => a.date === today && !a.logout_time && activeEmployeeIds.has(a.employee_id)).length;
+      const onlineEmployeesList = attendance
+        .filter((a: any) => a.date === today && !a.logout_time && activeEmployeeIds.has(a.employee_id))
+        .map((a: any) => {
+          const emp = employees.find((e: any) => e.user_id === a.employee_id);
+          return { name: emp?.name || 'Unknown', photo: emp?.photo_url, id: emp?.user_id };
+        });
+      const employeesOnline = onlineEmployeesList.length;
       const totalActiveEmp = employees.filter((e: any) => e.status === 'active').length;
       const pendingLeave = leave.filter((l: any) => l.status === 'Pending').length;
 
@@ -203,6 +211,7 @@ export default function AdminDashboard() {
         todayAttendance,
         recentAudit: auditLog,
         topEmployees, leadData, nationalityData,
+        onlineEmployeesList,
         allClients: clients, allEmployees: employees, allTasks: tasks, allQuotations: quotations,
       });
     };
@@ -274,14 +283,42 @@ export default function AdminDashboard() {
                 {data.overdueTasks > 0 && <span className="text-xs text-destructive font-medium">{data.overdueTasks} overdue</span>}
               </div>
             </div>
-            <div className="card-nawi relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-primary/10 rounded-bl-[40px]" />
-              <div className="relative">
-                <UserCheck className="w-5 h-5 text-primary mb-2" />
-                <p className="text-2xl font-bold font-display">{data.employeesOnline}/{data.totalActiveEmp}</p>
-                <p className="text-xs text-muted-foreground">Online</p>
-              </div>
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <div className="card-nawi relative overflow-hidden cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-primary/10 rounded-bl-[40px]" />
+                  <div className="relative">
+                    <UserCheck className="w-5 h-5 text-primary mb-2" />
+                    <p className="text-2xl font-bold font-display">{data.employeesOnline}/{data.totalActiveEmp}</p>
+                    <p className="text-xs text-muted-foreground">Online</p>
+                  </div>
+                </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3 bg-card border-border shadow-xl rounded-xl">
+                <h4 className="text-sm font-bold mb-3 border-b pb-2 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                  Online Employees ({data.employeesOnline})
+                </h4>
+                {data.onlineEmployeesList.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-4 text-center">No one is online right now</p>
+                ) : (
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {data.onlineEmployeesList.map((emp: any, i: number) => (
+                      <div key={i} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-muted transition-colors">
+                        {emp.photo ? (
+                          <img src={emp.photo} alt="" className="w-7 h-7 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold uppercase">
+                            {emp.name.split(' ').map((n: any) => n[0]).join('').slice(0, 2)}
+                          </div>
+                        )}
+                        <span className="text-xs font-medium truncate">{emp.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
             <div className="card-nawi relative overflow-hidden">
               <div className="absolute top-0 right-0 w-16 h-16 bg-warning/10 rounded-bl-[40px]" />
               <div className="relative">
