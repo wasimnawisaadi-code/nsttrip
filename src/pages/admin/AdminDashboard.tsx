@@ -65,11 +65,11 @@ export default function AdminDashboard() {
         return true;
       };
 
-      const revenueThisMonth = clients.filter((c: any) => matchesFilter(c.created_at)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-      const revenueLastMonth = clients.filter((c: any) => c.created_at?.startsWith(lastMonth)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-      const profitThisMonth = clients.filter((c: any) => matchesFilter(c.created_at)).reduce((s: number, c: any) => s + (c.profit || 0), 0);
-      const totalRevenue = clients.reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-      const totalProfit = clients.reduce((s: number, c: any) => s + (c.profit || 0), 0);
+      const revenueThisMonth = dsrEntries.filter((e: any) => matchesFilter(e.entry_date)).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
+      const revenueLastMonth = dsrEntries.filter((e: any) => e.entry_date?.startsWith(lastMonth)).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
+      const profitThisMonth = dsrEntries.filter((e: any) => matchesFilter(e.entry_date)).reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
+      const totalRevenue = dsrEntries.reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
+      const totalProfit = dsrEntries.reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
 
       const activeTasks = tasks.filter((t: any) => t.status === 'New' || t.status === 'Processing').length;
       const overdueTasks = tasks.filter((t: any) => (t.status === 'New' || t.status === 'Processing') && t.due_date && new Date(t.due_date) < now).length;
@@ -100,16 +100,16 @@ export default function AdminDashboard() {
           const d = new Date(end); d.setDate(end.getDate() - i);
           const key = d.toISOString().split('T')[0];
           const label = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-          const rev = clients.filter((c: any) => c.created_at?.startsWith(key)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-          const prof = clients.filter((c: any) => c.created_at?.startsWith(key)).reduce((s: number, c: any) => s + (c.profit || 0), 0);
+          const rev = dsrEntries.filter((e: any) => e.entry_date === key).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
+          const prof = dsrEntries.filter((e: any) => e.entry_date === key).reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
           revenueData.push({ month: label, revenue: rev, profit: prof });
         }
       } else if (viewType === 'annual') {
         for (let i = 2; i >= 0; i--) {
           const year = rYear - i;
           const label = String(year);
-          const rev = clients.filter((c: any) => c.created_at?.startsWith(label)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-          const prof = clients.filter((c: any) => c.created_at?.startsWith(label)).reduce((s: number, c: any) => s + (c.profit || 0), 0);
+          const rev = dsrEntries.filter((e: any) => e.entry_date?.startsWith(label)).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
+          const prof = dsrEntries.filter((e: any) => e.entry_date?.startsWith(label)).reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
           revenueData.push({ month: label, revenue: rev, profit: prof });
         }
       } else {
@@ -117,9 +117,9 @@ export default function AdminDashboard() {
           const d = new Date(rYear, rMonth - 1 - i, 1);
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
           const label = d.toLocaleDateString('en-US', { month: 'short' });
-          const rev = clients.filter((c: any) => c.created_at?.startsWith(key)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-          const prof = clients.filter((c: any) => c.created_at?.startsWith(key)).reduce((s: number, c: any) => s + (c.profit || 0), 0);
-          const clt = clients.filter((c: any) => c.created_at?.startsWith(key)).length;
+          const rev = dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
+          const prof = dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
+          const clt = dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).length;
           revenueData.push({ month: label, revenue: rev, profit: prof, clients: clt });
         }
       }

@@ -16,19 +16,28 @@ export default function ReportsPage() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<any[]>([]);
+  const [dsrEntries, setDsrEntries] = useState<any[]>([]);
 
   useEffect(() => {
     const load = async () => {
-      const [c, e, t, a] = await Promise.all([
+      const [c, e, t, a, dsr] = await Promise.all([
         supabase.from('clients').select('*'),
         supabase.from('profiles').select('*'),
         supabase.from('tasks').select('*'),
         supabase.from('attendance').select('*'),
+        supabase.from('dsr_entries').select('*'),
       ]);
-      setClients(c.data || []);
-      setEmployees(e.data || []);
-      setTasks(t.data || []);
-      setAttendance(a.data || []);
+      const clientsData = c.data || [];
+      const employeesData = e.data || [];
+      const tasksData = t.data || [];
+      const attendanceData = a.data || [];
+      const dsrEntries = dsr.data || [];
+
+      setClients(clientsData);
+      setEmployees(employeesData);
+      setTasks(tasksData);
+      setAttendance(attendanceData);
+      setDsrEntries(dsrEntries);
     };
     load();
   }, []);
@@ -59,20 +68,21 @@ export default function ReportsPage() {
     monthlyTrend.push({
       month: label,
       clients: clients.filter((c: any) => c.created_at?.startsWith(key)).length,
-      revenue: clients.filter((c: any) => c.created_at?.startsWith(key)).reduce((s: number, c: any) => s + (c.revenue || 0), 0),
-      profit: clients.filter((c: any) => c.created_at?.startsWith(key)).reduce((s: number, c: any) => s + (c.profit || 0), 0),
+      revenue: dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0),
+      profit: dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).reduce((s: number, e: any) => s + (e.profit_amount || 0), 0),
     });
   }
 
   const empPerformance = employees.filter((e: any) => e.status === 'active').map((e: any) => {
     const empClients = clients.filter((c: any) => c.assigned_to === e.user_id);
+    const empDsr = dsrEntries.filter((dsr: any) => dsr.employee_id === e.user_id && dsr.entry_date?.startsWith(yearMonth));
     const empTasks = tasks.filter((t: any) => t.assigned_to === e.user_id);
     const empAttendance = attendance.filter((a: any) => a.employee_id === e.user_id && a.date?.startsWith(yearMonth));
     return {
       name: e.name, id: e.user_id,
       totalClients: empClients.length,
-      revenue: empClients.reduce((s: number, c: any) => s + (c.revenue || 0), 0),
-      profit: empClients.reduce((s: number, c: any) => s + (c.profit || 0), 0),
+      revenue: empDsr.reduce((s: number, dsr: any) => s + (dsr.sale_amount || 0), 0),
+      profit: empDsr.reduce((s: number, dsr: any) => s + (dsr.profit_amount || 0), 0),
       tasksTotal: empTasks.length,
       tasksCompleted: empTasks.filter((t: any) => t.status === 'Completed').length,
       successRate: empClients.length > 0 ? Math.round((empClients.filter((c: any) => c.status === 'Success').length / empClients.length) * 100) : 0,
@@ -80,8 +90,8 @@ export default function ReportsPage() {
     };
   }).sort((a, b) => b.revenue - a.revenue);
 
-  const totalRevenue = clients.reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-  const totalProfit = clients.reduce((s: number, c: any) => s + (c.profit || 0), 0);
+  const totalRevenue = dsrEntries.reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
+  const totalProfit = dsrEntries.reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
 
   const tabs = ['overview', 'clients', 'services', 'employees', 'revenue'];
 

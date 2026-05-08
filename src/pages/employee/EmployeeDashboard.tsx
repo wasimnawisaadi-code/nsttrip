@@ -19,16 +19,18 @@ export default function EmployeeDashboard() {
       const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const today = now.toISOString().split('T')[0];
 
-      const [clientsRes, tasksRes, attendanceRes] = await Promise.all([
+      const [clientsRes, tasksRes, attendanceRes, dsrRes] = await Promise.all([
         supabase.from('clients').select('*').or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`),
         supabase.from('tasks').select('*').or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`),
         supabase.from('attendance').select('*').eq('employee_id', user.id).eq('date', today).maybeSingle(),
+        supabase.from('dsr_entries').select('*').eq('employee_id', user.id),
       ]);
 
       const clients = clientsRes.data || [];
       const tasks = tasksRes.data || [];
+      const dsrEntries = dsrRes.data || [];
 
-      const revenue = clients.filter(c => c.created_at?.startsWith(thisMonth)).reduce((s, c) => s + (c.revenue || 0), 0);
+      const revenue = dsrEntries.filter(e => e.entry_date?.startsWith(thisMonth)).reduce((s, e) => s + (e.sale_amount || 0), 0);
       const todayTasks = tasks.filter(t => t.due_date === today && t.status !== 'Completed');
       const upcomingTasks = tasks.filter(t => t.due_date && t.due_date > today && t.status !== 'Completed').sort((a, b) => (a.due_date || '').localeCompare(b.due_date || '')).slice(0, 5);
       const completedTasks = tasks.filter(t => t.status === 'Completed').length;

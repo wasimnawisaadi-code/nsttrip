@@ -500,6 +500,7 @@ export default function DailyStatusReport() {
                 </tbody>
               </table>
             </div>
+          </div>
         </TabsContent>
 
         {templates.map(t => (
