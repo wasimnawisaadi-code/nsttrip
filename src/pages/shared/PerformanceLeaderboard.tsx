@@ -10,6 +10,7 @@ type EmpStat = {
   user_id: string; name: string; photo_url: string | null;
   dsr_sales: number; dsr_profit: number; dsr_count: number;
   clients_added: number; clients_converted: number;
+  clients_sales: number; clients_profit: number;
   leads_taken: number; leads_converted: number;
   attendance_score: number;
   scores: { dsr: number; leads: number; clients: number; overall: number };
@@ -55,7 +56,7 @@ export default function PerformanceLeaderboard() {
       const [profRes, dsrRes, clientsRes, leadsRes, attRes, rolesRes] = await Promise.all([
         supabase.from('profiles').select('user_id, name, photo_url, status').eq('status', 'active'),
         supabase.from('dsr_entries').select('employee_id, sale_amount, profit_amount').gte('entry_date', from).lte('entry_date', to),
-        supabase.from('clients').select('created_by, status, created_at').gte('created_at', `${from}T00:00:00`).lte('created_at', `${to}T23:59:59`),
+        supabase.from('clients').select('created_by, status, created_at, revenue, profit').gte('created_at', `${from}T00:00:00`).lte('created_at', `${to}T23:59:59`),
         supabase.from('social_leads').select('assigned_to, status, assigned_at, converted_at'),
         supabase.from('attendance').select('employee_id, status').gte('date', from).lte('date', to),
         supabase.from('user_roles').select('user_id, role'),
@@ -83,6 +84,8 @@ export default function PerformanceLeaderboard() {
         const dsr_count = myDsr.length;
         const clients_added = myClients.length;
         const clients_converted = myClients.filter((c: any) => c.status === 'Completed' || c.status === 'Success').length;
+        const clients_sales = myClients.reduce((s, c: any) => s + Number(c.revenue || 0), 0);
+        const clients_profit = myClients.reduce((s, c: any) => s + Number(c.profit || 0), 0);
         const leads_taken = myLeads.length;
         const leads_converted = myLeads.filter((l: any) => l.status === 'CONVERTED').length;
         const present = myAtt.filter((a: any) => a.status === 'Present').length;
@@ -99,6 +102,7 @@ export default function PerformanceLeaderboard() {
           user_id: e.user_id, name: e.name, photo_url: e.photo_url,
           dsr_sales, dsr_profit, dsr_count,
           clients_added, clients_converted,
+          clients_sales, clients_profit,
           leads_taken, leads_converted,
           attendance_score,
           scores: { dsr: scoreDsr, leads: scoreLeads, clients: scoreClients, overall: scoreOverall },
@@ -193,7 +197,7 @@ export default function PerformanceLeaderboard() {
                           <th className="text-left py-2 px-2">Employee</th>
                           {category === 'dsr' && <><th className="text-right">Entries</th><th className="text-right">Sales</th><th className="text-right">Profit</th></>}
                           {category === 'leads' && <><th className="text-right">Taken</th><th className="text-right">Converted</th></>}
-                          {category === 'clients' && <><th className="text-right">Added</th><th className="text-right">Converted</th></>}
+                          {category === 'clients' && <><th className="text-right">Added</th><th className="text-right">Converted</th><th className="text-right">Sales</th><th className="text-right">Profit</th></>}
                           {category === 'overall' && <>
                             <th className="text-right">DSR Profit</th>
                             <th className="text-right">Clients</th>
@@ -223,6 +227,8 @@ export default function PerformanceLeaderboard() {
                               {category === 'clients' && <>
                                 <td className="text-right">{s.clients_added}</td>
                                 <td className="text-right text-success font-medium">{s.clients_converted}</td>
+                                <td className="text-right">{formatCurrency(s.clients_sales)}</td>
+                                <td className="text-right text-success font-medium">{formatCurrency(s.clients_profit)}</td>
                               </>}
                               {category === 'overall' && <>
                                 <td className="text-right text-success">{formatCurrency(s.dsr_profit)}</td>
