@@ -837,11 +837,10 @@ function SocialLeadsAnalytics({ leads, employees, user, isAdmin }: { leads: Lead
 
   return (
     <div className="space-y-6 animate-fade-in py-2">
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label={isAdmin ? "Total Leads" : "My Assigned Leads"} value={total} color="text-foreground" />
         <StatCard label="In Progress" value={inProgress} color="text-warning" />
         <StatCard label="Converted" value={converted} color="text-success" />
-        <StatCard label="Lost" value={notConverted} color="text-destructive" />
         <StatCard label="Conv. Rate" value={conversionRate + '%'} color="text-primary" />
       </div>
 
