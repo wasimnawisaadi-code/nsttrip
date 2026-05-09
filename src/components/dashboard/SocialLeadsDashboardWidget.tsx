@@ -15,7 +15,7 @@ const SOURCE_META: Record<string, { label: string; Icon: any; color: string }> =
   messenger: { label: 'Messenger', Icon: Facebook,     color: '#1A5B96' },
 };
 
-export default function SocialLeadsDashboardWidget({ basePath = '/admin' }: { basePath?: string }) {
+export default function SocialLeadsDashboardWidget({ basePath = '/admin', employeeId }: { basePath?: string; employeeId?: string }) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<{ total: number; unassigned: number; converted: number; bySource: { name: string; value: number }[]; byStatus: { name: string; value: number }[] }>({
     total: 0, unassigned: 0, converted: 0, bySource: [], byStatus: [],
@@ -23,7 +23,10 @@ export default function SocialLeadsDashboardWidget({ basePath = '/admin' }: { ba
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('social_leads').select('source, status, assigned_to');
+      let query = supabase.from('social_leads').select('source, status, assigned_to');
+      if (employeeId) query = query.eq('assigned_to', employeeId);
+      
+      const { data } = await query;
       const leads = data || [];
       const sourceMap: Record<string, number> = {};
       const statusMap: Record<string, number> = {};

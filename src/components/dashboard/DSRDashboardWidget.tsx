@@ -6,7 +6,7 @@ import { ClipboardList, TrendingUp, Users, ChevronRight } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 /** Compact DSR analytics widget — last 7 days. */
-export default function DSRDashboardWidget({ basePath = '/admin' }: { basePath?: string }) {
+export default function DSRDashboardWidget({ basePath = '/admin', employeeId }: { basePath?: string; employeeId?: string }) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<{ count: number; sales: number; profit: number; employees: number; daily: { day: string; profit: number; sales: number }[]; topEmps: { name: string; profit: number }[] }>({
     count: 0, sales: 0, profit: 0, employees: 0, daily: [], topEmps: [],
@@ -19,15 +19,25 @@ export default function DSRDashboardWidget({ basePath = '/admin' }: { basePath?:
       const fromStr = start.toISOString().split('T')[0];
       const toStr = end.toISOString().split('T')[0];
 
+      let query = supabase.from('dsr_entries')
+        .select('employee_id, employee_name, sale_amount, profit_amount, entry_date')
+        .gte('entry_date', fromStr).lte('entry_date', toStr);
+        
+      if (employeeId) {
+        query = query.eq('employee_id', employeeId);
+      }
+
       const [dsrRes, profilesRes] = await Promise.all([
-        supabase.from('dsr_entries')
-          .select('employee_id, employee_name, sale_amount, profit_amount, entry_date')
-          .gte('entry_date', fromStr).lte('entry_date', toStr),
-        supabase.from('profiles').select('user_id, status').eq('status', 'active')
+        query,
+        !employeeId ? supabase.from('profiles').select('user_id, status').eq('status', 'active') : Promise.resolve({ data: null })
       ]);
 
-      const activeEmpIds = new Set((profilesRes.data || []).map(p => p.user_id));
-      const entries = (dsrRes.data || []).filter((e: any) => activeEmpIds.has(e.employee_id));
+      let entries = dsrRes.data || [];
+      
+      if (!employeeId) {
+        const activeEmpIds = new Set((profilesRes.data || []).map((p: any) => p.user_id));
+        entries = entries.filter((e: any) => activeEmpIds.has(e.employee_id));
+      }
 
       const sales = entries.reduce((s, e: any) => s + Number(e.sale_amount || 0), 0);
       const profit = entries.reduce((s, e: any) => s + Number(e.profit_amount || 0), 0);

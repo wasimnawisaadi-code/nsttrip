@@ -84,8 +84,8 @@ export default function EmployeeDashboard() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <DSRDashboardWidget basePath="/employee" />
-        <SocialLeadsDashboardWidget basePath="/employee" />
+        <DSRDashboardWidget basePath="/employee" employeeId={user.id} />
+        <SocialLeadsDashboardWidget basePath="/employee" employeeId={user.id} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
