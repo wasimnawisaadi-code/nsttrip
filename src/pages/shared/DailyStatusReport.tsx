@@ -453,7 +453,7 @@ export default function DailyStatusReport() {
                       <td className="p-3 font-medium">{e.name}</td>
                       <td className="p-3 text-center">{e.count}</td>
                       <td className="p-3 text-right font-semibold text-primary">{formatCurrency(e.sale)}</td>
-                      <td className="p-3 text-right font-bold text-success-foreground">{formatCurrency(e.profit)}</td>
+                      <td className="p-3 text-right font-bold text-success">{formatCurrency(e.profit)}</td>
                       <td className="p-3 text-center">
                         <span className="badge-new bg-primary/5 text-primary">
                           {((e.profit / (e.sale || 1)) * 100).toFixed(1)}%
