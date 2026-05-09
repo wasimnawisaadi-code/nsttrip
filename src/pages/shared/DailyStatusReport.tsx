@@ -49,14 +49,10 @@ export default function DailyStatusReport() {
     if (!user) return;
     const list = isAdmin ? await fetchAllTemplates() : await fetchAssignedTemplates(user.id);
     setTemplates(list);
-    if (list.length > 0 && !activeTemplate) {
-      if (isAdmin) {
-        // For admin, we don't force a template - we can start with "All Services"
+      if (list.length > 0 && !activeTemplate) {
+        // We don't force a template - we can start with "All Services" (Dashboard)
         setActiveTemplate(null);
-      } else {
-        setActiveTemplate(list[0]);
       }
-    }
     
     // FETCH ASSIGNED TASKS (like UAE Visa)
     const { data: svcs } = await supabase
@@ -324,14 +320,12 @@ export default function DailyStatusReport() {
       >
         <div className="border-b border-border">
           <TabsList className="bg-transparent h-auto p-0 gap-6 overflow-x-auto no-scrollbar justify-start">
-            {isAdmin && (
               <TabsTrigger 
                 value="dashboard" 
                 className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-2 h-auto text-sm font-semibold text-muted-foreground data-[state=active]:text-primary transition-all"
               >
                 <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
               </TabsTrigger>
-            )}
             {templates.map(t => (
               <TabsTrigger 
                 key={t.id} 
