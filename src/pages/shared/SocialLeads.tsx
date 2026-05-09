@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
-import { MessageCircle, Instagram, Facebook, RefreshCw, UserPlus, UserMinus, CheckCircle2, XCircle, Clock, Loader2, Send, StickyNote, Search, Filter, Upload, FileImage, Download, Trash2 } from 'lucide-react';
+import { MessageCircle, Instagram, Facebook, RefreshCw, UserPlus, UserMinus, CheckCircle2, XCircle, Clock, Loader2, Send, StickyNote, Search, Filter, Upload, FileImage, Download, Trash2, PieChart as PieChartIcon } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
 import { exportToExcel } from '@/lib/excel-export';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 type Source = 'whatsapp' | 'instagram' | 'messenger';
 type Status = 'NEW' | 'IN_PROGRESS' | 'CONVERTED' | 'NOT_CONVERTED';
@@ -46,6 +47,8 @@ const STATUS_META: Record<Status, { label: string; color: string }> = {
   NOT_CONVERTED: { label: 'Not Converted', color: 'bg-destructive/10 text-destructive' },
 };
 
+const COLORS = ['#052F59', '#1A5B96', '#0A7040', '#C45000', '#C0392B', '#64748B'];
+
 export default function SocialLeads() {
   const { user, profile } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -59,7 +62,7 @@ export default function SocialLeads() {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [openLead, setOpenLead] = useState<Lead | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState<'pool' | 'mine' | 'all'>('pool');
+  const [activeTab, setActiveTab] = useState<'pool' | 'mine' | 'all' | 'analytics'>('pool');
 
   const load = async () => {
     const { data } = await supabase
@@ -337,9 +340,16 @@ export default function SocialLeads() {
         {isAdmin && (
           <button onClick={() => setActiveTab('all')} className={`whitespace-nowrap px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'all' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>All Active (Admin)</button>
         )}
+        <button onClick={() => setActiveTab('analytics')} className={`whitespace-nowrap px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'analytics' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'} flex items-center gap-1.5`}>
+          <PieChartIcon className="w-3.5 h-3.5" /> My Analytics Dashboard
+        </button>
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center bg-muted/30 p-3 rounded-lg border border-border">
+      {activeTab === 'analytics' ? (
+        <SocialLeadsAnalytics leads={leads} employees={employees} user={user} isAdmin={isAdmin} />
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2 items-center bg-muted/30 p-3 rounded-lg border border-border">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input value={search} onChange={e => setSearch(e.target.value)} className="input-nawi pl-9" placeholder="Search name, phone, username…" />
@@ -523,6 +533,8 @@ export default function SocialLeads() {
           })}
         </div>
       )}
+        </>
+      )}
 
       {openLead && (
         <LeadModal
@@ -540,7 +552,7 @@ export default function SocialLeads() {
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+function StatCard({ label, value, color }: { label: string; value: number | string; color: string }) {
   return (
     <div className="card-nawi py-3">
       <p className="text-xs text-muted-foreground">{label}</p>
@@ -791,6 +803,90 @@ function Info({ label, value }: { label: string; value: string | null | undefine
     <div>
       <p className="text-[11px] text-muted-foreground uppercase tracking-wide">{label}</p>
       <p className="text-sm font-medium">{value || '—'}</p>
+    </div>
+  );
+}
+
+function SocialLeadsAnalytics({ leads, employees, user, isAdmin }: { leads: Lead[]; employees: Record<string, {name: string, photo: string | null}>; user: any; isAdmin: boolean }) {
+  const relevantLeads = isAdmin ? leads : leads.filter(l => l.assigned_to === user?.id);
+
+  const total = relevantLeads.length;
+  const newLeads = relevantLeads.filter(l => l.status === 'NEW').length;
+  const inProgress = relevantLeads.filter(l => l.status === 'IN_PROGRESS').length;
+  const converted = relevantLeads.filter(l => l.status === 'CONVERTED').length;
+  const notConverted = relevantLeads.filter(l => l.status === 'NOT_CONVERTED').length;
+  const conversionRate = total > 0 ? Math.round((converted / total) * 100) : 0;
+
+  const bySource = [
+    { name: 'WhatsApp', value: relevantLeads.filter(l => l.source === 'whatsapp').length },
+    { name: 'Instagram', value: relevantLeads.filter(l => l.source === 'instagram').length },
+    { name: 'Messenger', value: relevantLeads.filter(l => l.source === 'messenger').length },
+  ].filter(s => s.value > 0);
+
+  const employeeStats = isAdmin ? Object.entries(employees).map(([id, emp]) => {
+    const empLeads = leads.filter(l => l.assigned_to === id);
+    const conv = empLeads.filter(l => l.status === 'CONVERTED').length;
+    return {
+      name: emp.name,
+      photo: emp.photo,
+      assigned: empLeads.length,
+      converted: conv,
+      rate: empLeads.length > 0 ? Math.round((conv / empLeads.length) * 100) : 0
+    };
+  }).filter(e => e.assigned > 0).sort((a, b) => b.converted - a.converted) : [];
+
+  return (
+    <div className="space-y-6 animate-fade-in py-2">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <StatCard label={isAdmin ? "Total Leads" : "My Assigned Leads"} value={total} color="text-foreground" />
+        <StatCard label="In Progress" value={inProgress} color="text-warning" />
+        <StatCard label="Converted" value={converted} color="text-success" />
+        <StatCard label="Lost" value={notConverted} color="text-destructive" />
+        <StatCard label="Conv. Rate" value={conversionRate + '%'} color="text-primary" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="card-nawi">
+          <h3 className="text-base font-semibold font-display mb-4">Conversion by Channel</h3>
+          {bySource.length === 0 ? <p className="text-sm text-muted-foreground py-6 text-center">No leads data</p> : (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie data={bySource} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2} label>
+                  {bySource.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <RechartsTooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {isAdmin && (
+          <div className="card-nawi">
+            <h3 className="text-base font-semibold font-display mb-4">Top Converters</h3>
+            {employeeStats.length === 0 ? <p className="text-sm text-muted-foreground py-6 text-center">No assignments yet</p> : (
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                {employeeStats.map((emp, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/50 transition-colors">
+                    <span className="text-xs font-bold text-muted-foreground w-4">{i + 1}</span>
+                    {emp.photo ? <img src={emp.photo} alt="" className="w-10 h-10 rounded-full object-cover" /> :
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-primary-foreground">{emp.name.slice(0, 2).toUpperCase()}</div>}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{emp.name}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{emp.assigned} total leads</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-success font-display">{emp.converted}</p>
+                      <p className="text-[10px] text-muted-foreground">({emp.rate}%)</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
