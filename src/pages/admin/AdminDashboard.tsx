@@ -24,7 +24,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const [clientsRes, tasksRes, profilesRes, attendanceRes, quotationsRes, auditRes, leaveRes, dsrRes] = await Promise.all([
+      const [clientsRes, tasksRes, profilesRes, attendanceRes, quotationsRes, auditRes, leaveRes, dsrRes, leadsRes] = await Promise.all([
         supabase.from('clients').select('*'),
         supabase.from('tasks').select('*'),
         supabase.from('profiles').select('*'),
@@ -33,6 +33,7 @@ export default function AdminDashboard() {
         supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(15),
         supabase.from('leave_requests').select('*'),
         supabase.from('dsr_entries').select('*'),
+        supabase.from('social_leads').select('*'),
       ]);
 
       const clients = clientsRes.data || [];
@@ -236,6 +237,19 @@ export default function AdminDashboard() {
       }).filter(e => e.revenue > 0 || e.clients > 0 || e.tasks > 0)
         .sort((a, b) => b.revenue - a.revenue);
 
+      const topSocialLeadsEmployees = employees.filter((e: any) => e.status === 'active').map((e: any) => {
+        const empLeads = dsrEntries.filter((l: any) => l.employee_id === e.user_id && dsrMatches(l)); // Note: social leads matches don't have entry_date, they have created_at. So we'll use clientMatches logic but for social_leads.
+        // Actually, let's use the fetched social_leads.
+        const allEmpLeads = (leadsRes.data || []).filter((l: any) => l.assigned_to === e.user_id && clientMatches(l));
+        const conv = allEmpLeads.filter((l: any) => l.status === 'CONVERTED').length;
+        return {
+          name: e.name, photo: e.photo_url, id: e.user_id,
+          assigned: allEmpLeads.length,
+          converted: conv,
+          rate: allEmpLeads.length > 0 ? Math.round((conv / allEmpLeads.length) * 100) : 0
+        };
+      }).filter(e => e.assigned > 0).sort((a, b) => b.converted - a.converted);
+
       const leadCounts: Record<string, number> = {};
       const leadRevenue: Record<string, number> = {};
       if (dataSource === 'combined' || dataSource === 'clients') {
@@ -264,7 +278,7 @@ export default function AdminDashboard() {
         upcomingDates,
         todayAttendance,
         recentAudit: auditLog,
-        topEmployees, leadData, nationalityData,
+        topEmployees, topSocialLeadsEmployees, leadData, nationalityData,
         onlineEmployeesList,
         allClients: clients, allEmployees: employees, allTasks: tasks, allQuotations: quotations,
       });
@@ -456,7 +470,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="card-nawi">
               <h3 className="text-base font-semibold font-display mb-3">Top Performers</h3>
               {data.topEmployees.length === 0 ? (
@@ -476,6 +490,34 @@ export default function AdminDashboard() {
                         <p className="text-xs text-muted-foreground">{emp.clients} clients</p>
                       </div>
                       <span className="text-sm font-semibold text-success">{formatCurrency(emp.revenue)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="card-nawi">
+              <h3 className="text-base font-semibold font-display mb-3">Top Converters (Leads)</h3>
+              {data.topSocialLeadsEmployees.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground border border-dashed rounded-lg">
+                  <Target className="w-8 h-8 mb-2 opacity-20" />
+                  <p className="text-xs">No leads data found</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {data.topSocialLeadsEmployees.slice(0, 5).map((emp: any, i: number) => (
+                    <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors">
+                      <span className="text-xs font-bold text-muted-foreground w-4">{i + 1}</span>
+                      {emp.photo ? <img src={emp.photo} alt="" className="w-8 h-8 rounded-full object-cover" /> :
+                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground">{emp.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{emp.name}</p>
+                        <p className="text-[10px] text-muted-foreground">{emp.assigned} total assigned</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-semibold text-success block">{emp.converted} conv.</span>
+                        <span className="text-[10px] text-muted-foreground">{emp.rate}% rate</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -598,11 +640,36 @@ export default function AdminDashboard() {
               </ResponsiveContainer>
             </div>
           </div>
-          <div className="card-nawi">
-            <h3 className="text-base font-semibold font-display mb-4">Nationality Distribution</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={data.nationalityData} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="hsl(213,45%,92%)" /><XAxis type="number" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={100} /><Tooltip /><Bar dataKey="value" fill="#052F59" radius={[0, 4, 4, 0]} name="Clients" /></BarChart>
-            </ResponsiveContainer>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="card-nawi">
+              <h3 className="text-base font-semibold font-display mb-4">Top Social Leads Converters</h3>
+              {data.topSocialLeadsEmployees.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">No data</p> : (
+                <div className="space-y-3">
+                  {data.topSocialLeadsEmployees.map((emp: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between p-3 border border-border rounded-lg bg-muted/20">
+                      <div className="flex items-center gap-3">
+                        {emp.photo ? <img src={emp.photo} alt="" className="w-10 h-10 rounded-full object-cover" /> :
+                          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-primary-foreground">{emp.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>}
+                        <div>
+                          <p className="text-sm font-semibold">{emp.name}</p>
+                          <p className="text-xs text-muted-foreground">{emp.assigned} leads handled</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-success font-display">{emp.converted}</p>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Converted ({emp.rate}%)</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="card-nawi">
+              <h3 className="text-base font-semibold font-display mb-4">Nationality Distribution</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={data.nationalityData} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="hsl(213,45%,92%)" /><XAxis type="number" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={100} /><Tooltip /><Bar dataKey="value" fill="#052F59" radius={[0, 4, 4, 0]} name="Clients" /></BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       )}
