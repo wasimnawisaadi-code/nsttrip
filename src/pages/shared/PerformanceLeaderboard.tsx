@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { formatCurrency } from '@/lib/supabase-service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trophy, TrendingUp, Briefcase, MessagesSquare, ClipboardList, Crown, Medal, Award, Layers } from 'lucide-react';
+import { Trophy, TrendingUp, Briefcase, MessagesSquare, ClipboardList, Crown, Medal, Award, Layers, Info } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 type EmpStat = {
@@ -153,7 +153,15 @@ export default function PerformanceLeaderboard() {
               <Card className="border-primary/40 bg-gradient-to-r from-primary/5 to-secondary/5">
                 <CardContent className="pt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div><p className="text-xs text-muted-foreground">Your Rank</p><p className="text-3xl font-bold font-display text-primary">#{myRank || '—'}</p></div>
-                  <div><p className="text-xs text-muted-foreground">{c.label} Score</p><p className="text-2xl font-bold">{myRow.scores[category]}</p></div>
+                  {category === 'overall' ? (
+                    <div><p className="text-xs text-muted-foreground">Overall Score</p><p className="text-2xl font-bold text-primary">{myRow.scores.overall}</p></div>
+                  ) : category === 'dsr' ? (
+                    <div><p className="text-xs text-muted-foreground">Entries</p><p className="text-2xl font-bold">{myRow.dsr_count}</p></div>
+                  ) : category === 'clients' ? (
+                    <div><p className="text-xs text-muted-foreground">Clients Added</p><p className="text-2xl font-bold">{myRow.clients_added}</p></div>
+                  ) : (
+                    <div><p className="text-xs text-muted-foreground">Leads Taken</p><p className="text-2xl font-bold">{myRow.leads_taken}</p></div>
+                  )}
                   <div><p className="text-xs text-muted-foreground">DSR Profit</p><p className="text-lg font-semibold text-success">{formatCurrency(myRow.dsr_profit)}</p></div>
                   <div><p className="text-xs text-muted-foreground">Clients</p><p className="text-lg font-semibold">{myRow.clients_added} / <span className="text-success">{myRow.clients_converted}</span></p></div>
                   <div><p className="text-xs text-muted-foreground">Leads</p><p className="text-lg font-semibold">{myRow.leads_taken} / <span className="text-success">{myRow.leads_converted}</span></p></div>
@@ -176,7 +184,15 @@ export default function PerformanceLeaderboard() {
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold truncate">{s.name}</p>
                         <p className="text-xs text-muted-foreground">Rank #{i + 1} · {c.label}</p>
-                        <p className="text-lg font-bold text-primary">{s.scores[category]} pts</p>
+                        {category === 'overall' ? (
+                          <p className="text-lg font-bold text-primary">{s.scores.overall} pts</p>
+                        ) : category === 'dsr' ? (
+                          <p className="text-lg font-bold text-success">{formatCurrency(s.dsr_profit)} profit</p>
+                        ) : category === 'clients' ? (
+                          <p className="text-lg font-bold text-success">{formatCurrency(s.clients_profit)} profit</p>
+                        ) : (
+                          <p className="text-lg font-bold text-primary">{s.leads_converted} converted</p>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -199,12 +215,21 @@ export default function PerformanceLeaderboard() {
                           {category === 'leads' && <><th className="text-right">Taken</th><th className="text-right">Converted</th></>}
                           {category === 'clients' && <><th className="text-right">Added</th><th className="text-right">Converted</th><th className="text-right">Sales</th><th className="text-right">Profit</th></>}
                           {category === 'overall' && <>
-                            <th className="text-right">DSR Profit</th>
+                            <th className="text-right">Total Sales</th>
+                            <th className="text-right">Total Profit</th>
+                            <th className="text-right">DSR</th>
                             <th className="text-right">Clients</th>
                             <th className="text-right">Leads</th>
                             <th className="text-right">Attend.</th>
+                            <th className="text-right pr-2">
+                              <div className="flex items-center justify-end gap-1">
+                                Score
+                                <button title="Scoring Formula:&#10;• DSR: 1 pt per $100 Profit + 2 pts per entry&#10;• Clients: 50 pts per Conversion + 10 pts per Added&#10;• Leads: 30 pts per Conversion + 5 pts per Taken&#10;• Attendance: Percentage-based score">
+                                  <Info className="w-3.5 h-3.5 text-muted-foreground hover:text-primary" />
+                                </button>
+                              </div>
+                            </th>
                           </>}
-                          <th className="text-right pr-2">Score</th>
                         </tr></thead>
                         <tbody>
                           {visible.map((s, i) => (
@@ -231,12 +256,14 @@ export default function PerformanceLeaderboard() {
                                 <td className="text-right text-success font-medium">{formatCurrency(s.clients_profit)}</td>
                               </>}
                               {category === 'overall' && <>
-                                <td className="text-right text-success">{formatCurrency(s.dsr_profit)}</td>
+                                <td className="text-right font-medium">{formatCurrency(s.dsr_sales + s.clients_sales)}</td>
+                                <td className="text-right font-bold text-success">{formatCurrency(s.dsr_profit + s.clients_profit)}</td>
+                                <td className="text-right">{s.dsr_count}</td>
                                 <td className="text-right">{s.clients_added}/{s.clients_converted}</td>
                                 <td className="text-right">{s.leads_taken}/{s.leads_converted}</td>
                                 <td className="text-right">{s.attendance_score}%</td>
+                                <td className="text-right pr-2 font-bold text-primary">{s.scores.overall}</td>
                               </>}
-                              <td className="text-right pr-2 font-bold text-primary">{s.scores[category]}</td>
                             </tr>
                           ))}
                         </tbody>
