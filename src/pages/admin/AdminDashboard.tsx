@@ -18,6 +18,7 @@ export default function AdminDashboard() {
   const { user } = useAuth();
   const [data, setData] = useState<any>(null);
   const [tab, setTab] = useState('dashboard');
+  const [dataSource, setDataSource] = useState<'combined' | 'dsr' | 'clients'>('combined');
   const [reportMonth, setReportMonth] = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`; });
   const [viewType, setViewType] = useState<'monthly' | 'weekly' | 'annual'>('monthly');
 
@@ -67,11 +68,25 @@ export default function AdminDashboard() {
         return true;
       };
 
-      const revenueThisMonth = dsrEntries.filter((e: any) => matchesFilter(e.entry_date)).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
-      const revenueLastMonth = dsrEntries.filter((e: any) => e.entry_date?.startsWith(lastMonth)).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
-      const profitThisMonth = dsrEntries.filter((e: any) => matchesFilter(e.entry_date)).reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
-      const totalRevenue = dsrEntries.reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
-      const totalProfit = dsrEntries.reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
+      const dsrMatches = (e: any) => matchesFilter(e.entry_date);
+      const clientMatches = (c: any) => matchesFilter(c.created_at);
+
+      let revenueThisMonth = 0, revenueLastMonth = 0, profitThisMonth = 0, totalRevenue = 0, totalProfit = 0;
+
+      if (dataSource === 'combined' || dataSource === 'dsr') {
+        revenueThisMonth += dsrEntries.filter(dsrMatches).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
+        revenueLastMonth += dsrEntries.filter((e: any) => e.entry_date?.startsWith(lastMonth)).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
+        profitThisMonth += dsrEntries.filter(dsrMatches).reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
+        totalRevenue += dsrEntries.reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
+        totalProfit += dsrEntries.reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
+      }
+      if (dataSource === 'combined' || dataSource === 'clients') {
+        revenueThisMonth += clients.filter(clientMatches).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
+        revenueLastMonth += clients.filter((c: any) => c.created_at?.startsWith(lastMonth)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
+        profitThisMonth += clients.filter(clientMatches).reduce((s: number, c: any) => s + (c.profit || 0), 0);
+        totalRevenue += clients.reduce((s: number, c: any) => s + (c.revenue || 0), 0);
+        totalProfit += clients.reduce((s: number, c: any) => s + (c.profit || 0), 0);
+      }
 
       const activeTasks = tasks.filter((t: any) => t.status === 'New' || t.status === 'Processing').length;
       const overdueTasks = tasks.filter((t: any) => (t.status === 'New' || t.status === 'Processing') && t.due_date && new Date(t.due_date) < now).length;
@@ -93,13 +108,39 @@ export default function AdminDashboard() {
 
       const serviceCounts: Record<string, number> = {};
       const serviceRevenue: Record<string, number> = {};
-      clients.forEach((c: any) => {
-        if (c.service) {
-          serviceCounts[c.service] = (serviceCounts[c.service] || 0) + 1;
-          serviceRevenue[c.service] = (serviceRevenue[c.service] || 0) + (c.revenue || 0);
-        }
-      });
+      if (dataSource === 'combined' || dataSource === 'clients') {
+        clients.filter(clientMatches).forEach((c: any) => {
+          if (c.service) {
+            serviceCounts[c.service] = (serviceCounts[c.service] || 0) + 1;
+            serviceRevenue[c.service] = (serviceRevenue[c.service] || 0) + (c.revenue || 0);
+          }
+        });
+      }
+      if (dataSource === 'combined' || dataSource === 'dsr') {
+        dsrEntries.filter(dsrMatches).forEach((d: any) => {
+          const svc = d.template_key?.replace(/_/g, ' ') || 'DSR General';
+          serviceCounts[svc] = (serviceCounts[svc] || 0) + 1;
+          serviceRevenue[svc] = (serviceRevenue[svc] || 0) + (d.sale_amount || 0);
+        });
+      }
       const serviceData = Object.entries(serviceCounts).map(([name, value]) => ({ name, value, revenue: serviceRevenue[name] || 0 }));
+
+      const getRevForDate = (datePrefix: string, exactMatch = false) => {
+        let rev = 0, prof = 0, clt = 0;
+        if (dataSource === 'combined' || dataSource === 'dsr') {
+          const m = dsrEntries.filter((e: any) => exactMatch ? e.entry_date === datePrefix : e.entry_date?.startsWith(datePrefix));
+          rev += m.reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
+          prof += m.reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
+          clt += m.length;
+        }
+        if (dataSource === 'combined' || dataSource === 'clients') {
+          const m = clients.filter((c: any) => exactMatch ? c.created_at?.startsWith(datePrefix) : c.created_at?.startsWith(datePrefix));
+          rev += m.reduce((s: number, c: any) => s + (c.revenue || 0), 0);
+          prof += m.reduce((s: number, c: any) => s + (c.profit || 0), 0);
+          clt += m.length; 
+        }
+        return { rev, prof, clt };
+      };
 
       const revenueData: any[] = [];
       if (viewType === 'weekly') {
@@ -108,26 +149,22 @@ export default function AdminDashboard() {
           const d = new Date(end); d.setDate(end.getDate() - i);
           const key = d.toISOString().split('T')[0];
           const label = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-          const rev = dsrEntries.filter((e: any) => e.entry_date === key).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
-          const prof = dsrEntries.filter((e: any) => e.entry_date === key).reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
-          revenueData.push({ month: label, revenue: rev, profit: prof });
+          const { rev, prof, clt } = getRevForDate(key, true);
+          revenueData.push({ month: label, revenue: rev, profit: prof, clients: clt });
         }
       } else if (viewType === 'annual') {
         for (let i = 2; i >= 0; i--) {
           const year = rYear - i;
           const label = String(year);
-          const rev = dsrEntries.filter((e: any) => e.entry_date?.startsWith(label)).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
-          const prof = dsrEntries.filter((e: any) => e.entry_date?.startsWith(label)).reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
-          revenueData.push({ month: label, revenue: rev, profit: prof });
+          const { rev, prof, clt } = getRevForDate(label, false);
+          revenueData.push({ month: label, revenue: rev, profit: prof, clients: clt });
         }
       } else {
         for (let i = 11; i >= 0; i--) {
           const d = new Date(rYear, rMonth - 1 - i, 1);
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
           const label = d.toLocaleDateString('en-US', { month: 'short' });
-          const rev = dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
-          const prof = dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
-          const clt = dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).length;
+          const { rev, prof, clt } = getRevForDate(key, false);
           revenueData.push({ month: label, revenue: rev, profit: prof, clients: clt });
         }
       }
@@ -163,16 +200,31 @@ export default function AdminDashboard() {
           totalHours += liveDuration;
         }
 
-        const ec = dsrEntries.filter((e_dsr: any) => e_dsr.employee_id === e.user_id && matchesFilter(e_dsr.entry_date));
-        const successRate = ec.length > 0 ? 100 : 0; // Or keep original logic if preferred
+        let empRev = 0, empProf = 0, empClientsCount = 0;
+        
+        if (dataSource === 'combined' || dataSource === 'dsr') {
+          const ec = dsrEntries.filter((e_dsr: any) => e_dsr.employee_id === e.user_id && dsrMatches(e_dsr));
+          empClientsCount += ec.length;
+          empRev += ec.reduce((s: number, d_e: any) => s + (d_e.sale_amount || 0), 0);
+          empProf += ec.reduce((s: number, d_e: any) => s + (d_e.profit_amount || 0), 0);
+        }
+        
+        if (dataSource === 'combined' || dataSource === 'clients') {
+          const cc = clients.filter((c_cl: any) => c_cl.created_by === e.user_id && clientMatches(c_cl));
+          empClientsCount += cc.length;
+          empRev += cc.reduce((s: number, c_cl: any) => s + (c_cl.revenue || 0), 0);
+          empProf += cc.reduce((s: number, c_cl: any) => s + (c_cl.profit || 0), 0);
+        }
+
+        const successRate = empClientsCount > 0 ? 100 : 0;
         const isClockedIn = !!empAttendance.find(a => a.login_time && !a.logout_time && a.date === today);
         const isOnline = e.last_seen_at && (new Date().getTime() - new Date(e.last_seen_at).getTime() < 60000);
 
         return {
           name: e.name, id: e.user_id, photo: e.photo_url,
-          clients: ec.length,
-          revenue: ec.reduce((s: number, d_e: any) => s + (d_e.sale_amount || 0), 0),
-          profit: ec.reduce((s: number, d_e: any) => s + (d_e.profit_amount || 0), 0),
+          clients: empClientsCount,
+          revenue: empRev,
+          profit: empProf,
           tasks: tasks.filter((t: any) => t.assigned_to === e.user_id && t.status === 'Completed').length,
           successRate,
           presentDays: empAttendance.filter((a: any) => a.status === 'Present' || a.status === 'Late').length,
@@ -186,12 +238,14 @@ export default function AdminDashboard() {
 
       const leadCounts: Record<string, number> = {};
       const leadRevenue: Record<string, number> = {};
-      clients.forEach((c: any) => {
-        if (c.lead_source) {
-          leadCounts[c.lead_source] = (leadCounts[c.lead_source] || 0) + 1;
-          leadRevenue[c.lead_source] = (leadRevenue[c.lead_source] || 0) + (c.revenue || 0);
-        }
-      });
+      if (dataSource === 'combined' || dataSource === 'clients') {
+        clients.filter(clientMatches).forEach((c: any) => {
+          if (c.lead_source) {
+            leadCounts[c.lead_source] = (leadCounts[c.lead_source] || 0) + 1;
+            leadRevenue[c.lead_source] = (leadRevenue[c.lead_source] || 0) + (c.revenue || 0);
+          }
+        });
+      }
       const leadData = Object.entries(leadCounts).map(([name, value]) => ({ name, value, revenue: leadRevenue[name] || 0 }));
 
       const nationalityCounts: Record<string, number> = {};
@@ -216,7 +270,7 @@ export default function AdminDashboard() {
       });
     };
     load();
-  }, [reportMonth, viewType]);
+  }, [reportMonth, viewType, dataSource]);
 
   if (!data) return <div className="skeleton-nawi h-96 w-full" />;
 
@@ -237,7 +291,12 @@ export default function AdminDashboard() {
             <button key={t} onClick={() => setTab(t)} className={`px-4 py-2.5 text-sm font-medium capitalize whitespace-nowrap ${tab === t ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}>{t}</button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <select value={dataSource} onChange={(e) => setDataSource(e.target.value as any)} className="input-nawi w-auto text-sm bg-primary/5 border-primary/20 font-semibold">
+            <option value="combined">Data: Combined (All)</option>
+            <option value="dsr">Data: DSR Only</option>
+            <option value="clients">Data: Clients Only</option>
+          </select>
           <select value={viewType} onChange={(e) => setViewType(e.target.value as any)} className="input-nawi w-auto text-sm">
             <option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="annual">Annual</option>
           </select>
