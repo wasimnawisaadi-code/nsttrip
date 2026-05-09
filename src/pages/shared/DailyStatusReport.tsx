@@ -374,10 +374,10 @@ export default function DailyStatusReport() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className={`grid grid-cols-1 ${isAdmin ? 'lg:grid-cols-2' : ''} gap-6`}>
             <div className="card-nawi">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-bold font-display flex items-center gap-2"><TrendingUp className="w-4 h-4 text-primary" /> Growth Trend</h3>
+                <h3 className="text-sm font-bold font-display flex items-center gap-2"><TrendingUp className="w-4 h-4 text-primary" /> {isAdmin ? 'Growth Trend' : 'My Performance Trend'}</h3>
               </div>
               <div className="h-[280px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -401,36 +401,39 @@ export default function DailyStatusReport() {
               </div>
             </div>
 
-            <div className="card-nawi">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-bold font-display flex items-center gap-2"><Star className="w-4 h-4 text-warning" /> Leaderboard</h3>
-                <div className="flex gap-1 bg-muted p-1 rounded-lg">
-                  <Button size="sm" variant={analysisSort === 'profit' ? 'secondary' : 'ghost'} className="h-6 text-[10px] px-2 font-bold" onClick={() => setAnalysisSort('profit')}>Profit</Button>
-                  <Button size="sm" variant={analysisSort === 'sale' ? 'secondary' : 'ghost'} className="h-6 text-[10px] px-2 font-bold" onClick={() => setAnalysisSort('sale')}>Sales</Button>
+            {isAdmin && (
+              <div className="card-nawi">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-sm font-bold font-display flex items-center gap-2"><Star className="w-4 h-4 text-warning" /> Leaderboard</h3>
+                  <div className="flex gap-1 bg-muted p-1 rounded-lg">
+                    <Button size="sm" variant={analysisSort === 'profit' ? 'secondary' : 'ghost'} className="h-6 text-[10px] px-2 font-bold" onClick={() => setAnalysisSort('profit')}>Profit</Button>
+                    <Button size="sm" variant={analysisSort === 'sale' ? 'secondary' : 'ghost'} className="h-6 text-[10px] px-2 font-bold" onClick={() => setAnalysisSort('sale')}>Sales</Button>
+                  </div>
+                </div>
+                <div className="h-[280px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topPerformers} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.1} />
+                      <XAxis type="number" hide />
+                      <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 11, fontWeight: 600 }} />
+                      <RTooltip 
+                        contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', boxShadow: 'var(--shadow-elevated)' }} 
+                        formatter={(val: any) => formatCurrency(val)}
+                      />
+                      <Bar dataKey={analysisSort === 'profit' ? 'profit' : 'sales'} radius={[0, 4, 4, 0]} barSize={20}>
+                        {topPerformers.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
-              <div className="h-[280px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topPerformers} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.1} />
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 11, fontWeight: 600 }} />
-                    <RTooltip 
-                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', boxShadow: 'var(--shadow-elevated)' }} 
-                      formatter={(val: any) => formatCurrency(val)}
-                    />
-                    <Bar dataKey={analysisSort === 'profit' ? 'profit' : 'sales'} radius={[0, 4, 4, 0]} barSize={20}>
-                      {topPerformers.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+            )}
           </div>
 
-          <div className="card-nawi overflow-hidden">
-            <h3 className="text-sm font-bold font-display flex items-center gap-2 mb-4"><BarChart2 className="w-4 h-4 text-primary" /> Performance Audit</h3>
-            <div className="overflow-x-auto -mx-5 px-5">
+          {isAdmin && (
+            <div className="card-nawi overflow-hidden">
+              <h3 className="text-sm font-bold font-display flex items-center gap-2 mb-4"><BarChart2 className="w-4 h-4 text-primary" /> Performance Audit</h3>
+              <div className="overflow-x-auto -mx-5 px-5">
               <table className="w-full table-nawi">
                 <thead>
                   <tr>
@@ -459,6 +462,7 @@ export default function DailyStatusReport() {
               </table>
             </div>
           </div>
+          )}
 
           <div className="card-nawi overflow-hidden">
             <h3 className="text-sm font-bold font-display flex items-center gap-2 mb-4"><ClipboardList className="w-4 h-4 text-primary" /> Recent Operations</h3>
