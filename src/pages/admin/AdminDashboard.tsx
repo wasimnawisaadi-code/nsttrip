@@ -18,7 +18,7 @@ export default function AdminDashboard() {
   const { user } = useAuth();
   const [data, setData] = useState<any>(null);
   const [tab, setTab] = useState('dashboard');
-  const [dataSource, setDataSource] = useState<'combined' | 'dsr' | 'clients'>('combined');
+  const [dataSource, setDataSource] = useState<'combined' | 'dsr' | 'clients'>('clients');
   const [reportMonth, setReportMonth] = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`; });
   const [viewType, setViewType] = useState<'monthly' | 'weekly' | 'annual'>('monthly');
 
