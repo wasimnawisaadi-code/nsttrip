@@ -149,25 +149,7 @@ export default function PerformanceLeaderboard() {
 
         {CATEGORIES.map(c => (
           <TabsContent key={c.key} value={c.key} className="space-y-6 mt-4">
-            {!isAdmin && myRow && (
-              <Card className="border-primary/40 bg-gradient-to-r from-primary/5 to-secondary/5">
-                <CardContent className="pt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div><p className="text-xs text-muted-foreground">Your Rank</p><p className="text-3xl font-bold font-display text-primary">#{myRank || '—'}</p></div>
-                  {category === 'overall' ? (
-                    <div><p className="text-xs text-muted-foreground">Overall Score</p><p className="text-2xl font-bold text-primary">{myRow.scores.overall}</p></div>
-                  ) : category === 'dsr' ? (
-                    <div><p className="text-xs text-muted-foreground">Entries</p><p className="text-2xl font-bold">{myRow.dsr_count}</p></div>
-                  ) : category === 'clients' ? (
-                    <div><p className="text-xs text-muted-foreground">Clients Added</p><p className="text-2xl font-bold">{myRow.clients_added}</p></div>
-                  ) : (
-                    <div><p className="text-xs text-muted-foreground">Leads Taken</p><p className="text-2xl font-bold">{myRow.leads_taken}</p></div>
-                  )}
-                  <div><p className="text-xs text-muted-foreground">DSR Profit</p><p className="text-lg font-semibold text-success">{formatCurrency(myRow.dsr_profit)}</p></div>
-                  <div><p className="text-xs text-muted-foreground">Clients</p><p className="text-lg font-semibold">{myRow.clients_added} / <span className="text-success">{myRow.clients_converted}</span></p></div>
-                  <div><p className="text-xs text-muted-foreground">Leads</p><p className="text-lg font-semibold">{myRow.leads_taken} / <span className="text-success">{myRow.leads_converted}</span></p></div>
-                </CardContent>
-              </Card>
-            )}
+
 
             {top3.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
