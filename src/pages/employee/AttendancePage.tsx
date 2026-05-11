@@ -4,7 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatDate } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { getAttendanceSettings } from '@/lib/settings';
-import { LogOut, Clock } from 'lucide-react';
+import { LogOut, Clock, Check } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function AttendancePage() {
   const { user, profile } = useAuth();
