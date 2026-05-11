@@ -157,10 +157,10 @@ export default function AppLayout() {
 
     const channel = supabase
       .channel('notification-counts')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, () => {
         fetchCounts();
       })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_messages' }, () => {
         fetchCounts();
       })
       .subscribe();
