@@ -193,6 +193,7 @@ export default function AdminDashboard() {
       const topEmployees = employees.filter((e: any) => e.status === 'active').map((e: any) => {
         const empAttendance = attendance.filter((a: any) => a.employee_id === e.user_id && a.date?.startsWith(reportMonth));
         let totalHours = empAttendance.reduce((s: number, a: any) => s + (a.hours_worked || 0), 0);
+        let totalBreakMinutes = empAttendance.reduce((s: number, a: any) => s + (a.total_break_minutes || 0), 0);
         
         // Include live shift duration for currently logged-in employees
         const active = empAttendance.find((a: any) => a.login_time && !a.logout_time && a.date === today);
@@ -230,6 +231,7 @@ export default function AdminDashboard() {
           successRate,
           presentDays: empAttendance.filter((a: any) => a.status === 'Present' || a.status === 'Late').length,
           totalHours: Math.round(totalHours * 10) / 10,
+          totalBreakMinutes,
           avgHours: empAttendance.length > 0 ? Math.round((totalHours / empAttendance.length) * 10) / 10 : 0,
           isClockedIn,
           isOnline
