@@ -560,6 +560,58 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="card-nawi border-l-4 border-warning">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-semibold font-display flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-warning" /> Shield Alerts
+                </h3>
+                <span className="text-[10px] bg-warning/10 text-warning px-2 py-0.5 rounded-full font-bold uppercase">Real-Time</span>
+              </div>
+              
+              <div className="space-y-3">
+                {/* Active Breaks */}
+                {data.todayAttendance.filter((a: any) => a.break_start_time).length > 0 && (
+                  <div className="p-2.5 rounded-lg bg-warning/5 border border-warning/10">
+                    <p className="text-[10px] font-bold text-warning mb-2 uppercase tracking-wide flex items-center gap-1.5">
+                      <Clock className="w-3 h-3" /> Employees on Break
+                    </p>
+                    <div className="space-y-1.5">
+                      {data.todayAttendance.filter((a: any) => a.break_start_time).map((a: any) => (
+                        <div key={a.id} className="flex items-center justify-between text-xs">
+                          <span className="font-medium">{a.name}</span>
+                          <span className="text-muted-foreground animate-pulse font-medium">Started {new Date(a.break_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Auto-Logouts Today */}
+                {data.todayAttendance.filter((a: any) => a.is_auto_logout).length > 0 && (
+                  <div className="p-2.5 rounded-lg bg-destructive/5 border border-destructive/10">
+                    <p className="text-[10px] font-bold text-destructive mb-2 uppercase tracking-wide flex items-center gap-1.5">
+                      <AlertTriangle className="w-3 h-3" /> Auto-Logouts Today
+                    </p>
+                    <div className="space-y-1.5">
+                      {data.todayAttendance.filter((a: any) => a.is_auto_logout).map((a: any) => (
+                        <div key={a.id} className="flex items-center justify-between text-xs font-medium">
+                          <span>{a.name}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive uppercase font-bold">Auto</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {data.todayAttendance.filter((a: any) => a.break_start_time || a.is_auto_logout).length === 0 && (
+                   <div className="text-center py-6 border border-dashed rounded-lg">
+                      <UserCheck className="w-6 h-6 mx-auto mb-2 opacity-20 text-success" />
+                      <p className="text-xs text-muted-foreground">No anomalies detected today</p>
+                   </div>
+                )}
+              </div>
+            </div>
+
             <div className="card-nawi">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-semibold font-display">Today's Attendance</h3>
