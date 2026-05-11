@@ -235,7 +235,7 @@ export default function ProjectMonitoring() {
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                 {selectedProject.tasks.length === 0 ? (
                   <div className="text-center py-20 border-2 border-dashed rounded-[2rem] border-muted-foreground/20 opacity-40">
                     <CheckSquare className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
@@ -244,31 +244,19 @@ export default function ProjectMonitoring() {
                   </div>
                 ) : (
                   selectedProject.tasks.map((t: any) => (
-                    <div key={t.id} className={`p-5 rounded-2xl border transition-all relative ${t.status === 'Completed' ? 'bg-success/5 border-success/20' : 'bg-muted/10 border-border hover:border-primary/30'}`}>
+                    <div key={t.id} className={`p-5 rounded-2xl border transition-all relative ${t.progress_percentage === 100 ? 'bg-success/5 border-success/20' : t.progress_percentage > 0 ? 'bg-primary/5 border-primary/20' : 'bg-muted/10 border-border hover:border-primary/30'}`}>
                       <div className="absolute top-4 right-4 flex gap-2">
                         <button 
-                          onClick={async () => {
-                            const newStatus = t.status === 'Completed' ? 'To Do' : 'Completed';
-                            const newProgress = t.status === 'Completed' ? 0 : 100;
-                            await supabase.from('monitoring_tasks').update({ status: newStatus, progress_percentage: newProgress }).eq('id', t.id);
-                            loadData();
-                            toast.success(newStatus === 'Completed' ? 'Task marked as Done!' : 'Task reopened');
-                          }}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${t.status === 'Completed' ? 'bg-success text-success-foreground' : 'bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground'}`}
-                        >
-                          {t.status === 'Completed' ? <><CheckCircle2 className="w-3 h-3" /> Done</> : 'Mark Done'}
-                        </button>
-                        <button 
                           onClick={() => handleDeleteTask(t.id)} 
-                          className="p-1.5 rounded-lg bg-destructive/5 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all"
+                          className="p-1.5 rounded-lg bg-destructive/5 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all shadow-sm"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
 
-                      <div className="flex items-start justify-between gap-4 mb-4 pr-32">
+                      <div className="flex items-start justify-between gap-4 mb-4 pr-12">
                         <div className="flex-1 min-w-0">
-                          <h5 className={`font-bold text-base ${t.status === 'Completed' ? 'line-through text-muted-foreground/60' : ''}`}>{t.name}</h5>
+                          <h5 className={`font-bold text-base ${t.progress_percentage === 100 ? 'line-through text-muted-foreground/60' : ''}`}>{t.name}</h5>
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{t.description}</p>
                         </div>
                       </div>
@@ -281,7 +269,18 @@ export default function ProjectMonitoring() {
                             max="100" 
                             step="1"
                             value={t.progress_percentage}
-                            onChange={(e) => updateTaskProgress(t.id, parseInt(e.target.value))}
+                            onChange={async (e) => {
+                              const val = parseInt(e.target.value);
+                              let status = 'To Do';
+                              if (val === 100) status = 'Completed';
+                              else if (val > 0) status = 'In Progress';
+                              
+                              await supabase.from('monitoring_tasks').update({ 
+                                progress_percentage: val,
+                                status: status
+                              }).eq('id', t.id);
+                              loadData();
+                            }}
                             className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                           />
                           <span className="text-xs font-black text-primary min-w-[35px]">{t.progress_percentage}%</span>
