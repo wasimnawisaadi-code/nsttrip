@@ -354,7 +354,16 @@ export default function AdminAttendance() {
                                 {a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
                                 {a.is_auto_logout && <span className="block text-[9px] text-destructive font-bold uppercase">Auto-Logout</span>}
                               </td>
-                              <td className="font-semibold text-warning">{a.total_break_minutes || 0}m</td>
+                              <td className="font-semibold text-warning">
+                                {a.break_start_time ? (
+                                  <span className="flex items-center gap-1 animate-pulse">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+                                    ON BREAK
+                                  </span>
+                                ) : (
+                                  `${a.total_break_minutes || 0}m`
+                                )}
+                              </td>
                               <td>
                                 <span className="font-bold">
                                   {a.logout_time ? `${a.hours_worked || 0}h` : 
