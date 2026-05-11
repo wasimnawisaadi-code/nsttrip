@@ -164,36 +164,41 @@ export default function ProjectMonitoring() {
               <div 
                 key={p.id} 
                 onClick={() => setSelectedProject(p)}
-                className={`card-nawi cursor-pointer transition-all border-l-4 relative group ${selectedProject?.id === p.id ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : 'border-transparent hover:border-muted'}`}
+                className={`card-nawi cursor-pointer transition-all border-l-4 relative group min-h-[110px] ${selectedProject?.id === p.id ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : 'border-transparent hover:border-muted'}`}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-bold text-sm truncate pr-16">{p.title}</h4>
-                  <div className="absolute top-3 right-3 flex gap-2 z-10">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setEditProject({ id: p.id, title: p.title, description: p.description || '' }); setShowEditProject(true); }} 
-                      className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all"
-                      title="Edit Project"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={(e) => handleDeleteProject(p.id, e)} 
-                      className="p-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all"
-                      title="Delete Project"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                <div className="flex flex-col h-full">
+                  <div className="flex justify-between items-start mb-1">
+                    <h4 className="font-bold text-sm truncate pr-20">{p.title}</h4>
+                    <div className="absolute top-3 right-3 flex gap-1.5 z-10">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setEditProject({ id: p.id, title: p.title, description: p.description || '' }); setShowEditProject(true); }} 
+                        className="p-1.5 rounded-md bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-sm"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button 
+                        onClick={(e) => handleDeleteProject(p.id, e)} 
+                        className="p-1.5 rounded-md bg-destructive/5 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all shadow-sm"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-bold bg-muted px-2 py-0.5 rounded uppercase tracking-tighter">{p.tasks.length} Tasks</span>
-                </div>
-                <p className="text-xs text-muted-foreground line-clamp-1 mb-3">{p.description || 'No description'}</p>
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-bold">
-                    <span className="text-muted-foreground">COMPLETION</span>
-                    <span className="text-primary">{p.totalProgress}%</span>
+                  
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[9px] font-black bg-muted text-muted-foreground px-2 py-0.5 rounded-full uppercase tracking-widest">{p.tasks.length} TASKS</span>
                   </div>
-                  <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${p.totalProgress}%` }} />
+
+                  <p className="text-[11px] text-muted-foreground line-clamp-1 mb-auto pr-4">{p.description || 'No description'}</p>
+                  
+                  <div className="mt-4 space-y-1">
+                    <div className="flex justify-between text-[9px] font-black tracking-widest">
+                      <span className="text-muted-foreground uppercase">Progress</span>
+                      <span className="text-primary">{p.totalProgress}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full transition-all duration-700 ease-out shadow-[0_0_8px_rgba(var(--primary),0.4)]" style={{ width: `${p.totalProgress}%` }} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -203,79 +208,88 @@ export default function ProjectMonitoring() {
 
         <div className="lg:col-span-2 space-y-4">
           {selectedProject ? (
-            <div className="card-nawi p-6 animate-slide-up">
-              <div className="flex justify-between items-start mb-6 pb-6 border-b">
+            <div className="card-nawi p-6 animate-slide-up bg-card/50 backdrop-blur-sm">
+              <div className="flex justify-between items-start mb-6 pb-6 border-b border-border/50">
                 <div>
-                  <h3 className="text-xl font-bold font-display text-primary">{selectedProject.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{selectedProject.description}</p>
+                  <h3 className="text-2xl font-black font-display text-primary tracking-tight">{selectedProject.title}</h3>
+                  <p className="text-sm text-muted-foreground mt-1 font-medium">{selectedProject.description}</p>
                 </div>
-                <button onClick={() => setShowAddTask(true)} className="btn-primary text-xs py-2">
-                  <Plus className="w-3.5 h-3.5" /> Add Sub Task
+                <button onClick={() => setShowAddTask(true)} className="btn-primary shadow-lg shadow-primary/20">
+                  <Plus className="w-4 h-4" /> Add Sub Task
                 </button>
               </div>
 
               {/* Progress Analytics Bar */}
-              <div className="grid grid-cols-3 gap-4 mb-8 bg-muted/20 p-6 rounded-3xl border-2 border-primary/10">
-                <div className="text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase font-black mb-1 tracking-widest">To Do</p>
-                  <p className="text-3xl font-black text-muted-foreground">{selectedProject.tasks.filter((t: any) => t.status === 'Pending' || t.status === 'To Do').length}</p>
+              <div className="grid grid-cols-3 gap-6 mb-8 bg-muted/20 p-6 rounded-[2rem] border-2 border-primary/5">
+                <div className="text-center group/stat">
+                  <p className="text-[10px] text-muted-foreground uppercase font-black mb-1 tracking-[0.2em] group-hover/stat:text-primary transition-colors">To Do</p>
+                  <p className="text-4xl font-black text-muted-foreground/80 group-hover/stat:scale-110 transition-transform">{selectedProject.tasks.filter((t: any) => t.status === 'Pending' || t.status === 'To Do').length}</p>
                 </div>
-                <div className="text-center border-x-2 border-primary/5">
-                  <p className="text-[10px] text-primary uppercase font-black mb-1 tracking-widest">In Progress</p>
-                  <p className="text-3xl font-black text-primary">{selectedProject.tasks.filter((t: any) => t.status === 'In Progress').length}</p>
+                <div className="text-center border-x-2 border-primary/5 group/stat">
+                  <p className="text-[10px] text-primary uppercase font-black mb-1 tracking-[0.2em]">In Progress</p>
+                  <p className="text-4xl font-black text-primary group-hover/stat:scale-110 transition-transform">{selectedProject.tasks.filter((t: any) => t.status === 'In Progress').length}</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-[10px] text-success uppercase font-black mb-1 tracking-widest">Completed</p>
-                  <p className="text-3xl font-black text-success">{selectedProject.tasks.filter((t: any) => t.status === 'Completed').length}</p>
+                <div className="text-center group/stat">
+                  <p className="text-[10px] text-success uppercase font-black mb-1 tracking-[0.2em]">Completed</p>
+                  <p className="text-4xl font-black text-success group-hover/stat:scale-110 transition-transform">{selectedProject.tasks.filter((t: any) => t.status === 'Completed').length}</p>
                 </div>
               </div>
 
               <div className="space-y-4">
                 {selectedProject.tasks.length === 0 ? (
-                  <div className="text-center py-12 border-2 border-dashed rounded-xl opacity-50">
-                    <CheckSquare className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-sm">No tasks added yet. Start by adding a sub-task.</p>
+                  <div className="text-center py-20 border-2 border-dashed rounded-[2rem] border-muted-foreground/20 opacity-40">
+                    <CheckSquare className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+                    <p className="font-bold text-lg">No sub-tasks found</p>
+                    <p className="text-sm">Create your first task to start monitoring</p>
                   </div>
                 ) : (
                   selectedProject.tasks.map((t: any) => (
-                    <div key={t.id} className="p-4 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors relative">
-                      <button 
-                        onClick={() => handleDeleteTask(t.id)} 
-                        className="absolute top-3 right-3 p-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all z-10"
-                        title="Delete Task"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                      <div className="flex items-start justify-between gap-4 mb-3 pr-10">
-                        <div className="flex-1 min-w-0">
-                          <h5 className="font-bold text-sm">{t.name}</h5>
-                          <p className="text-xs text-muted-foreground mt-1">{t.description}</p>
-                        </div>
-                        <StatusBadge status={t.status} />
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                          <BarChart3 className="w-3 h-3" />
-                          <span className="font-medium">Progress: {t.progress_percentage}%</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                           <Paperclip className="w-3 h-3" />
-                           <span className="font-medium cursor-pointer hover:text-primary">Upload Files</span>
-                        </div>
+                    <div key={t.id} className={`p-5 rounded-2xl border transition-all relative ${t.status === 'Completed' ? 'bg-success/5 border-success/20' : 'bg-muted/10 border-border hover:border-primary/30'}`}>
+                      <div className="absolute top-4 right-4 flex gap-2">
+                        <button 
+                          onClick={async () => {
+                            const newStatus = t.status === 'Completed' ? 'To Do' : 'Completed';
+                            const newProgress = t.status === 'Completed' ? 0 : 100;
+                            await supabase.from('monitoring_tasks').update({ status: newStatus, progress_percentage: newProgress }).eq('id', t.id);
+                            loadData();
+                            toast.success(newStatus === 'Completed' ? 'Task marked as Done!' : 'Task reopened');
+                          }}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${t.status === 'Completed' ? 'bg-success text-success-foreground' : 'bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground'}`}
+                        >
+                          {t.status === 'Completed' ? <><CheckCircle2 className="w-3 h-3" /> Done</> : 'Mark Done'}
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteTask(t.id)} 
+                          className="p-1.5 rounded-lg bg-destructive/5 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
 
-                      <div className="flex items-center gap-4">
-                        <input 
-                          type="range" 
-                          min="0" 
-                          max="100" 
-                          step="1"
-                          value={t.progress_percentage}
-                          onChange={(e) => updateTaskProgress(t.id, parseInt(e.target.value))}
-                          className="flex-1 h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                        />
-                        <span className="text-xs font-bold text-primary min-w-[30px]">{t.progress_percentage}%</span>
+                      <div className="flex items-start justify-between gap-4 mb-4 pr-32">
+                        <div className="flex-1 min-w-0">
+                          <h5 className={`font-bold text-base ${t.status === 'Completed' ? 'line-through text-muted-foreground/60' : ''}`}>{t.name}</h5>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{t.description}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-6">
+                        <div className="flex-1 flex items-center gap-4">
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="100" 
+                            step="1"
+                            value={t.progress_percentage}
+                            onChange={(e) => updateTaskProgress(t.id, parseInt(e.target.value))}
+                            className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                          />
+                          <span className="text-xs font-black text-primary min-w-[35px]">{t.progress_percentage}%</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-bold bg-background/50 px-3 py-1.5 rounded-full border">
+                           <Paperclip className="w-3 h-3" />
+                           <span className="cursor-pointer hover:text-primary transition-colors">UPLOAD FILES</span>
+                        </div>
                       </div>
                     </div>
                   ))
