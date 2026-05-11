@@ -164,16 +164,24 @@ export default function ProjectMonitoring() {
               <div 
                 key={p.id} 
                 onClick={() => setSelectedProject(p)}
-                className={`card-nawi cursor-pointer transition-all border-l-4 group ${selectedProject?.id === p.id ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : 'border-transparent hover:border-muted'}`}
+                className={`card-nawi cursor-pointer transition-all border-l-4 relative group ${selectedProject?.id === p.id ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : 'border-transparent hover:border-muted'}`}
               >
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-bold text-sm truncate pr-12">{p.title}</h4>
-                  <div className="absolute top-4 right-4 flex gap-2 transition-all">
-                    <button onClick={(e) => { e.stopPropagation(); setEditProject({ id: p.id, title: p.title, description: p.description || '' }); setShowEditProject(true); }} className="text-primary hover:scale-110 transition-transform">
-                      <Edit className="w-3.5 h-3.5" />
+                  <h4 className="font-bold text-sm truncate pr-16">{p.title}</h4>
+                  <div className="absolute top-3 right-3 flex gap-2 z-10">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setEditProject({ id: p.id, title: p.title, description: p.description || '' }); setShowEditProject(true); }} 
+                      className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all"
+                      title="Edit Project"
+                    >
+                      <Edit className="w-4 h-4" />
                     </button>
-                    <button onClick={(e) => handleDeleteProject(p.id, e)} className="text-destructive hover:scale-110 transition-transform">
-                      <Trash2 className="w-3.5 h-3.5" />
+                    <button 
+                      onClick={(e) => handleDeleteProject(p.id, e)} 
+                      className="p-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all"
+                      title="Delete Project"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                   <span className="text-[10px] font-bold bg-muted px-2 py-0.5 rounded uppercase tracking-tighter">{p.tasks.length} Tasks</span>
@@ -231,10 +239,14 @@ export default function ProjectMonitoring() {
                 ) : (
                   selectedProject.tasks.map((t: any) => (
                     <div key={t.id} className="p-4 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors relative">
-                      <button onClick={() => handleDeleteTask(t.id)} className="absolute top-4 right-4 text-destructive hover:scale-110 transition-transform">
+                      <button 
+                        onClick={() => handleDeleteTask(t.id)} 
+                        className="absolute top-3 right-3 p-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all z-10"
+                        title="Delete Task"
+                      >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                      <div className="flex items-start justify-between gap-4 mb-3 pr-8">
+                      <div className="flex items-start justify-between gap-4 mb-3 pr-10">
                         <div className="flex-1 min-w-0">
                           <h5 className="font-bold text-sm">{t.name}</h5>
                           <p className="text-xs text-muted-foreground mt-1">{t.description}</p>
