@@ -115,6 +115,15 @@ export default function AppLayout() {
             is_auto_logout: true,
             logout_time: new Date().toISOString()
           } as any).eq('employee_id', user.id).eq('date', today).is('logout_time', null);
+
+          // Send Notification about the auto-logout
+          await supabase.from('notifications').insert({
+            user_id: user.id,
+            title: 'Auto-Logout Triggered',
+            message: `You were automatically logged out after ${limit} minutes of inactivity.`,
+            type: 'system',
+            is_read: false
+          });
           
           await signOut();
           navigate('/login');

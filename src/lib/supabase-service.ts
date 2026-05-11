@@ -121,6 +121,15 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
       is_auto_logout: true,
       work_summary: 'Auto-Checkout: Employee forgot to logout yesterday.'
     } as any).eq('id', forgotten.id);
+
+    // Send Notification about the reset
+    await supabase.from('notifications').insert({
+      user_id: userId,
+      title: 'Morning Session Reset',
+      message: `Your session from ${forgotten.date} was automatically closed at ${autoLogoutTime.toLocaleTimeString()}.`,
+      type: 'system',
+      is_read: false
+    });
   }
 
   // 2. Now handle TODAY'S login

@@ -92,6 +92,15 @@ export default function AttendancePage() {
         break_start_time: null,
         total_break_minutes: newTotal
       } as any).eq('id', todayRecord.id);
+
+      // Send Notification about the break duration
+      await supabase.from('notifications').insert({
+        user_id: todayRecord.employee_id,
+        title: 'Break Finished',
+        message: `You took a ${diffMin} minute break.`,
+        type: 'system',
+        is_read: false
+      });
     }
     load();
   };
