@@ -23,6 +23,7 @@ const adminLinks = [
   { to: '/admin/calendar', label: 'Calendar', icon: Calendar },
   { to: '/admin/important-dates', label: 'Important Dates', icon: CalendarDays },
   { to: '/admin/dsr', label: 'Daily Status', icon: ClipboardList },
+  { to: '/admin/monitoring', label: 'Project Monitoring', icon: LayoutGrid },
   { to: '/admin/attendance', label: 'Attendance', icon: Clock },
   { to: '/admin/leave', label: 'Leave & HR', icon: FileText },
   { to: '/admin/payroll', label: 'Payroll', icon: DollarSign },

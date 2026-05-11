@@ -29,6 +29,7 @@ import DailyStatusReport from "./pages/shared/DailyStatusReport";
 import DSRTemplateAssignment from "./pages/admin/DSRTemplateAssignment";
 import SocialLeads from "./pages/shared/SocialLeads";
 import PerformanceLeaderboard from "./pages/shared/PerformanceLeaderboard";
+import ProjectMonitoring from "./pages/admin/ProjectMonitoring";
 import BroadcastModule from "./pages/admin/BroadcastModule";
 import UserProfile from "./pages/shared/UserProfile";
 import NotFound from "./pages/NotFound";
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="/admin/dsr-assignments" element={<DSRTemplateAssignment />} />
               <Route path="/admin/leads" element={<SocialLeads />} />
               <Route path="/admin/performance" element={<PerformanceLeaderboard />} />
+              <Route path="/admin/monitoring" element={<ProjectMonitoring />} />
               <Route path="/admin/broadcast" element={<BroadcastModule />} />
               <Route path="/admin/profile" element={<UserProfile />} />
 

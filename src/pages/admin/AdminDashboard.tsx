@@ -562,6 +562,41 @@ export default function AdminDashboard() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="card-nawi">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-semibold font-display flex items-center gap-2">
+                  <LayoutGrid className="w-4 h-4 text-primary" /> Active Projects Pulse
+                </h3>
+                <Link to="/admin/monitoring" className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold uppercase hover:bg-primary/20 transition-colors">Open Monitor</Link>
+              </div>
+              <div className="space-y-4">
+                <div className="flex flex-col items-center justify-center py-6 opacity-40 border border-dashed rounded-lg">
+                  <LayoutGrid className="w-8 h-8 mb-2" />
+                  <p className="text-xs">Manage all enterprise tasks in Monitoring</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="card-nawi border-l-4 border-success">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-semibold font-display flex items-center gap-2">
+                   <CheckCircle2 className="w-4 h-4 text-success" /> Module Status
+                </h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-2 bg-muted/50 rounded-lg">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Monitoring</p>
+                  <p className="text-xs font-bold text-primary">ENABLED</p>
+                </div>
+                <div className="p-2 bg-muted/50 rounded-lg">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Auto-Sync</p>
+                  <p className="text-xs font-bold text-success">ACTIVE</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card-nawi border-l-4 border-warning">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-base font-semibold font-display flex items-center gap-2">
