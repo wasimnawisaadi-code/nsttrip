@@ -577,7 +577,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             <div className="card-nawi">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-semibold font-display flex items-center gap-2">
@@ -606,24 +606,6 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 )}
-              </div>
-            </div>
-
-            <div className="card-nawi border-l-4 border-success">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-base font-semibold font-display flex items-center gap-2">
-                   <CheckCircle2 className="w-4 h-4 text-success" /> Module Status
-                </h3>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-2 bg-muted/50 rounded-lg">
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Monitoring</p>
-                  <p className="text-xs font-bold text-primary">ENABLED</p>
-                </div>
-                <div className="p-2 bg-muted/50 rounded-lg">
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Auto-Sync</p>
-                  <p className="text-xs font-bold text-success">ACTIVE</p>
-                </div>
               </div>
             </div>
           </div>
