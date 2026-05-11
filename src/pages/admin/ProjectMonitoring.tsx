@@ -182,15 +182,7 @@ export default function ProjectMonitoring() {
                         <StatusBadge status={t.status} />
                       </div>
                       
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                          <UserPlus className="w-3 h-3" />
-                          <span className="font-medium">{employees.find(e => e.user_id === t.assigned_to)?.name || 'Unassigned'}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                          <Calendar className="w-3 h-3" />
-                          <span className="font-medium">Due: {t.deadline ? formatDate(t.deadline) : 'No date'}</span>
-                        </div>
+                      <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                           <BarChart3 className="w-3 h-3" />
                           <span className="font-medium">Progress: {t.progress_percentage}%</span>
@@ -249,17 +241,9 @@ export default function ProjectMonitoring() {
           <div className="bg-card w-full max-w-lg rounded-2xl shadow-elevated p-6 animate-scale-in">
             <h3 className="text-xl font-bold font-display mb-4">Add Sub Task</h3>
             <form onSubmit={handleCreateTask} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2"><label className="block text-xs font-bold uppercase mb-1">Task Name *</label><input required value={newTask.name} onChange={e => setNewTask({...newTask, name: e.target.value})} className="input-nawi" /></div>
-                <div className="col-span-2"><label className="block text-xs font-bold uppercase mb-1">Description</label><textarea value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})} className="input-nawi" rows={2} /></div>
-                <div>
-                  <label className="block text-xs font-bold uppercase mb-1">Assigned To</label>
-                  <select value={newTask.assigned_to} onChange={e => setNewTask({...newTask, assigned_to: e.target.value})} className="input-nawi">
-                    <option value="">Select Employee</option>
-                    {employees.map(emp => <option key={emp.user_id} value={emp.user_id}>{emp.name}</option>)}
-                  </select>
-                </div>
-                <div><label className="block text-xs font-bold uppercase mb-1">Deadline</label><input type="date" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} className="input-nawi" /></div>
+              <div className="space-y-4">
+                <div><label className="block text-xs font-bold uppercase mb-1">Task Name *</label><input required value={newTask.name} onChange={e => setNewTask({...newTask, name: e.target.value})} className="input-nawi" /></div>
+                <div><label className="block text-xs font-bold uppercase mb-1">Description</label><textarea value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})} className="input-nawi" rows={2} /></div>
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={() => setShowAddTask(false)} className="btn-outline">Cancel</button>
