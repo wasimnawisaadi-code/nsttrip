@@ -277,47 +277,59 @@ export default function ProjectMonitoring() {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-6">
-                        <div className="flex-1 flex items-center gap-4">
-                          <input 
-                            type="range" 
-                            min="0" 
-                            max="100" 
-                            step="1"
-                            value={t.progress_percentage}
-                            onChange={async (e) => {
-                              const val = parseInt(e.target.value);
-                              let status = 'To Do';
-                              if (val === 100) status = 'Completed';
-                              else if (val > 0) status = 'In Progress';
-                              
-                              // Optimistically update local state for smoothness
-                              const updatedProjects = projects.map(p => {
-                                if (p.id === selectedProject.id) {
-                                  const updatedTasks = p.tasks.map((task: any) => 
-                                    task.id === t.id ? { ...task, progress_percentage: val, status } : task
-                                  );
-                                  const totalProgress = Math.round(updatedTasks.reduce((acc: number, tk: any) => acc + (tk.progress_percentage || 0), 0) / updatedTasks.length);
-                                  return { ...p, tasks: updatedTasks, totalProgress };
-                                }
-                                return p;
-                              });
-                              setProjects(updatedProjects);
-                              setSelectedProject(updatedProjects.find(p => p.id === selectedProject.id));
+                      <div className="flex items-center justify-between mt-6 mb-2">
+                         <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded uppercase tracking-widest">
+                               Weight: {Math.round(100 / (selectedProject.tasks.length || 1))}% of Project
+                            </span>
+                            {t.progress_percentage === 100 && (
+                               <span className="text-[10px] font-black bg-success text-success-foreground px-2 py-0.5 rounded uppercase tracking-widest flex items-center gap-1">
+                                  <Check className="w-2.5 h-2.5 stroke-[4px]" /> Contribution Full
+                               </span>
+                            )}
+                         </div>
+                         <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-bold bg-background/50 px-3 py-1.5 rounded-full border">
+                            <Paperclip className="w-3 h-3" />
+                            <span className="cursor-pointer hover:text-primary transition-colors uppercase">Uploads</span>
+                         </div>
+                      </div>
 
-                              // Push to database
-                              await supabase.from('monitoring_tasks').update({ 
-                                progress_percentage: val,
-                                status: status
-                              }).eq('id', t.id);
-                            }}
-                            className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                          />
-                          <span className="text-xs font-black text-primary min-w-[35px]">{t.progress_percentage}%</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-bold bg-background/50 px-3 py-1.5 rounded-full border">
-                           <Paperclip className="w-3 h-3" />
-                           <span className="cursor-pointer hover:text-primary transition-colors">UPLOAD FILES</span>
+                      <div className="flex items-center gap-4 bg-background/30 p-4 rounded-xl border border-border/50">
+                        <input 
+                          type="range" 
+                          min="0" 
+                          max="100" 
+                          step="1"
+                          value={t.progress_percentage}
+                          onChange={async (e) => {
+                            const val = parseInt(e.target.value);
+                            let status = 'To Do';
+                            if (val === 100) status = 'Completed';
+                            else if (val > 0) status = 'In Progress';
+                            
+                            // High-speed optimistic update
+                            const updatedProjects = projects.map(p => {
+                              if (p.id === selectedProject.id) {
+                                const updatedTasks = p.tasks.map((task: any) => 
+                                  task.id === t.id ? { ...task, progress_percentage: val, status: status } : task
+                                );
+                                const totalProgress = Math.round(updatedTasks.reduce((acc: number, tk: any) => acc + (tk.progress_percentage || 0), 0) / updatedTasks.length);
+                                return { ...p, tasks: updatedTasks, totalProgress };
+                              }
+                              return p;
+                            });
+                            setProjects(updatedProjects);
+                            setSelectedProject(updatedProjects.find(p => p.id === selectedProject.id));
+
+                            await supabase.from('monitoring_tasks').update({ 
+                              progress_percentage: val,
+                              status: status
+                            }).eq('id', t.id);
+                          }}
+                          className="flex-1 h-2.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                        <div className="min-w-[60px] text-right">
+                           <span className="text-lg font-black text-primary">{t.progress_percentage}%</span>
                         </div>
                       </div>
                     </div>
