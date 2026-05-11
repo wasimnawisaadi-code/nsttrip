@@ -281,28 +281,49 @@ export default function AttendancePage() {
       )}
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="stat-card"><div className="stat-card-icon bg-success"><span className="text-primary-foreground font-bold">{attendance.filter(a => a.status === 'Present' || a.status === 'Overtime').length}</span></div><div><p className="text-xs text-muted-foreground">Present</p></div></div>
-        <div className="stat-card"><div className="stat-card-icon bg-warning"><span className="text-primary-foreground font-bold">{attendance.filter(a => a.status === 'Late' || a.status === 'Half Day').length}</span></div><div><p className="text-xs text-muted-foreground">Late / Half</p></div></div>
-        <div className="stat-card"><div className="stat-card-icon bg-primary"><span className="text-primary-foreground font-bold">{Math.round(attendance.reduce((s, a) => s + (a.hours_worked || 0), 0))}</span></div><div><p className="text-xs text-muted-foreground">Work Hours</p></div></div>
+        <div className="stat-card">
+          <div className="stat-card-icon bg-success">
+            <span className="text-primary-foreground font-bold">
+              {(attendance || []).filter(a => a?.status === 'Present' || a?.status === 'Overtime').length}
+            </span>
+          </div>
+          <div><p className="text-xs text-muted-foreground">Present</p></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-icon bg-warning">
+            <span className="text-primary-foreground font-bold">
+              {(attendance || []).filter(a => a?.status === 'Late' || a?.status === 'Half Day').length}
+            </span>
+          </div>
+          <div><p className="text-xs text-muted-foreground">Late / Half</p></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-icon bg-primary">
+            <span className="text-primary-foreground font-bold">
+              {Math.round((attendance || []).reduce((s, a) => s + (Number(a?.hours_worked) || 0), 0))}
+            </span>
+          </div>
+          <div><p className="text-xs text-muted-foreground">Work Hours</p></div>
+        </div>
       </div>
 
       <div className="card-nawi p-0 overflow-x-auto">
         <table className="table-nawi w-full text-xs">
           <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Break</th><th>Work</th><th>Summary</th><th>Status</th></tr></thead>
           <tbody>
-            {attendance.length === 0 ? <tr><td colSpan={7} className="text-center text-muted-foreground py-8">No records</td></tr> :
+            {!attendance || attendance.length === 0 ? <tr><td colSpan={7} className="text-center text-muted-foreground py-8">No records found for this period</td></tr> :
               attendance.map((a) => (
-                <tr key={a.id} className={a.is_auto_logout ? 'bg-destructive/5' : ''}>
-                  <td>{formatDate(a.date)}</td>
-                  <td>{safeTime(a.login_time)}</td>
+                <tr key={a?.id || Math.random()} className={a?.is_auto_logout ? 'bg-destructive/5' : ''}>
+                  <td>{a?.date ? formatDate(a.date) : '—'}</td>
+                  <td>{safeTime(a?.login_time)}</td>
                   <td>
-                    {a.logout_time ? safeTime(a.logout_time) : '—'}
-                    {a.is_auto_logout && <span className="block text-[9px] text-destructive font-bold uppercase">Auto</span>}
+                    {a?.logout_time ? safeTime(a.logout_time) : '—'}
+                    {a?.is_auto_logout && <span className="block text-[9px] text-destructive font-bold uppercase">Auto</span>}
                   </td>
-                  <td>{a.total_break_minutes || 0}m</td>
-                  <td><span className="font-bold">{a.hours_worked || 0}h</span></td>
-                  <td className="max-w-[150px] truncate">{a.work_summary || '—'}</td>
-                  <td><StatusBadge status={a.status || 'Present'} /></td>
+                  <td>{a?.total_break_minutes || 0}m</td>
+                  <td><span className="font-bold">{a?.hours_worked || 0}h</span></td>
+                  <td className="max-w-[150px] truncate">{a?.work_summary || '—'}</td>
+                  <td><StatusBadge status={a?.status || 'Present'} /></td>
                 </tr>
               ))}
           </tbody>
