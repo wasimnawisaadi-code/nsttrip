@@ -11,6 +11,8 @@ export interface AttendanceSettings {
   auto_logout_outside_zone: boolean; // sign user out if they leave the zone mid-day
   enforce_geofence: boolean;      // master switch — if false, all zone checks skipped
   default_zone_id?: string | null; // zone applied when employee has no specific zone
+  inactivity_logout_min: number;   // auto logout after X min of no activity (0 to disable)
+  lunch_break_min: number;         // standard lunch deduction or break time allowance
 }
 
 export type EmployeeOverride = Partial<AttendanceSettings> & {
@@ -29,6 +31,8 @@ export const DEFAULT_ATTENDANCE: AttendanceSettings = {
   auto_logout_outside_zone: true,
   enforce_geofence: true,
   default_zone_id: null,
+  inactivity_logout_min: 30,
+  lunch_break_min: 60,
 };
 
 let baseCache: AttendanceSettings | null = null;

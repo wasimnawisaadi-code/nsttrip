@@ -185,7 +185,7 @@ export default function AdminAttendance() {
           </div>
           <div className="table-container">
             <table className="table-nawi w-full">
-              <thead><tr><th>Employee</th><th>Present</th><th>Late</th><th>Absent</th><th>Leave</th><th>Total Hours</th><th>Avg/Day</th><th></th></tr></thead>
+              <thead><tr><th>Employee</th><th>Present</th><th>Late</th><th>Absent</th><th>Leave</th><th>Work Hours</th><th>Avg/Day</th><th></th></tr></thead>
               <tbody>
                 {empSummary.map(e => (
                   <tr key={e.user_id}>
@@ -203,7 +203,7 @@ export default function AdminAttendance() {
                     <td><span className="text-warning font-medium">{e.late}</span></td>
                     <td><span className="text-destructive font-medium">{e.absent}</span></td>
                     <td>{e.leaveCount}</td>
-                    <td>{e.totalHours}h</td>
+                    <td><span className="font-bold">{e.totalHours}h</span></td>
                     <td>{e.avgHours}h</td>
                     <td><button onClick={() => { setSelectedEmpId(e.user_id); setView('employee'); }} className="text-primary text-xs hover:underline"><Eye className="w-3 h-3 inline mr-1" />View</button></td>
                   </tr>
@@ -296,25 +296,31 @@ export default function AdminAttendance() {
                   <div><p className="font-semibold">{emp?.name}</p></div>
                 </div>
                 <div className="table-container">
-                  <table className="table-nawi w-full text-sm">
-                    <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Hours</th><th>Status</th><th>Work Summary</th></tr></thead>
+                  <table className="table-nawi w-full text-xs">
+                    <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Break</th><th>Net Hours</th><th>Status</th><th>Work Summary</th></tr></thead>
                     <tbody>
                       {empRecs.map(a => (
-                        <tr key={a.id}>
+                        <tr key={a.id} className={a.is_auto_logout ? 'bg-destructive/5' : ''}>
                           <td>{formatDate(a.date)}</td>
                           <td>{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                          <td>{a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                          <td className="relative">
+                            {a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                            {a.is_auto_logout && <span className="block text-[9px] text-destructive font-bold uppercase">Auto-Logout</span>}
+                          </td>
+                          <td>{a.total_break_minutes || 0}m</td>
                           <td>
-                            {a.logout_time ? `${a.hours_worked || 0}h` : 
-                              a.login_time && a.date === new Date().toISOString().split('T')[0] ? 
-                              `${Math.round(((new Date().getTime() - new Date(a.login_time).getTime()) / 3600000) * 10) / 10}h (Active)` : 
-                              '—'}
+                            <span className="font-bold">
+                              {a.logout_time ? `${a.hours_worked || 0}h` : 
+                                a.login_time && a.date === new Date().toISOString().split('T')[0] ? 
+                                `${Math.round(((new Date().getTime() - new Date(a.login_time).getTime()) / 3600000) * 10) / 10}h` : 
+                                '—'}
+                            </span>
                           </td>
                           <td><StatusBadge status={a.status} /></td>
-                          <td className="max-w-[200px] truncate text-xs">{a.work_summary || '—'}</td>
+                          <td className="max-w-[200px] truncate">{a.work_summary || '—'}</td>
                         </tr>
                       ))}
-                      {empRecs.length === 0 && <tr><td colSpan={6} className="text-center text-muted-foreground py-8">No records for this month</td></tr>}
+                      {empRecs.length === 0 && <tr><td colSpan={7} className="text-center text-muted-foreground py-8">No records for this month</td></tr>}
                     </tbody>
                   </table>
                 </div>

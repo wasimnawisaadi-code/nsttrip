@@ -75,28 +75,88 @@ export function formatCurrency(amount: number): string {
 }
 
 // =================== ATTENDANCE ON LOGIN ===================
-import { getAttendanceSettings, classifyLogin } from './settings';
+import { getAttendanceSettings, classifyLogin, isWeekend } from './settings';
 
-export async function recordLoginAttendance(userId: string) {
+/**
+ * Handles the 'Morning Reset' and Daily Login logic.
+ * 1. Checks if there is an open session from a PREVIOUS day.
+ * 2. If found, auto-closes it using the user's last_seen_at (heartbeat).
+ * 3. Ensures a new session is started for TODAY.
+ */
+export async function handleAttendanceHandshake(userId: string, lat?: number | null, lng?: number | null, locStatus?: string) {
   const today = new Date().toISOString().split('T')[0];
-  const { data: existing } = await supabase
+  const now = new Date();
+  
+  // 1. Check for forgotten sessions from YESTERDAY or before
+  const { data: forgotten } = await supabase
     .from('attendance')
-    .select('id')
+    .select('id, date, login_time, employee_id')
+    .eq('employee_id', userId)
+    .lt('date', today)
+    .is('logout_time', null)
+    .maybeSingle();
+
+  if (forgotten) {
+    // Get the user's last seen time (heartbeat) to use as the auto-checkout time
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('last_seen_at')
+      .eq('user_id', userId)
+      .single();
+    
+    const lastSeen = profile?.last_seen_at ? new Date(profile.last_seen_at) : null;
+    
+    // Fallback: If no last seen or last seen is before login, use login + 8 hours or end of that day
+    let autoLogoutTime = lastSeen;
+    if (!autoLogoutTime || autoLogoutTime <= new Date(forgotten.login_time)) {
+       const loginDate = new Date(forgotten.login_time);
+       autoLogoutTime = new Date(loginDate.setHours(19, 0, 0, 0)); // Default to 7:00 PM
+    }
+
+    const hoursWorked = Math.round(((autoLogoutTime.getTime() - new Date(forgotten.login_time).getTime()) / 3600000) * 10) / 10;
+
+    await supabase.from('attendance').update({
+      logout_time: autoLogoutTime.toISOString(),
+      hours_worked: Math.max(0, hoursWorked),
+      is_auto_logout: true,
+      work_summary: 'Auto-Checkout: Employee forgot to logout yesterday.'
+    } as any).eq('id', forgotten.id);
+  }
+
+  // 2. Now handle TODAY'S login
+  const settings = await getAttendanceSettings(userId);
+  if (isWeekend(now, settings)) return; // Don't track weekends
+
+  const { data: existingToday } = await supabase
+    .from('attendance')
+    .select('id, logout_time')
     .eq('employee_id', userId)
     .eq('date', today)
     .maybeSingle();
 
-  if (!existing) {
-    const now = new Date();
-    const settings = await getAttendanceSettings(userId);
+  if (!existingToday) {
     const status = classifyLogin(now, settings);
     await supabase.from('attendance').insert({
       employee_id: userId,
       date: today,
       login_time: now.toISOString(),
       status,
-    });
+      login_lat: lat,
+      login_lng: lng,
+      login_location_status: locStatus || 'no_zone',
+    } as any);
+  } else if (existingToday.logout_time) {
+    // Re-login after logout on same day -> resume session
+    await supabase.from('attendance').update({
+      logout_time: null,
+      hours_worked: 0,
+      is_auto_logout: false
+    } as any).eq('id', existingToday.id);
   }
+}
+
+export async function recordLoginAttendance(userId: string) {
+  await handleAttendanceHandshake(userId);
 }
 
 // =================== NOTIFICATIONS ===================

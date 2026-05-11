@@ -446,6 +446,22 @@ function EmployeeEditor({
         </Field>
       </div>
 
+      {/* NEW: ACTIVITY & LUNCH SETTINGS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Field label="Auto Logout (Idle Min)" hint="0 to disable. Logs user out if no mouse/key activity.">
+          <input type="number" min={0} max={480} className="input-nawi text-sm py-1.5 w-full"
+            value={ov.inactivity_logout_min ?? ''}
+            placeholder={String(defaults.inactivity_logout_min)}
+            onChange={e => set({ inactivity_logout_min: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value) || 0) })} />
+        </Field>
+        <Field label="Lunch Break (Min)" hint="Standard lunch time deduction.">
+          <input type="number" min={0} max={120} className="input-nawi text-sm py-1.5 w-full"
+            value={ov.lunch_break_min ?? ''}
+            placeholder={String(defaults.lunch_break_min)}
+            onChange={e => set({ lunch_break_min: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value) || 0) })} />
+        </Field>
+      </div>
+
       {/* WEEKEND */}
       <div>
         <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Weekend Days</label>

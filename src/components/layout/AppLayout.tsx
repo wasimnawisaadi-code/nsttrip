@@ -90,6 +90,43 @@ export default function AppLayout() {
   // Heartbeat: Update last_seen_at every 1 minute
   useEffect(() => {
     if (!user) return;
+    
+    // 1. Morning Reset & Daily Attendance Handshake
+    const performHandshake = async () => {
+      const { handleAttendanceHandshake } = await import('@/lib/supabase-service');
+      await handleAttendanceHandshake(user.id);
+    };
+    performHandshake();
+
+    // 2. Inactivity Watcher (Auto-Logout)
+    let idleTimer: NodeJS.Timeout;
+    const resetIdleTimer = async () => {
+      clearTimeout(idleTimer);
+      const { getAttendanceSettings } = await import('@/lib/settings');
+      const settings = await getAttendanceSettings(user.id);
+      const limit = settings.inactivity_logout_min || 0;
+      
+      if (limit > 0) {
+        idleTimer = setTimeout(async () => {
+          console.log('Inactivity limit reached. Auto-logging out...');
+          // Record auto-logout status before signing out
+          const today = new Date().toISOString().split('T')[0];
+          await supabase.from('attendance').update({ 
+            is_auto_logout: true,
+            logout_time: new Date().toISOString()
+          } as any).eq('employee_id', user.id).eq('date', today).is('logout_time', null);
+          
+          await signOut();
+          navigate('/login');
+        }, limit * 60 * 1000);
+      }
+    };
+
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    events.forEach(e => window.addEventListener(e, resetIdleTimer));
+    resetIdleTimer(); // Initial start
+
+    // 3. Heartbeat
     const heartbeat = async () => {
       await supabase
         .from('profiles')
@@ -98,44 +135,15 @@ export default function AppLayout() {
     };
     heartbeat();
     const interval = setInterval(heartbeat, 60000);
-    return () => clearInterval(interval);
-  }, [user]);
 
-  // Fetch today's attendance for live work duration
-  useEffect(() => {
-    if (!user) return;
-    const fetchTodayAttendance = async () => {
-      const today = new Date().toISOString().slice(0, 10);
-      const { data } = await supabase
-        .from('attendance')
-        .select('login_time, logout_time')
-        .eq('employee_id', user.id)
-        .eq('date', today)
-        .single();
-      
-      if (data && data.login_time && !data.logout_time) {
-        const updateWorkClock = () => {
-          const login = new Date(data.login_time);
-          const now = new Date();
-          const diffMs = now.getTime() - login.getTime();
-          const hours = Math.floor(diffMs / 3600000);
-          const minutes = Math.floor((diffMs % 3600000) / 60000);
-          setWorkDuration(`${hours}h ${minutes}m`);
-        };
-        updateWorkClock();
-        const interval = setInterval(updateWorkClock, 60000);
-        return () => clearInterval(interval);
-      } else {
-        setWorkDuration(null);
-      }
+    return () => { 
+      events.forEach(e => window.removeEventListener(e, resetIdleTimer));
+      clearTimeout(idleTimer);
+      clearInterval(interval);
     };
-    fetchTodayAttendance();
   }, [user]);
 
-  useEffect(() => {
-    if (!loading && !user) navigate('/login');
-  }, [user, loading, navigate]);
-
+  // Fetch counts for notifications and chat
   useEffect(() => {
     if (!user) return;
     const fetchCounts = async () => {
@@ -171,6 +179,42 @@ export default function AppLayout() {
       window.removeEventListener('refresh-counts', fetchCounts);
     };
   }, [user]);
+
+  // Live work duration clock
+  useEffect(() => {
+    if (!user) return;
+    const fetchTodayAttendance = async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from('attendance')
+        .select('login_time, logout_time, total_break_minutes')
+        .eq('employee_id', user.id)
+        .eq('date', today)
+        .maybeSingle();
+      
+      if (data && data.login_time && !data.logout_time) {
+        const updateWorkClock = () => {
+          const login = new Date(data.login_time);
+          const now = new Date();
+          const breakMs = (data.total_break_minutes || 0) * 60000;
+          const diffMs = (now.getTime() - login.getTime()) - breakMs;
+          const hours = Math.floor(Math.max(0, diffMs) / 3600000);
+          const minutes = Math.floor((Math.max(0, diffMs) % 3600000) / 60000);
+          setWorkDuration(`${hours}h ${minutes}m`);
+        };
+        updateWorkClock();
+        const interval = setInterval(updateWorkClock, 60000);
+        return () => clearInterval(interval);
+      } else {
+        setWorkDuration(null);
+      }
+    };
+    fetchTodayAttendance();
+  }, [user]);
+
+  useEffect(() => {
+    if (!loading && !user) navigate('/login');
+  }, [user, loading, navigate]);
 
   if (loading) return <div className="flex h-screen items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   if (!user || !profile) return null;
