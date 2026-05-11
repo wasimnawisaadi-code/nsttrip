@@ -4,7 +4,7 @@ import {
   Plus, Search, LayoutGrid, List, 
   Clock, CheckCircle2, AlertCircle, FileText, 
   MessageSquare, UserPlus, Calendar, BarChart3,
-  TrendingUp, CheckSquare, Target, Paperclip, Trash2, Edit
+  TrendingUp, CheckSquare, Target, Paperclip, Trash2, Edit, Check
 } from 'lucide-react';
 import { formatDate } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
