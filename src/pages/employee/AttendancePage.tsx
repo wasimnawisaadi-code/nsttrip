@@ -24,16 +24,23 @@ export default function AttendancePage() {
 
   useEffect(() => {
     let interval: any;
-    if (todayRecord?.break_start_time) {
+    const breakStart = todayRecord?.break_start_time;
+    
+    if (breakStart) {
+      const calculateDiff = () => {
+        const start = new Date(breakStart);
+        if (isNaN(start.getTime())) return 0;
+        return Math.floor((new Date().getTime() - start.getTime()) / 60000);
+      };
+
       // Immediate calculate
-      const start = new Date(todayRecord.break_start_time);
-      setBreakTimer(Math.floor((new Date().getTime() - start.getTime()) / 60000));
+      setBreakTimer(calculateDiff());
 
       interval = setInterval(() => {
-        const start = new Date(todayRecord.break_start_time);
-        const diff = Math.floor((new Date().getTime() - start.getTime()) / 60000);
-        setBreakTimer(diff);
+        setBreakTimer(calculateDiff());
       }, 30000); // Update every 30s
+    } else {
+      setBreakTimer(0);
     }
     return () => clearInterval(interval);
   }, [todayRecord?.break_start_time]);
@@ -69,67 +76,106 @@ export default function AttendancePage() {
   const totalHours = attendance.reduce((s, a) => s + (a.hours_worked || 0), 0);
 
   const handleCheckout = async () => {
-    if (todayRecord && !todayRecord.logout_time) {
-      const logoutTime = new Date().toISOString();
-      const loginDate = new Date(todayRecord.login_time);
-      const logoutDate = new Date(logoutTime);
-      
-      // Calculate net hours: (Total time) - (Break time)
-      const totalMs = logoutDate.getTime() - loginDate.getTime();
-      const breakMs = (todayRecord.total_break_minutes || 0) * 60000;
-      const hoursWorked = Math.round(((totalMs - breakMs) / 3600000) * 10) / 10;
+    try {
+      if (todayRecord && !todayRecord.logout_time) {
+        const logoutTime = new Date().toISOString();
+        const loginTimeStr = todayRecord.login_time;
+        
+        if (!loginTimeStr) {
+          toast.error("Login time record is missing. Please contact admin.");
+          return;
+        }
 
-      // Best-effort capture of logout location
-      let logoutLat: number | null = null;
-      let logoutLng: number | null = null;
-      try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-        });
-        logoutLat = pos.coords.latitude;
-        logoutLng = pos.coords.longitude;
-      } catch { /* ignore */ }
+        const loginDate = new Date(loginTimeStr);
+        const logoutDate = new Date(logoutTime);
+        
+        // Safety check for invalid dates
+        if (isNaN(loginDate.getTime()) || isNaN(logoutDate.getTime())) {
+          toast.error("Invalid time format detected.");
+          return;
+        }
+        
+        const totalMs = logoutDate.getTime() - loginDate.getTime();
+        const breakMs = (Number(todayRecord.total_break_minutes) || 0) * 60000;
+        const hoursWorked = Math.max(0, Math.round(((totalMs - breakMs) / 3600000) * 10) / 10);
 
-      await supabase.from('attendance').update({
-        logout_time: logoutTime,
-        hours_worked: Math.max(0, hoursWorked),
-        logout_lat: logoutLat,
-        logout_lng: logoutLng,
-        work_summary: workSummary.trim() || null,
-        is_auto_logout: false
-      } as any).eq('id', todayRecord.id);
-      setShowCheckout(false);
-      setWorkSummary('');
-      load();
+        let logoutLat: number | null = null;
+        let logoutLng: number | null = null;
+        try {
+          if (navigator.geolocation) {
+            const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000 });
+            });
+            logoutLat = pos.coords.latitude;
+            logoutLng = pos.coords.longitude;
+          }
+        } catch (e) { console.warn('Location capture failed', e); }
+
+        const { error } = await supabase.from('attendance').update({
+          logout_time: logoutTime,
+          hours_worked: isNaN(hoursWorked) ? 0 : hoursWorked,
+          logout_lat: logoutLat,
+          logout_lng: logoutLng,
+          work_summary: (workSummary || '').trim() || null,
+          is_auto_logout: false
+        } as any).eq('id', todayRecord.id);
+
+        if (error) throw error;
+
+        setShowCheckout(false);
+        setWorkSummary('');
+        toast.success("Checked out successfully!");
+        load();
+      }
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      toast.error("Failed to check out: " + (error.message || "Unknown error"));
     }
   };
 
   const handleBreak = async (isStart: boolean) => {
-    if (!todayRecord) return;
-    const now = new Date();
-    if (isStart) {
-      await supabase.from('attendance').update({ 
-        break_start_time: now.toISOString() 
-      } as any).eq('id', todayRecord.id);
-    } else if (todayRecord.break_start_time) {
-      const start = new Date(todayRecord.break_start_time);
-      const diffMin = Math.round((now.getTime() - start.getTime()) / 60000);
-      const newTotal = (todayRecord.total_break_minutes || 0) + diffMin;
-      await supabase.from('attendance').update({ 
-        break_start_time: null,
-        total_break_minutes: newTotal
-      } as any).eq('id', todayRecord.id);
+    try {
+      if (!todayRecord) return;
+      const now = new Date();
+      
+      if (isStart) {
+        const { error } = await supabase.from('attendance').update({ 
+          break_start_time: now.toISOString() 
+        } as any).eq('id', todayRecord.id);
+        if (error) throw error;
+        toast.success("Break started");
+      } else if (todayRecord.break_start_time) {
+        const start = new Date(todayRecord.break_start_time);
+        if (isNaN(start.getTime())) {
+          toast.error("Error reading break start time.");
+          return;
+        }
+        
+        const diffMin = Math.max(0, Math.round((now.getTime() - start.getTime()) / 60000));
+        const currentTotal = Number(todayRecord.total_break_minutes) || 0;
+        const newTotal = currentTotal + diffMin;
+        
+        const { error } = await supabase.from('attendance').update({ 
+          break_start_time: null,
+          total_break_minutes: isNaN(newTotal) ? currentTotal : newTotal
+        } as any).eq('id', todayRecord.id);
 
-      // Send Notification about the break duration
-      await supabase.from('notifications').insert({
-        user_id: todayRecord.employee_id,
-        title: 'Break Finished',
-        message: `You took a ${diffMin} minute break.`,
-        type: 'system',
-        is_read: false
-      });
+        if (error) throw error;
+
+        await supabase.from('notifications').insert({
+          user_id: todayRecord.employee_id,
+          title: 'Break Finished',
+          message: `You took a ${diffMin} minute break.`,
+          type: 'system',
+          is_read: false
+        });
+        toast.success("Break finished");
+      }
+      load();
+    } catch (error: any) {
+      console.error('Break error:', error);
+      toast.error("Break action failed: " + (error.message || "Unknown error"));
     }
-    load();
   };
 
   return (
