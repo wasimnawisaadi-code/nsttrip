@@ -335,33 +335,39 @@ export default function AdminAttendance() {
           })() : (
             <div className="space-y-8 mt-6">
               {employees.map(emp => {
-                const empRecs = allAttendance.filter(a => a.employee_id === emp.user_id && a.date?.startsWith(yearMonth)).sort((a, b) => b.date.localeCompare(a.date));
+                const empRecs = allAttendance.filter(a => a.employee_id === emp.user_id && a.date?.startsWith(yearMonth)).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7);
                 return (
-                  <div key={emp.user_id} className="space-y-4 border border-border rounded-xl p-4">
+                  <div key={emp.user_id} className="space-y-4 border border-border rounded-xl p-4 overflow-hidden">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center font-bold text-primary-foreground">{emp?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>
-                      <div><p className="font-semibold">{emp?.name}</p></div>
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-primary-foreground text-xs">{emp?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>
+                      <p className="font-bold text-sm uppercase tracking-wide">{emp?.name}</p>
                     </div>
                     <div className="table-container">
-                      <table className="table-nawi w-full text-sm">
-                        <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Hours</th><th>Status</th><th>Work Summary</th></tr></thead>
+                      <table className="table-nawi w-full text-xs">
+                        <thead><tr><th>DATE</th><th>LOGIN</th><th>LOGOUT</th><th>BREAK</th><th>HOURS</th><th>STATUS</th><th>WORK SUMMARY</th></tr></thead>
                         <tbody>
                           {empRecs.map(a => (
-                            <tr key={a.id}>
+                            <tr key={a.id} className={a.is_auto_logout ? 'bg-destructive/5' : ''}>
                               <td>{formatDate(a.date)}</td>
                               <td>{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                              <td>{a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                              <td className="relative">
+                                {a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                {a.is_auto_logout && <span className="block text-[9px] text-destructive font-bold uppercase">Auto-Logout</span>}
+                              </td>
+                              <td className="font-semibold text-warning">{a.total_break_minutes || 0}m</td>
                               <td>
-                                {a.logout_time ? `${a.hours_worked || 0}h` : 
-                                  a.login_time && a.date === new Date().toISOString().split('T')[0] ? 
-                                  `${Math.round(((new Date().getTime() - new Date(a.login_time).getTime()) / 3600000) * 10) / 10}h (Active)` : 
-                                  '—'}
+                                <span className="font-bold">
+                                  {a.logout_time ? `${a.hours_worked || 0}h` : 
+                                    a.login_time && a.date === new Date().toISOString().split('T')[0] ? 
+                                    `${Math.round(((new Date().getTime() - new Date(a.login_time).getTime()) / 3600000) * 10) / 10}h` : 
+                                    '—'}
+                                </span>
                               </td>
                               <td><StatusBadge status={a.status} /></td>
-                              <td className="max-w-[200px] truncate text-xs">{a.work_summary || '—'}</td>
+                              <td className="max-w-[200px] truncate">{a.work_summary || '—'}</td>
                             </tr>
                           ))}
-                          {empRecs.length === 0 && <tr><td colSpan={6} className="text-center text-muted-foreground py-4">No records for this month</td></tr>}
+                          {empRecs.length === 0 && <tr><td colSpan={7} className="text-center text-muted-foreground py-4">No records found</td></tr>}
                         </tbody>
                       </table>
                     </div>
