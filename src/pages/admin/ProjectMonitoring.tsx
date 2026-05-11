@@ -291,11 +291,25 @@ export default function ProjectMonitoring() {
                               if (val === 100) status = 'Completed';
                               else if (val > 0) status = 'In Progress';
                               
+                              // Optimistically update local state for smoothness
+                              const updatedProjects = projects.map(p => {
+                                if (p.id === selectedProject.id) {
+                                  const updatedTasks = p.tasks.map((task: any) => 
+                                    task.id === t.id ? { ...task, progress_percentage: val, status } : task
+                                  );
+                                  const totalProgress = Math.round(updatedTasks.reduce((acc: number, tk: any) => acc + (tk.progress_percentage || 0), 0) / updatedTasks.length);
+                                  return { ...p, tasks: updatedTasks, totalProgress };
+                                }
+                                return p;
+                              });
+                              setProjects(updatedProjects);
+                              setSelectedProject(updatedProjects.find(p => p.id === selectedProject.id));
+
+                              // Push to database
                               await supabase.from('monitoring_tasks').update({ 
                                 progress_percentage: val,
                                 status: status
                               }).eq('id', t.id);
-                              loadData();
                             }}
                             className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                           />
