@@ -24,7 +24,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const [clientsRes, tasksRes, profilesRes, attendanceRes, quotationsRes, auditRes, leaveRes, dsrRes, leadsRes] = await Promise.all([
+      const [
+        clientsRes, tasksRes, profilesRes, attendanceRes, quotationsRes, 
+        auditRes, leaveRes, dsrRes, leadsRes, projectsRes, monitoringTasksRes
+      ] = await Promise.all([
         supabase.from('clients').select('*'),
         supabase.from('tasks').select('*'),
         supabase.from('profiles').select('*'),
@@ -34,8 +37,10 @@ export default function AdminDashboard() {
         supabase.from('leave_requests').select('*'),
         supabase.from('dsr_entries').select('*'),
         supabase.from('social_leads').select('*'),
+        supabase.from('monitoring_projects').select('*'),
+        supabase.from('monitoring_tasks').select('*'),
       ]);
-
+ 
       const clients = clientsRes.data || [];
       const clientIds = new Set(clients.map(c => c.id));
       
@@ -46,6 +51,16 @@ export default function AdminDashboard() {
       const auditLog = auditRes.data || [];
       const leave = leaveRes.data || [];
       const dsrEntries = dsrRes.data || [];
+      const monProjects = projectsRes.data || [];
+      const monTasks = monitoringTasksRes.data || [];
+
+      const monitoringProjects = monProjects.map((p: any) => {
+        const pTasks = monTasks.filter((t: any) => t.project_id === p.id);
+        const totalProgress = pTasks.length > 0 
+          ? Math.round(pTasks.reduce((acc: number, t: any) => acc + (t.progress_percentage || 0), 0) / pTasks.length)
+          : 0;
+        return { ...p, totalProgress };
+      }).sort((a: any, b: any) => b.totalProgress - a.totalProgress);
 
       const now = new Date();
       const today = now.toISOString().split('T')[0];
@@ -283,6 +298,7 @@ export default function AdminDashboard() {
         topEmployees, topSocialLeadsEmployees, leadData, nationalityData,
         onlineEmployeesList,
         allClients: clients, allEmployees: employees, allTasks: tasks, allQuotations: quotations,
+        monitoringProjects,
       });
     };
     load();
@@ -570,11 +586,26 @@ export default function AdminDashboard() {
                 <Link to="/admin/monitoring" className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold uppercase hover:bg-primary/20 transition-colors">Open Monitor</Link>
               </div>
               <div className="space-y-4">
-                {/* Fallback while no projects are active */}
-                <div className="flex flex-col items-center justify-center py-8 opacity-40 border border-dashed rounded-lg">
-                  <LayoutGrid className="w-8 h-8 mb-2" />
-                  <p className="text-xs">No active projects yet. Click Open Monitor to start.</p>
-                </div>
+                {(!data.monitoringProjects || data.monitoringProjects.length === 0) ? (
+                  <div className="flex flex-col items-center justify-center py-8 opacity-40 border border-dashed rounded-lg">
+                    <LayoutGrid className="w-8 h-8 mb-2" />
+                    <p className="text-xs">No active projects yet. Click Open Monitor to start.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {data.monitoringProjects.slice(0, 3).map((p: any) => (
+                      <div key={p.id} className="space-y-1.5">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold truncate pr-4">{p.title}</span>
+                          <span className="font-black text-primary">{p.totalProgress}%</span>
+                        </div>
+                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                           <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: `${p.totalProgress}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
