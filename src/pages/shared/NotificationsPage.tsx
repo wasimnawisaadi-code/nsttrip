@@ -37,18 +37,20 @@ export default function NotificationsPage() {
 
   useEffect(() => { load(); }, [user]);
 
+  const refreshCounts = () => window.dispatchEvent(new CustomEvent('refresh-counts'));
+
   const markAllRead = async () => {
     if (!user) return;
     const { error } = await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
     if (error) toast.error('Failed to update');
-    else { toast.success('All marked as read'); load(); }
+    else { toast.success('All marked as read'); load(); refreshCounts(); }
   };
 
   const deleteRead = async () => {
     if (!user) return;
     const { error } = await supabase.from('notifications').delete().eq('user_id', user.id).eq('is_read', true);
     if (error) toast.error('Failed to delete');
-    else { toast.success('Read notifications removed'); load(); }
+    else { toast.success('Read notifications removed'); load(); refreshCounts(); }
   };
 
   const clearAll = async () => {
@@ -57,11 +59,13 @@ export default function NotificationsPage() {
     await supabase.from('notifications').delete().eq('user_id', user.id);
     toast.success('All notifications deleted');
     load();
+    refreshCounts();
   };
 
   const deleteOne = async (id: string) => {
     await supabase.from('notifications').delete().eq('id', id);
     load();
+    refreshCounts();
   };
 
   const openNotif = async (n: any) => {
@@ -69,6 +73,7 @@ export default function NotificationsPage() {
     if (!n.is_read) {
       await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
       load();
+      refreshCounts();
     }
   };
 

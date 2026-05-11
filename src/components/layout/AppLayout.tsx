@@ -165,7 +165,11 @@ export default function AppLayout() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    window.addEventListener('refresh-counts', fetchCounts);
+    return () => { 
+      supabase.removeChannel(channel); 
+      window.removeEventListener('refresh-counts', fetchCounts);
+    };
   }, [user]);
 
   if (loading) return <div className="flex h-screen items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
