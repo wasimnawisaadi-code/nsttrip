@@ -3,6 +3,7 @@ import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { getAttendanceSettings } from '@/lib/settings';
 import { LogOut, Clock } from 'lucide-react';
 
 export default function AttendancePage() {
@@ -10,6 +11,32 @@ export default function AttendancePage() {
   const [yearMonth, setYearMonth] = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`; });
   const [showCheckout, setShowCheckout] = useState(false);
   const [workSummary, setWorkSummary] = useState('');
+  const [breakTimer, setBreakTimer] = useState(0);
+  const [lunchAllowance, setLunchAllowance] = useState(60);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const settings = await getAttendanceSettings();
+      setLunchAllowance(settings.lunch_break_min || 60);
+    };
+    fetchSettings();
+  }, []);
+
+  useEffect(() => {
+    let interval: any;
+    if (todayRecord?.break_start_time) {
+      // Immediate calculate
+      const start = new Date(todayRecord.break_start_time);
+      setBreakTimer(Math.floor((new Date().getTime() - start.getTime()) / 60000));
+
+      interval = setInterval(() => {
+        const start = new Date(todayRecord.break_start_time);
+        const diff = Math.floor((new Date().getTime() - start.getTime()) / 60000);
+        setBreakTimer(diff);
+      }, 30000); // Update every 30s
+    }
+    return () => clearInterval(interval);
+  }, [todayRecord?.break_start_time]);
   const [attendance, setAttendance] = useState<any[]>([]);
   const [todayRecord, setTodayRecord] = useState<any>(null);
 
@@ -148,6 +175,27 @@ export default function AttendancePage() {
               )}
             </div>
           </div>
+
+          {todayRecord.break_start_time && (
+            <div className="mt-4 p-3 bg-warning/5 rounded-lg border border-warning/20 flex items-center justify-between">
+               <div className="flex items-center gap-2 text-warning">
+                  <Clock className="w-4 h-4 animate-spin-slow" />
+                  <span className="text-xs font-bold uppercase tracking-tight">Active Break Timer</span>
+               </div>
+               <div className="flex gap-4">
+                  <div className="text-right">
+                     <p className="text-[10px] text-muted-foreground uppercase font-bold">Time Used</p>
+                     <p className="text-sm font-bold text-warning">{breakTimer}m</p>
+                  </div>
+                  <div className="text-right">
+                     <p className="text-[10px] text-muted-foreground uppercase font-bold">Remaining</p>
+                     <p className={`text-sm font-bold ${lunchAllowance - breakTimer <= 5 ? 'text-destructive animate-pulse' : 'text-success'}`}>
+                        {Math.max(0, lunchAllowance - breakTimer)}m
+                     </p>
+                  </div>
+               </div>
+            </div>
+          )}
         </div>
       )}
 
