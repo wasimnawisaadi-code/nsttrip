@@ -212,7 +212,11 @@ export default function ProjectMonitoring() {
               <div className="flex justify-between items-start mb-6 pb-6 border-b border-border/50">
                 <div>
                   <h3 className="text-2xl font-black font-display text-primary tracking-tight">{selectedProject.title}</h3>
-                  <p className="text-sm text-muted-foreground mt-1 font-medium">{selectedProject.description}</p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-[10px] font-black bg-success/10 text-success px-2 py-0.5 rounded uppercase tracking-widest">{selectedProject.totalProgress}% DONE</span>
+                    <span className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded uppercase tracking-widest">{100 - selectedProject.totalProgress}% LEFT</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-3 font-medium">{selectedProject.description}</p>
                 </div>
                 <button onClick={() => setShowAddTask(true)} className="btn-primary shadow-lg shadow-primary/20">
                   <Plus className="w-4 h-4" /> Add Sub Task
@@ -222,17 +226,29 @@ export default function ProjectMonitoring() {
               {/* Progress Analytics Bar */}
               <div className="grid grid-cols-3 gap-6 mb-8 bg-muted/20 p-6 rounded-[2rem] border-2 border-primary/5">
                 <div className="text-center group/stat">
-                  <p className="text-[10px] text-muted-foreground uppercase font-black mb-1 tracking-[0.2em] group-hover/stat:text-primary transition-colors">To Do</p>
-                  <p className="text-4xl font-black text-muted-foreground/80 group-hover/stat:scale-110 transition-transform">{selectedProject.tasks.filter((t: any) => t.status === 'Pending' || t.status === 'To Do').length}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black mb-1 tracking-[0.2em]">To Do</p>
+                  <p className="text-4xl font-black text-muted-foreground/80">{selectedProject.tasks.filter((t: any) => t.status === 'Pending' || t.status === 'To Do').length}</p>
                 </div>
                 <div className="text-center border-x-2 border-primary/5 group/stat">
                   <p className="text-[10px] text-primary uppercase font-black mb-1 tracking-[0.2em]">In Progress</p>
-                  <p className="text-4xl font-black text-primary group-hover/stat:scale-110 transition-transform">{selectedProject.tasks.filter((t: any) => t.status === 'In Progress').length}</p>
+                  <p className="text-4xl font-black text-primary">{selectedProject.tasks.filter((t: any) => t.status === 'In Progress').length}</p>
                 </div>
                 <div className="text-center group/stat">
                   <p className="text-[10px] text-success uppercase font-black mb-1 tracking-[0.2em]">Completed</p>
-                  <p className="text-4xl font-black text-success group-hover/stat:scale-110 transition-transform">{selectedProject.tasks.filter((t: any) => t.status === 'Completed').length}</p>
+                  <p className="text-4xl font-black text-success">{selectedProject.tasks.filter((t: any) => t.status === 'Completed').length}</p>
                 </div>
+              </div>
+
+              {/* Enhanced Visual Progress */}
+              <div className="mb-8 px-2">
+                 <div className="flex justify-between text-[11px] font-black uppercase tracking-tighter mb-2">
+                    <span className="text-success">Work Completed ({selectedProject.totalProgress}%)</span>
+                    <span className="text-primary">Remaining Gap ({100 - selectedProject.totalProgress}%)</span>
+                 </div>
+                 <div className="h-4 w-full bg-primary/10 rounded-full overflow-hidden flex border border-primary/10 shadow-inner">
+                    <div className="h-full bg-success transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(34,197,94,0.4)]" style={{ width: `${selectedProject.totalProgress}%` }} />
+                    <div className="h-full bg-transparent flex-1" />
+                 </div>
               </div>
 
               <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
