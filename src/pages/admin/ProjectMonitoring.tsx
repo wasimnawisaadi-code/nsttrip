@@ -277,7 +277,7 @@ export default function ProjectMonitoring() {
                         </div>
                       </div>
                       
-                      <div className="flex items-center justify-between mt-6 mb-2">
+                      <div className="flex items-center justify-between mt-6">
                          <div className="flex items-center gap-2">
                             <span className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded uppercase tracking-widest">
                                Weight: {Math.round(100 / (selectedProject.tasks.length || 1))}% of Project
@@ -288,13 +288,9 @@ export default function ProjectMonitoring() {
                                </span>
                             )}
                          </div>
-                         <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-bold bg-background/50 px-3 py-1.5 rounded-full border">
-                            <Paperclip className="w-3 h-3" />
-                            <span className="cursor-pointer hover:text-primary transition-colors uppercase">Uploads</span>
-                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 bg-background/30 p-4 rounded-xl border border-border/50">
+                      <div className="flex items-center gap-4 bg-background/30 p-4 rounded-xl border border-border/50 mt-4">
                         <input 
                           type="range" 
                           min="0" 
@@ -338,9 +334,63 @@ export default function ProjectMonitoring() {
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-[400px] flex flex-col items-center justify-center card-nawi border-dashed opacity-50">
-              <LayoutGrid className="w-12 h-12 mb-4 text-muted-foreground" />
-              <p className="font-medium">Select a project to view detailed monitoring</p>
+            <div className="space-y-6">
+              <div className="card-nawi p-8 bg-gradient-to-br from-primary/5 via-transparent to-success/5 border-primary/10">
+                <div className="flex items-center gap-4 mb-8">
+                   <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+                      <TrendingUp className="w-6 h-6 text-primary-foreground" />
+                   </div>
+                   <div>
+                      <h3 className="text-xl font-black font-display tracking-tight">Organization Health Dashboard</h3>
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Global task distribution across {projects.length} projects</p>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                   <div className="p-6 rounded-[2rem] bg-background/50 border border-border/50 text-center hover:scale-105 transition-transform cursor-default">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-2">Total Tasks</p>
+                      <p className="text-5xl font-black text-foreground">{projects.reduce((acc, p) => acc + p.tasks.length, 0)}</p>
+                   </div>
+                   <div className="p-6 rounded-[2rem] bg-primary/5 border border-primary/20 text-center hover:scale-105 transition-transform cursor-default">
+                      <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-2">In Progress</p>
+                      <p className="text-5xl font-black text-primary">{projects.reduce((acc, p) => acc + p.tasks.filter((t:any) => t.status === 'In Progress').length, 0)}</p>
+                   </div>
+                   <div className="p-6 rounded-[2rem] bg-success/5 border border-success/20 text-center hover:scale-105 transition-transform cursor-default">
+                      <p className="text-[10px] font-black text-success uppercase tracking-[0.2em] mb-2">Completed</p>
+                      <p className="text-5xl font-black text-success">{projects.reduce((acc, p) => acc + p.tasks.filter((t:any) => t.status === 'Completed').length, 0)}</p>
+                   </div>
+                </div>
+
+                <div className="space-y-6">
+                   <h4 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground px-2">Completion Velocity</h4>
+                   <div className="space-y-4">
+                      {projects.slice(0, 5).map(p => (
+                         <div key={p.id} className="group cursor-pointer" onClick={() => setSelectedProject(p)}>
+                            <div className="flex justify-between items-center mb-2 px-2">
+                               <span className="text-xs font-bold group-hover:text-primary transition-colors">{p.title}</span>
+                               <span className="text-[10px] font-black text-primary">{p.totalProgress}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden border border-border/50">
+                               <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: `${p.totalProgress}%` }} />
+                            </div>
+                         </div>
+                      ))}
+                   </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="card-nawi p-6 flex flex-col items-center justify-center text-center opacity-70 border-dashed">
+                    <BarChart3 className="w-8 h-8 mb-3 text-muted-foreground" />
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Team Performance Metrics</p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">Select a project to view details</p>
+                 </div>
+                 <div className="card-nawi p-6 flex flex-col items-center justify-center text-center opacity-70 border-dashed">
+                    <Calendar className="w-8 h-8 mb-3 text-muted-foreground" />
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Upcoming Deadlines</p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">Real-time scheduling active</p>
+                 </div>
+              </div>
             </div>
           )}
         </div>
