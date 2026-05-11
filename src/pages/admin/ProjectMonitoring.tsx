@@ -60,14 +60,29 @@ export default function ProjectMonitoring() {
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProject) return;
-    const { data } = await supabase.from('monitoring_tasks').insert([{
-      ...newTask,
-      project_id: selectedProject.id
-    }]).select();
+    
+    // Ensure empty strings are sent as null for UUID/Date fields
+    const taskData = {
+      name: newTask.name,
+      description: newTask.description,
+      project_id: selectedProject.id,
+      status: 'To Do',
+      progress_percentage: 0
+    };
+
+    const { data, error } = await supabase.from('monitoring_tasks').insert([taskData]).select();
+    
+    if (error) {
+      console.error('Error creating task:', error);
+      toast.error('Failed to create task: ' + error.message);
+      return;
+    }
+
     if (data) {
       setShowAddTask(false);
       setNewTask({ name: '', description: '', assigned_to: '', start_date: new Date().toISOString().split('T')[0], deadline: '', status: 'To Do', progress_percentage: 0 });
       loadData();
+      toast.success('Task added successfully!');
     }
   };
 
