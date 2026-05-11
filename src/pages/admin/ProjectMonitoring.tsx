@@ -149,6 +149,22 @@ export default function ProjectMonitoring() {
                 </button>
               </div>
 
+              {/* Progress Analytics Bar */}
+              <div className="grid grid-cols-3 gap-4 mb-8 bg-muted/30 p-4 rounded-2xl border border-dashed">
+                <div className="text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">To Do</p>
+                  <p className="text-lg font-bold text-muted-foreground">{selectedProject.tasks.filter((t: any) => t.status === 'Pending' || t.status === 'To Do').length}</p>
+                </div>
+                <div className="text-center border-x border-border/50">
+                  <p className="text-[10px] text-primary uppercase font-bold mb-1">In Progress</p>
+                  <p className="text-lg font-bold text-primary">{selectedProject.tasks.filter((t: any) => t.status === 'In Progress').length}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] text-success uppercase font-bold mb-1">Completed</p>
+                  <p className="text-lg font-bold text-success">{selectedProject.tasks.filter((t: any) => t.status === 'Completed').length}</p>
+                </div>
+              </div>
+
               <div className="space-y-4">
                 {selectedProject.tasks.length === 0 ? (
                   <div className="text-center py-12 border-2 border-dashed rounded-xl opacity-50">
@@ -181,7 +197,7 @@ export default function ProjectMonitoring() {
                         </div>
                         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                            <Paperclip className="w-3 h-3" />
-                           <span className="font-medium">0 Files</span>
+                           <span className="font-medium cursor-pointer hover:text-primary">Upload Files</span>
                         </div>
                       </div>
 
