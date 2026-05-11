@@ -13,11 +13,33 @@ export default function AttendancePage() {
   const [workSummary, setWorkSummary] = useState('');
   const [breakTimer, setBreakTimer] = useState(0);
   const [lunchAllowance, setLunchAllowance] = useState(60);
+  const [loading, setLoading] = useState(true);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [todayRecord, setTodayRecord] = useState<any>(null);
+
+  // Ultimate safety wrapper for date formatting
+  const safeTime = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return '—';
+    }
+  };
 
   useEffect(() => {
     const fetchSettings = async () => {
-      const settings = await getAttendanceSettings();
-      setLunchAllowance(settings.lunch_break_min || 60);
+      try {
+        const settings = await getAttendanceSettings();
+        if (settings) {
+          setLunchAllowance(settings.lunch_break_min || 60);
+        }
+      } catch (e) {
+        console.warn('Settings load failed, using defaults', e);
+        setLunchAllowance(60);
+      }
     };
     fetchSettings();
   }, []);
@@ -33,40 +55,44 @@ export default function AttendancePage() {
         return Math.floor((new Date().getTime() - start.getTime()) / 60000);
       };
 
-      // Immediate calculate
       setBreakTimer(calculateDiff());
-
       interval = setInterval(() => {
         setBreakTimer(calculateDiff());
-      }, 30000); // Update every 30s
+      }, 30000);
     } else {
       setBreakTimer(0);
     }
     return () => clearInterval(interval);
   }, [todayRecord?.break_start_time]);
-  const [attendance, setAttendance] = useState<any[]>([]);
-  const [todayRecord, setTodayRecord] = useState<any>(null);
 
   const today = new Date().toISOString().split('T')[0];
 
   const load = async () => {
     if (!user) return;
-    const { data: monthData } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('employee_id', user.id)
-      .gte('date', `${yearMonth}-01`)
-      .lte('date', `${yearMonth}-31`)
-      .order('date', { ascending: false });
-    setAttendance(monthData || []);
+    try {
+      setLoading(true);
+      const { data: monthData } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('employee_id', user.id)
+        .gte('date', `${yearMonth}-01`)
+        .lte('date', `${yearMonth}-31`)
+        .order('date', { ascending: false });
+      setAttendance(monthData || []);
 
-    const { data: todayData } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('employee_id', user.id)
-      .eq('date', today)
-      .maybeSingle();
-    setTodayRecord(todayData);
+      const { data: todayData } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('employee_id', user.id)
+        .eq('date', today)
+        .maybeSingle();
+      setTodayRecord(todayData);
+    } catch (e) {
+      console.error('Attendance load failed', e);
+      toast.error('Could not load attendance data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, [user, yearMonth]);
@@ -178,6 +204,15 @@ export default function AttendancePage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+        <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+        <p className="text-sm font-bold text-muted-foreground animate-pulse uppercase tracking-widest">Securing Connection...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -208,14 +243,14 @@ export default function AttendancePage() {
                    {todayRecord?.break_start_time && <span className="text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded animate-pulse">On Break</span>}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Login: {todayRecord?.login_time ? new Date(todayRecord.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                  {todayRecord?.logout_time && ` → Logout: ${new Date(todayRecord.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`}
+                  Login: {safeTime(todayRecord?.login_time)}
+                  {todayRecord?.logout_time && ` → Logout: ${safeTime(todayRecord.logout_time)}`}
                   {(todayRecord?.total_break_minutes || 0) > 0 && ` · Break: ${todayRecord.total_break_minutes}m`}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <StatusBadge status={todayRecord.status} />
+              <StatusBadge status={todayRecord.status || 'Present'} />
               {!todayRecord.logout_time && (
                 <button onClick={() => setShowCheckout(true)} className="btn-outline text-sm"><LogOut className="w-4 h-4" /> Check Out</button>
               )}
@@ -246,9 +281,9 @@ export default function AttendancePage() {
       )}
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="stat-card"><div className="stat-card-icon bg-success"><span className="text-primary-foreground font-bold">{present}</span></div><div><p className="text-xs text-muted-foreground">Present</p></div></div>
-        <div className="stat-card"><div className="stat-card-icon bg-warning"><span className="text-primary-foreground font-bold">{late}</span></div><div><p className="text-xs text-muted-foreground">Late</p></div></div>
-        <div className="stat-card"><div className="stat-card-icon bg-primary"><span className="text-primary-foreground font-bold">{Math.round(totalHours)}</span></div><div><p className="text-xs text-muted-foreground">Work Hours</p></div></div>
+        <div className="stat-card"><div className="stat-card-icon bg-success"><span className="text-primary-foreground font-bold">{attendance.filter(a => a.status === 'Present' || a.status === 'Overtime').length}</span></div><div><p className="text-xs text-muted-foreground">Present</p></div></div>
+        <div className="stat-card"><div className="stat-card-icon bg-warning"><span className="text-primary-foreground font-bold">{attendance.filter(a => a.status === 'Late' || a.status === 'Half Day').length}</span></div><div><p className="text-xs text-muted-foreground">Late / Half</p></div></div>
+        <div className="stat-card"><div className="stat-card-icon bg-primary"><span className="text-primary-foreground font-bold">{Math.round(attendance.reduce((s, a) => s + (a.hours_worked || 0), 0))}</span></div><div><p className="text-xs text-muted-foreground">Work Hours</p></div></div>
       </div>
 
       <div className="card-nawi p-0 overflow-x-auto">
@@ -259,15 +294,15 @@ export default function AttendancePage() {
               attendance.map((a) => (
                 <tr key={a.id} className={a.is_auto_logout ? 'bg-destructive/5' : ''}>
                   <td>{formatDate(a.date)}</td>
-                  <td>{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                  <td>{safeTime(a.login_time)}</td>
                   <td>
-                    {a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                    {a.logout_time ? safeTime(a.logout_time) : '—'}
                     {a.is_auto_logout && <span className="block text-[9px] text-destructive font-bold uppercase">Auto</span>}
                   </td>
                   <td>{a.total_break_minutes || 0}m</td>
                   <td><span className="font-bold">{a.hours_worked || 0}h</span></td>
                   <td className="max-w-[150px] truncate">{a.work_summary || '—'}</td>
-                  <td><StatusBadge status={a.status} /></td>
+                  <td><StatusBadge status={a.status || 'Present'} /></td>
                 </tr>
               ))}
           </tbody>
