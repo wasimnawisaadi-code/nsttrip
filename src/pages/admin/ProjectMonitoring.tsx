@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  Plus, Search, LayoutGrid, List, MoreVertical, 
+  Plus, Search, LayoutGrid, List, 
   Clock, CheckCircle2, AlertCircle, FileText, 
   MessageSquare, UserPlus, Calendar, BarChart3,
   TrendingUp, CheckSquare, Target, Paperclip
