@@ -168,11 +168,11 @@ export default function ProjectMonitoring() {
               >
                 <div className="flex justify-between items-start mb-2">
                   <h4 className="font-bold text-sm truncate pr-12">{p.title}</h4>
-                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                    <button onClick={(e) => { e.stopPropagation(); setEditProject({ id: p.id, title: p.title, description: p.description || '' }); setShowEditProject(true); }} className="text-muted-foreground hover:text-primary">
+                  <div className="absolute top-4 right-4 flex gap-2 transition-all">
+                    <button onClick={(e) => { e.stopPropagation(); setEditProject({ id: p.id, title: p.title, description: p.description || '' }); setShowEditProject(true); }} className="text-primary hover:scale-110 transition-transform">
                       <Edit className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={(e) => handleDeleteProject(p.id, e)} className="text-destructive/40 hover:text-destructive">
+                    <button onClick={(e) => handleDeleteProject(p.id, e)} className="text-destructive hover:scale-110 transition-transform">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -198,27 +198,27 @@ export default function ProjectMonitoring() {
             <div className="card-nawi p-6 animate-slide-up">
               <div className="flex justify-between items-start mb-6 pb-6 border-b">
                 <div>
-                  <h3 className="text-xl font-bold font-display">{selectedProject.title}</h3>
+                  <h3 className="text-xl font-bold font-display text-primary">{selectedProject.title}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{selectedProject.description}</p>
                 </div>
-                <button onClick={() => setShowAddTask(true)} className="btn-outline text-xs">
+                <button onClick={() => setShowAddTask(true)} className="btn-primary text-xs py-2">
                   <Plus className="w-3.5 h-3.5" /> Add Sub Task
                 </button>
               </div>
 
               {/* Progress Analytics Bar */}
-              <div className="grid grid-cols-3 gap-4 mb-8 bg-muted/30 p-4 rounded-2xl border border-dashed">
+              <div className="grid grid-cols-3 gap-4 mb-8 bg-muted/20 p-6 rounded-3xl border-2 border-primary/10">
                 <div className="text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">To Do</p>
-                  <p className="text-lg font-bold text-muted-foreground">{selectedProject.tasks.filter((t: any) => t.status === 'Pending' || t.status === 'To Do').length}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-black mb-1 tracking-widest">To Do</p>
+                  <p className="text-3xl font-black text-muted-foreground">{selectedProject.tasks.filter((t: any) => t.status === 'Pending' || t.status === 'To Do').length}</p>
                 </div>
-                <div className="text-center border-x border-border/50">
-                  <p className="text-[10px] text-primary uppercase font-bold mb-1">In Progress</p>
-                  <p className="text-lg font-bold text-primary">{selectedProject.tasks.filter((t: any) => t.status === 'In Progress').length}</p>
+                <div className="text-center border-x-2 border-primary/5">
+                  <p className="text-[10px] text-primary uppercase font-black mb-1 tracking-widest">In Progress</p>
+                  <p className="text-3xl font-black text-primary">{selectedProject.tasks.filter((t: any) => t.status === 'In Progress').length}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-[10px] text-success uppercase font-bold mb-1">Completed</p>
-                  <p className="text-lg font-bold text-success">{selectedProject.tasks.filter((t: any) => t.status === 'Completed').length}</p>
+                  <p className="text-[10px] text-success uppercase font-black mb-1 tracking-widest">Completed</p>
+                  <p className="text-3xl font-black text-success">{selectedProject.tasks.filter((t: any) => t.status === 'Completed').length}</p>
                 </div>
               </div>
 
