@@ -230,8 +230,8 @@ export default function ProjectMonitoring() {
                   </div>
                 ) : (
                   selectedProject.tasks.map((t: any) => (
-                    <div key={t.id} className="p-4 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors group/task relative">
-                      <button onClick={() => handleDeleteTask(t.id)} className="absolute top-4 right-4 opacity-0 group-hover/task:opacity-100 text-destructive/40 hover:text-destructive transition-all">
+                    <div key={t.id} className="p-4 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors relative">
+                      <button onClick={() => handleDeleteTask(t.id)} className="absolute top-4 right-4 text-destructive hover:scale-110 transition-transform">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                       <div className="flex items-start justify-between gap-4 mb-3 pr-8">
