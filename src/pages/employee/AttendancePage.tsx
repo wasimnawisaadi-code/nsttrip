@@ -158,13 +158,13 @@ export default function AttendancePage() {
               <div>
                 <p className="text-sm font-semibold flex items-center gap-2">
                    Today's Session 
-                   {todayRecord.is_auto_logout && <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">Auto-Logged Out</span>}
-                   {todayRecord.break_start_time && <span className="text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded animate-pulse">On Break</span>}
+                   {todayRecord?.is_auto_logout && <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">Auto-Logged Out</span>}
+                   {todayRecord?.break_start_time && <span className="text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded animate-pulse">On Break</span>}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Login: {todayRecord.login_time ? new Date(todayRecord.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                  {todayRecord.logout_time && ` → Logout: ${new Date(todayRecord.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`}
-                  {todayRecord.total_break_minutes > 0 && ` · Break: ${todayRecord.total_break_minutes}m`}
+                  Login: {todayRecord?.login_time ? new Date(todayRecord.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                  {todayRecord?.logout_time && ` → Logout: ${new Date(todayRecord.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`}
+                  {(todayRecord?.total_break_minutes || 0) > 0 && ` · Break: ${todayRecord.total_break_minutes}m`}
                 </p>
               </div>
             </div>
@@ -176,7 +176,7 @@ export default function AttendancePage() {
             </div>
           </div>
 
-          {todayRecord.break_start_time && (
+          {todayRecord?.break_start_time && (
             <div className="mt-4 p-3 bg-warning/5 rounded-lg border border-warning/20 flex items-center justify-between">
                <div className="flex items-center gap-2 text-warning">
                   <Clock className="w-4 h-4 animate-spin-slow" />

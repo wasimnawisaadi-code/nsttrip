@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { exportToExcel } from '@/lib/excel-export';
 import { Link } from 'react-router-dom';
-import { Users, TrendingUp, CheckSquare, UserCheck, AlertTriangle, ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, Download, Calendar, Clock, Target } from 'lucide-react';
+import { Users, TrendingUp, CheckSquare, UserCheck, AlertTriangle, ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, Download, Calendar, Clock, Target, LayoutGrid, BarChart3, CheckCircle2 } from 'lucide-react';
 import { formatCurrency, formatDate, daysUntil } from '@/lib/supabase-service';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
@@ -570,9 +570,10 @@ export default function AdminDashboard() {
                 <Link to="/admin/monitoring" className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold uppercase hover:bg-primary/20 transition-colors">Open Monitor</Link>
               </div>
               <div className="space-y-4">
-                <div className="flex flex-col items-center justify-center py-6 opacity-40 border border-dashed rounded-lg">
+                {/* Fallback while no projects are active */}
+                <div className="flex flex-col items-center justify-center py-8 opacity-40 border border-dashed rounded-lg">
                   <LayoutGrid className="w-8 h-8 mb-2" />
-                  <p className="text-xs">Manage all enterprise tasks in Monitoring</p>
+                  <p className="text-xs">No active projects yet. Click Open Monitor to start.</p>
                 </div>
               </div>
             </div>
