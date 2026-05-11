@@ -4,19 +4,22 @@ import {
   Plus, Search, LayoutGrid, List, 
   Clock, CheckCircle2, AlertCircle, FileText, 
   MessageSquare, UserPlus, Calendar, BarChart3,
-  TrendingUp, CheckSquare, Target, Paperclip
+  TrendingUp, CheckSquare, Target, Paperclip, Trash2, Edit
 } from 'lucide-react';
 import { formatDate } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { toast } from 'sonner';
 
 export default function ProjectMonitoring() {
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddProject, setShowAddProject] = useState(false);
+  const [showEditProject, setShowEditProject] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [showAddTask, setShowAddTask] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
   const [newProject, setNewProject] = useState({ title: '', description: '' });
+  const [editProject, setEditProject] = useState({ id: '', title: '', description: '' });
   const [newTask, setNewTask] = useState({
     name: '', description: '', assigned_to: '', 
     start_date: new Date().toISOString().split('T')[0],
@@ -74,6 +77,37 @@ export default function ProjectMonitoring() {
     loadData();
   };
 
+  const handleDeleteProject = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this project and all its tasks?')) {
+      await supabase.from('monitoring_projects').delete().eq('id', id);
+      if (selectedProject?.id === id) setSelectedProject(null);
+      loadData();
+      toast.success('Project deleted');
+    }
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    if (confirm('Delete this sub-task?')) {
+      await supabase.from('monitoring_tasks').delete().eq('id', id);
+      loadData();
+      toast.success('Task deleted');
+    }
+  };
+
+  const handleUpdateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { data } = await supabase.from('monitoring_projects').update({
+      title: editProject.title,
+      description: editProject.description
+    }).eq('id', editProject.id).select();
+    if (data) {
+      setShowEditProject(false);
+      loadData();
+      toast.success('Project updated');
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -115,10 +149,18 @@ export default function ProjectMonitoring() {
               <div 
                 key={p.id} 
                 onClick={() => setSelectedProject(p)}
-                className={`card-nawi cursor-pointer transition-all border-l-4 ${selectedProject?.id === p.id ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : 'border-transparent hover:border-muted'}`}
+                className={`card-nawi cursor-pointer transition-all border-l-4 group ${selectedProject?.id === p.id ? 'border-primary ring-1 ring-primary/20 bg-primary/5' : 'border-transparent hover:border-muted'}`}
               >
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-bold text-sm truncate">{p.title}</h4>
+                  <h4 className="font-bold text-sm truncate pr-12">{p.title}</h4>
+                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                    <button onClick={(e) => { e.stopPropagation(); setEditProject({ id: p.id, title: p.title, description: p.description || '' }); setShowEditProject(true); }} className="text-muted-foreground hover:text-primary">
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={(e) => handleDeleteProject(p.id, e)} className="text-destructive/40 hover:text-destructive">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                   <span className="text-[10px] font-bold bg-muted px-2 py-0.5 rounded uppercase tracking-tighter">{p.tasks.length} Tasks</span>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-1 mb-3">{p.description || 'No description'}</p>
@@ -173,8 +215,11 @@ export default function ProjectMonitoring() {
                   </div>
                 ) : (
                   selectedProject.tasks.map((t: any) => (
-                    <div key={t.id} className="p-4 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors">
-                      <div className="flex items-start justify-between gap-4 mb-3">
+                    <div key={t.id} className="p-4 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors group/task relative">
+                      <button onClick={() => handleDeleteTask(t.id)} className="absolute top-4 right-4 opacity-0 group-hover/task:opacity-100 text-destructive/40 hover:text-destructive transition-all">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <div className="flex items-start justify-between gap-4 mb-3 pr-8">
                         <div className="flex-1 min-w-0">
                           <h5 className="font-bold text-sm">{t.name}</h5>
                           <p className="text-xs text-muted-foreground mt-1">{t.description}</p>
@@ -230,6 +275,22 @@ export default function ProjectMonitoring() {
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={() => setShowAddProject(false)} className="btn-outline">Cancel</button>
                 <button type="submit" className="btn-primary">Create Project</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEditProject && (
+        <div className="fixed inset-0 bg-foreground/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-md rounded-2xl shadow-elevated p-6 animate-scale-in">
+            <h3 className="text-xl font-bold font-display mb-4">Edit Monitoring Project</h3>
+            <form onSubmit={handleUpdateProject} className="space-y-4">
+              <div><label className="block text-xs font-bold uppercase mb-1">Project Title *</label><input required value={editProject.title} onChange={e => setEditProject({...editProject, title: e.target.value})} className="input-nawi" /></div>
+              <div><label className="block text-xs font-bold uppercase mb-1">Description</label><textarea value={editProject.description} onChange={e => setEditProject({...editProject, description: e.target.value})} className="input-nawi" rows={3} /></div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button type="button" onClick={() => setShowEditProject(false)} className="btn-outline">Cancel</button>
+                <button type="submit" className="btn-primary">Save Changes</button>
               </div>
             </form>
           </div>
