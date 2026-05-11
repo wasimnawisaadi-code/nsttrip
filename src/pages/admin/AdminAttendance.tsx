@@ -185,29 +185,35 @@ export default function AdminAttendance() {
           </div>
           <div className="table-container">
             <table className="table-nawi w-full">
-              <thead><tr><th>Employee</th><th>Present</th><th>Late</th><th>Absent</th><th>Leave</th><th>Work Hours</th><th>Avg/Day</th><th></th></tr></thead>
+              <thead><tr><th>Employee</th><th>Login</th><th>Logout</th><th>Break</th><th>Hours</th><th>Status</th><th></th></tr></thead>
               <tbody>
-                {empSummary.map(e => (
-                  <tr key={e.user_id}>
-                    <td className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <div className="relative">
-                          {e.name}
-                          {e.last_seen_at && (new Date().getTime() - new Date(e.last_seen_at).getTime() < 300000) && (
-                            <span className="absolute -left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Online now" />
-                          )}
+                {empSummary.map(e => {
+                  const today = new Date().toISOString().split('T')[0];
+                  const att = allAttendance.find(a => a.employee_id === e.user_id && a.date === today);
+                  return (
+                    <tr key={e.user_id} className={att?.is_auto_logout ? 'bg-destructive/5' : ''}>
+                      <td className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <div className="relative">
+                            {e.name}
+                            {e.last_seen_at && (new Date().getTime() - new Date(e.last_seen_at).getTime() < 300000) && (
+                              <span className="absolute -left-2 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Online now" />
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td><span className="text-success font-medium">{e.present}</span></td>
-                    <td><span className="text-warning font-medium">{e.late}</span></td>
-                    <td><span className="text-destructive font-medium">{e.absent}</span></td>
-                    <td>{e.leaveCount}</td>
-                    <td><span className="font-bold">{e.totalHours}h</span></td>
-                    <td>{e.avgHours}h</td>
-                    <td><button onClick={() => { setSelectedEmpId(e.user_id); setView('employee'); }} className="text-primary text-xs hover:underline"><Eye className="w-3 h-3 inline mr-1" />View</button></td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="text-xs">{att?.login_time ? new Date(att.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                      <td className="text-xs">
+                        {att?.logout_time ? new Date(att.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : (att ? 'Active' : '—')}
+                        {att?.is_auto_logout && <span className="block text-[9px] text-destructive font-bold">AUTO</span>}
+                      </td>
+                      <td className="text-xs">{att?.total_break_minutes || 0}m</td>
+                      <td className="font-bold">{att?.hours_worked || 0}h</td>
+                      <td>{att ? <StatusBadge status={att.status} /> : '—'}</td>
+                      <td><button onClick={() => { setSelectedEmpId(e.user_id); setView('employee'); }} className="text-primary text-xs hover:underline"><Eye className="w-3 h-3 inline mr-1" />View</button></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
