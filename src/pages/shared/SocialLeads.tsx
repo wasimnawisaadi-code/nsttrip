@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
-import { MessageCircle, Instagram, Facebook, RefreshCw, UserPlus, UserMinus, CheckCircle2, XCircle, Clock, Loader2, Send, StickyNote, Search, Filter, Upload, FileImage, Download, Trash2, PieChart as PieChartIcon } from 'lucide-react';
+import { MessageCircle, Instagram, Facebook, RefreshCw, UserPlus, UserMinus, CheckCircle2, XCircle, Clock, Loader2, Send, StickyNote, Search, Filter, Upload, FileImage, Download, Trash2, PieChart as PieChartIcon, CalendarRange } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
 import { exportToExcel } from '@/lib/excel-export';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -371,29 +371,68 @@ export default function SocialLeads() {
             <option value="NOT_CONVERTED">Not Converted</option>
           </select>
 
-          <select value={quickFilter} onChange={e => setQuickFilter(e.target.value as any)} className="input-nawi w-full sm:w-auto text-sm py-1.5 font-medium text-primary">
-            <option value="all">Any Time</option>
-            <option value="today">Today</option>
-            <option value="yesterday">Yesterday</option>
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-            <option value="custom">Custom Range</option>
-          </select>
-
-          {quickFilter === 'custom' && (
-            <div className="flex items-center gap-1">
-              <input type="date" value={dateRange.start} onChange={e => setDateRange({ ...dateRange, start: e.target.value })} className="input-nawi w-auto text-[11px] py-1 h-8" />
-              <span className="text-muted-foreground">to</span>
-              <input type="date" value={dateRange.end} onChange={e => setDateRange({ ...dateRange, end: e.target.value })} className="input-nawi w-auto text-[11px] py-1 h-8" />
+          {/* ── Date Range Filter ── */}
+          <div className="w-full border border-border/60 rounded-lg bg-background/60 p-2 space-y-2">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+              <CalendarRange className="w-3.5 h-3.5" /> Date Range
             </div>
-          )}
+            <div className="flex flex-wrap gap-1.5">
+              {(['all', 'today', 'yesterday', 'week', 'month', 'custom'] as const).map(opt => {
+                const labels: Record<string, string> = { all: 'Any Time', today: 'Today', yesterday: 'Yesterday', week: 'This Week', month: 'This Month', custom: 'Custom…' };
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => { setQuickFilter(opt); if (opt !== 'custom') setDateRange({ start: '', end: '' }); }}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                      quickFilter === opt
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    {labels[opt]}
+                  </button>
+                );
+              })}
+            </div>
+            {quickFilter === 'custom' && (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <div className="flex items-center gap-1.5 flex-1 min-w-[140px]">
+                  <label className="text-[10px] text-muted-foreground whitespace-nowrap">From</label>
+                  <input
+                    type="date"
+                    value={dateRange.start}
+                    onChange={e => setDateRange({ ...dateRange, start: e.target.value })}
+                    className="input-nawi text-xs py-1 h-8 flex-1"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 flex-1 min-w-[140px]">
+                  <label className="text-[10px] text-muted-foreground whitespace-nowrap">To</label>
+                  <input
+                    type="date"
+                    value={dateRange.end}
+                    min={dateRange.start || undefined}
+                    onChange={e => setDateRange({ ...dateRange, end: e.target.value })}
+                    className="input-nawi text-xs py-1 h-8 flex-1"
+                  />
+                </div>
+                {(dateRange.start || dateRange.end) && (
+                  <button
+                    onClick={() => setDateRange({ start: '', end: '' })}
+                    className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-0.5"
+                  >
+                    <XCircle className="w-3 h-3" /> Reset dates
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
           {(filterSource !== 'all' || filterStatus !== 'all' || search || quickFilter !== 'all') && (
             <button 
               onClick={() => { setSearch(''); setFilterSource('all'); setFilterStatus('all'); setQuickFilter('all'); setDateRange({ start: '', end: '' }); }}
               className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 px-2"
             >
-              <XCircle className="w-3 h-3" /> Clear
+              <XCircle className="w-3 h-3" /> Clear All
             </button>
           )}
         </div>
