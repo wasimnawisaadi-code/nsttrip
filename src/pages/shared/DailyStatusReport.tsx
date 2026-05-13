@@ -127,7 +127,12 @@ export default function DailyStatusReport() {
       supplier: p['Supplier'] || p['supplier'] || '',
       sold: String(entry.sale_amount || ''),
       profit: String(entry.profit_amount || ''),
-      mobile: p['Mobile'] || p['Mobile No'] || p['Phone'] || p['Phone No'] || p['WhatsApp'] || p['whatsapp'] || p['mobile'] || '',
+      mobile: (() => {
+        const issuedFor = p['Issued for'] || p['issued_for'] || '';
+        // Look for any string of 7-15 digits that might have a + prefix
+        const phoneMatch = issuedFor.match(/\+?\d[\d\s-]{7,15}\d/);
+        return phoneMatch ? phoneMatch[0].replace(/\s|-/g, '') : (p['Mobile'] || p['Mobile No'] || p['Phone'] || p['Phone No'] || p['WhatsApp'] || p['whatsapp'] || p['mobile'] || '');
+      })(),
     });
     const path = isAdmin ? '/admin' : '/employee';
     navigate(`${path}/clients/new?${params.toString()}`);
