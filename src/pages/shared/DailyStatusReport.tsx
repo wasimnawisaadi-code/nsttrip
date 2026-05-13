@@ -128,10 +128,13 @@ export default function DailyStatusReport() {
       sold: String(entry.sale_amount || ''),
       profit: String(entry.profit_amount || ''),
       mobile: (() => {
-        const issuedFor = p['Issued for'] || p['issued_for'] || '';
-        // Look for any string of 7-15 digits that might have a + prefix
-        const phoneMatch = issuedFor.match(/\+?\d[\d\s-]{7,15}\d/);
-        return phoneMatch ? phoneMatch[0].replace(/\s|-/g, '') : (p['Mobile'] || p['Mobile No'] || p['Phone'] || p['Phone No'] || p['WhatsApp'] || p['whatsapp'] || p['mobile'] || '');
+        // Try multiple variations of the column name
+        const issuedFor = String(p['Issued for'] || p['Issued For'] || p['issued_for'] || p['issuedFor'] || '');
+        // Match anything that looks like a phone number (7 to 15 digits, can have + prefix)
+        // This regex looks for digits even if they are mixed with spaces, dots, or dashes
+        const cleaned = issuedFor.replace(/[^\d+]/g, ''); // Remove everything except digits and +
+        const match = cleaned.match(/\+?\d{7,15}/);
+        return match ? match[0] : (p['Mobile'] || p['Mobile No'] || p['Phone'] || p['Phone No'] || p['WhatsApp'] || p['whatsapp'] || p['mobile'] || '');
       })(),
     });
     const path = isAdmin ? '/admin' : '/employee';
