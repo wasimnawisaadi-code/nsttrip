@@ -31,7 +31,7 @@ export const DEFAULT_ATTENDANCE: AttendanceSettings = {
   auto_logout_outside_zone: true,
   enforce_geofence: true,
   default_zone_id: null,
-  inactivity_logout_min: 30,
+  inactivity_logout_min: 0,
   lunch_break_min: 60,
 };
 

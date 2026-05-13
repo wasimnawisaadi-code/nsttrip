@@ -428,6 +428,12 @@ function EmployeeEditor({
           checked={autoLogout}
           onChange={(v) => set({ auto_logout_outside_zone: v })}
         />
+        <Toggle
+          label="Idle Auto-Logout"
+          hint="Enable automatic logout after a period of no activity."
+          checked={(ov.inactivity_logout_min ?? defaults.inactivity_logout_min) > 0}
+          onChange={(v) => set({ inactivity_logout_min: v ? 30 : 0 })}
+        />
       </div>
 
       {/* SCHEDULE */}
@@ -448,10 +454,10 @@ function EmployeeEditor({
 
       {/* NEW: ACTIVITY & LUNCH SETTINGS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field label="Auto Logout (Idle Min)" hint="0 to disable. Logs user out if no mouse/key activity.">
+        <Field label="Idle Timeout (Minutes)" hint="How many minutes of inactivity before logout?">
           <input type="number" min={0} max={480} className="input-nawi text-sm py-1.5 w-full"
             value={ov.inactivity_logout_min ?? ''}
-            placeholder={String(defaults.inactivity_logout_min)}
+            placeholder={defaults.inactivity_logout_min > 0 ? String(defaults.inactivity_logout_min) : '0 (Disabled)'}
             onChange={e => set({ inactivity_logout_min: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value) || 0) })} />
         </Field>
         <Field label="Lunch Break (Min)" hint="Standard lunch time deduction.">
