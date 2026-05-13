@@ -6,7 +6,7 @@ import { generateDisplayId, auditLog } from '@/lib/supabase-service';
 import Papa from 'papaparse';
 
 const TEMPLATES: Record<string, string[]> = {
-  'Air Ticket': ['SI/NO', 'Issue Date', 'Passenger Name', 'Flight No', 'Sector', 'Travel Date', 'PNR', 'Ticket No', 'Issued for', 'Fare', 'Sold', 'Profit', 'Supplier', 'Staff', 'Remarks'],
+  'Air Ticket': ['SI/NO', 'Issue Date', 'Passenger Name', 'Mobile No', 'Flight No', 'Sector', 'Travel Date', 'PNR', 'Ticket No', 'Issued for', 'Fare', 'Sold', 'Profit', 'Supplier', 'Staff', 'Remarks'],
   'UAE Visa': ['Visa ID', 'Booking Date', 'Passenger Name', 'Passport No', 'Nationality', 'Contact No', 'Agency / Client', 'Sales Executive', 'Visa Type', 'Duration', 'Supplier (GDRFA / Agent)', 'Visa Sale', 'Visa Cost', 'Profit', 'Application Status', 'Payment Status', 'Issue Date', 'Expiry Date', 'Remarks'],
 };
 
