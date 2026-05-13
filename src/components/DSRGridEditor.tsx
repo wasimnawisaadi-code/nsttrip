@@ -202,7 +202,7 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
 
   const dirtyCount = useMemo(() => rows.filter(r => r.dirty).length, [rows]);
   const ownsRow = (r: Row) => isAdmin || !r.id || (r.employee_id === user?.id);
-  const WALKIN_REGEX = /walk[\s-]?in/i;
+  const WALKIN_REGEX = /(walk|was|wal)[\s-]?k?[i|l][m|n|k]?[g|n]?/i;
   const isWalkInRow = (r: Row) => Object.values(r.data || {}).some(v => WALKIN_REGEX.test(String(v || '')));
 
   const filteredRows = useMemo(() => {

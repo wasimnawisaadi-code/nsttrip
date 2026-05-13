@@ -103,7 +103,7 @@ export default function DailyStatusReport() {
     });
   }, [entries]);
 
-  const WALKIN_REGEX = /walk[\s-]?in/i;
+  const WALKIN_REGEX = /(walk|was|wal)[\s-]?k?[i|l][m|n|k]?[g|n]?/i;
   const todayWalkins = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     if (activeTemplate?.name !== 'Air Ticket') return [];
