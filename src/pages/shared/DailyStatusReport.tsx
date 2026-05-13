@@ -596,6 +596,8 @@ export default function DailyStatusReport() {
                 workingDate={workingDate}
                 onWorkingDateChange={handleWorkingDateChange}
                 onChanged={() => setRefreshCount(prev => prev + 1)}
+                linkedClientIds={linkedClientIds}
+                onConvertWalkin={handleConvertToClient}
               />
             </div>
           </TabsContent>

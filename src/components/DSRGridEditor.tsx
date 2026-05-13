@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, Save, RotateCcw, CalendarClock } from 'lucide-react';
+import { Plus, Trash2, Save, RotateCcw, CalendarClock, UserPlus, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 
@@ -26,6 +26,8 @@ interface Props {
   workingDate: string;
   onWorkingDateChange: (date: string) => void;
   onChanged?: () => void;
+  linkedClientIds?: Record<string, string>;
+  onConvertWalkin?: (row: any) => void;
 }
 
 /**
@@ -34,7 +36,7 @@ interface Props {
  * - Auto-detect today date OR manual per-row date selection
  * - Save dirty rows in batch
  */
-export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, employeeFilter, workingDate, onWorkingDateChange, onChanged }: Props) {
+export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, employeeFilter, workingDate, onWorkingDateChange, onChanged, linkedClientIds = {}, onConvertWalkin }: Props) {
   const { user, profile } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -336,11 +338,26 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
                   </td>
                 ))}
                 <td className="p-1 text-center">
-                  {ownsRow(r) && (
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeRow(idx)}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  )}
+                  <div className="flex items-center justify-center gap-1">
+                    {onConvertWalkin && isWalkInRow(r) && r.id && (
+                      linkedClientIds[r.id] ? (
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:bg-green-50" asChild>
+                          <a href={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[r.id]}`} target="_blank" rel="noreferrer">
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-600 hover:bg-orange-50" onClick={() => onConvertWalkin(r)}>
+                          <UserPlus className="w-3.5 h-3.5" />
+                        </Button>
+                      )
+                    )}
+                    {ownsRow(r) && (
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeRow(idx)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
