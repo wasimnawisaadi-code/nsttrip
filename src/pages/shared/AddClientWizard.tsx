@@ -140,6 +140,7 @@ export default function AddClientWizard() {
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`;
   });
   const basePath = isAdmin ? '/admin' : '/employee';
+  const [linkedDsrEntryId, setLinkedDsrEntryId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: '', mobile: '', email: '', passportNo: '',
@@ -196,6 +197,45 @@ export default function AddClientWizard() {
       setStep(0);
     });
   }, [editClientId]);
+
+  // ---- DSR Pre-fill Logic ----
+  useEffect(() => {
+    const fromDsr = searchParams.get('from_dsr');
+    if (fromDsr !== '1' || isEditMode) return;
+
+    const dsrId = searchParams.get('dsr_entry_id');
+    setLinkedDsrEntryId(dsrId);
+
+    const sector = searchParams.get('sector') || '';
+    const [dep, arr] = sector.includes('-') ? sector.split('-') : sector.includes('/') ? sector.split('/') : [sector, ''];
+
+    setForm(prev => ({
+      ...prev,
+      name: searchParams.get('name') || prev.name,
+      service: 'Air Ticket',
+      leadSource: 'Walk-in',
+      serviceDetails: {
+        ...prev.serviceDetails,
+        pnr: searchParams.get('pnr') || '',
+        flightNumber: searchParams.get('flight_no') || '',
+        departureCity: dep.trim(),
+        arrivalCity: arr.trim(),
+        travelDate: searchParams.get('travel_date') || '',
+        ticketNo: searchParams.get('ticket_no') || '',
+        supplier: searchParams.get('supplier') || '',
+        fare: searchParams.get('sold') || '',
+      },
+    }));
+    
+    // Auto-add travel date to important dates if available
+    const tDate = searchParams.get('travel_date');
+    if (tDate) {
+      setForm(prev => ({
+        ...prev,
+        importantDates: [...prev.importantDates, { id: uid(), name: 'Travel Date (Departure)', date: tDate }]
+      }));
+    }
+  }, [searchParams, isEditMode]);
 
   const updateForm = (changes: Partial<typeof form>) => setForm(prev => ({ ...prev, ...changes }));
   const updateSD = (key: string, val: string) => setForm(prev => ({ ...prev, serviceDetails: { ...prev.serviceDetails, [key]: val } }));
@@ -379,6 +419,7 @@ export default function AddClientWizard() {
           nationality: form.nationality || null, service_details: form.serviceDetails as any,
           documents: form.documents as any,
           important_dates: datesObj as any,
+          dsr_entry_id: linkedDsrEntryId || (editClient?.dsr_entry_id || null),
         }).eq('id', editClient.id);
         await auditLog('client_updated_via_wizard', 'client', editClient.id, { name: form.name });
         toast.success('Client updated');
@@ -400,6 +441,7 @@ export default function AddClientWizard() {
         family_members: [] as any,
         status: 'New' as const,
         assigned_to: user.id, created_by: user.id,
+        dsr_entry_id: linkedDsrEntryId,
       }).select('id').single();
 
       if (error || !newClient) {
@@ -480,6 +522,18 @@ export default function AddClientWizard() {
       )}
 
       <div className="card-nawi">
+        {linkedDsrEntryId && !isEditMode && (
+          <div className="mb-6 p-3 bg-orange-50 border border-orange-200 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
+            <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-orange-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs font-bold text-orange-900">Pre-filled from Air Ticket DSR</p>
+              <p className="text-[10px] text-orange-700">Passenger, PNR, and Flight details have been automatically imported. Review and complete the profile.</p>
+            </div>
+          </div>
+        )}
+
         {/* ===== STEP 0: TYPE & SERVICE ===== */}
         {step === 0 && (
           <div className="space-y-6">

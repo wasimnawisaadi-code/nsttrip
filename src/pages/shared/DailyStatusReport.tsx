@@ -23,13 +23,14 @@ import {
   Settings as SettingsIcon, TrendingUp, DollarSign, Users, AlertCircle, CheckCircle2, ExternalLink, BarChart2, Star, LayoutDashboard,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip as RTooltip, Legend, Cell,
 } from 'recharts';
 
 export default function DailyStatusReport() {
+  const navigate = useNavigate();
   const { user, profile, isAdmin } = useAuth();
   const [templates, setTemplates] = useState<DSRTemplate[]>([]);
   const [activeTemplate, setActiveTemplate] = useState<DSRTemplate | null>(null);
@@ -44,6 +45,8 @@ export default function DailyStatusReport() {
   const [workingDate, setWorkingDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [refreshCount, setRefreshCount] = useState(0);
   const [analysisSort, setAnalysisSort] = useState<'profit' | 'sale'>('profit');
+  const [linkedClientIds, setLinkedClientIds] = useState<Record<string, string>>({});
+  const [showWalkinPanel, setShowWalkinPanel] = useState(true);
 
   const loadTemplates = async () => {
     if (!user) return;
@@ -88,6 +91,46 @@ export default function DailyStatusReport() {
 
   useEffect(() => { loadTemplates(); loadEmployees(); }, [user, isAdmin]);
   useEffect(() => { loadEntries(); }, [activeTemplate, fromDate, toDate, employeeFilter, refreshCount]);
+
+  // Sync linked clients
+  useEffect(() => {
+    if (entries.length === 0) { setLinkedClientIds({}); return; }
+    const entryIds = entries.map(e => e.id);
+    supabase.from('clients').select('id, dsr_entry_id').in('dsr_entry_id', entryIds).then(({ data }) => {
+      const map: Record<string, string> = {};
+      data?.forEach(c => { if (c.dsr_entry_id) map[c.dsr_entry_id] = c.id; });
+      setLinkedClientIds(map);
+    });
+  }, [entries]);
+
+  const WALKIN_REGEX = /walk[\s-]?in/i;
+  const todayWalkins = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    if (activeTemplate?.name !== 'Air Ticket') return [];
+    return entries.filter(e => 
+      e.entry_date === today && 
+      Object.values(e.data || {}).some(v => WALKIN_REGEX.test(String(v || '')))
+    );
+  }, [entries, activeTemplate]);
+
+  const handleConvertToClient = (entry: DSREntry) => {
+    const p = entry.data;
+    const params = new URLSearchParams({
+      from_dsr: '1',
+      dsr_entry_id: entry.id,
+      name: p['Passenger Name'] || p['passenger_name'] || '',
+      pnr: p['PNR'] || p['pnr'] || '',
+      flight_no: p['Flight No'] || p['flight_no'] || '',
+      sector: p['Sector'] || p['sector'] || '',
+      travel_date: p['Travel Date'] || p['travel_date'] || '',
+      ticket_no: p['Ticket No'] || p['ticket_no'] || '',
+      supplier: p['Supplier'] || p['supplier'] || '',
+      sold: String(entry.sale_amount || ''),
+      profit: String(entry.profit_amount || ''),
+    });
+    const path = isAdmin ? '/admin' : '/employee';
+    navigate(`${path}/clients/new?${params.toString()}`);
+  };
 
   const handleWorkingDateChange = (date: string) => {
     setWorkingDate(date);
@@ -503,6 +546,46 @@ export default function DailyStatusReport() {
 
         {templates.map(t => (
           <TabsContent key={t.id} value={t.id} className="animate-in fade-in duration-300 mt-0">
+            {/* Walk-in Detection Alert */}
+            {t.name === 'Air Ticket' && todayWalkins.length > 0 && showWalkinPanel && (
+              <div className="mb-4 bg-orange-50 border border-orange-200 rounded-xl p-4 shadow-sm animate-in slide-in-from-top-2 duration-500">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-orange-900">Walk-ins Detected in Today's DSR</h3>
+                      <p className="text-[10px] text-orange-700">These entries have "walkin" in remarks. Convert them to full client profiles for CRM tracking.</p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setShowWalkinPanel(false)} className="h-7 text-orange-600 hover:bg-orange-100">Dismiss</Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {todayWalkins.map((w) => {
+                    const isLinked = linkedClientIds[w.id];
+                    return (
+                      <div key={w.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-orange-100 shadow-sm">
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate">{w.data['Passenger Name'] || 'Unknown'}</p>
+                          <p className="text-[9px] text-muted-foreground uppercase font-medium">PNR: {w.data['PNR'] || '—'}</p>
+                        </div>
+                        {isLinked ? (
+                          <Button size="sm" variant="ghost" asChild className="h-7 text-[10px] text-green-600 font-bold hover:bg-green-50">
+                            <Link to={`${isAdmin ? '/admin' : '/employee'}/clients/${isLinked}`}>View Client →</Link>
+                          </Button>
+                        ) : (
+                          <Button size="sm" onClick={() => handleConvertToClient(w)} className="h-7 text-[10px] bg-orange-500 hover:bg-orange-600 text-white font-bold">
+                            <Plus className="w-3 h-3 mr-1" /> Add Client
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            
             <div className="card-nawi overflow-hidden !p-0">
               <DSRGridEditor 
                 template={t} 

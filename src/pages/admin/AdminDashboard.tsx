@@ -88,6 +88,7 @@ export default function AdminDashboard() {
       const clientMatches = (c: any) => matchesFilter(c.created_at);
 
       let revenueThisMonth = 0, revenueLastMonth = 0, profitThisMonth = 0, totalRevenue = 0, totalProfit = 0;
+      const dsrLinkedClientIds = new Set(clients.filter((c: any) => c.dsr_entry_id).map((c: any) => c.id));
 
       if (dataSource === 'combined' || dataSource === 'dsr') {
         revenueThisMonth += dsrEntries.filter(dsrMatches).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
@@ -97,11 +98,15 @@ export default function AdminDashboard() {
         totalProfit += dsrEntries.reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
       }
       if (dataSource === 'combined' || dataSource === 'clients') {
-        revenueThisMonth += clients.filter(clientMatches).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-        revenueLastMonth += clients.filter((c: any) => c.created_at?.startsWith(lastMonth)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-        profitThisMonth += clients.filter(clientMatches).reduce((s: number, c: any) => s + (c.profit || 0), 0);
-        totalRevenue += clients.reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-        totalProfit += clients.reduce((s: number, c: any) => s + (c.profit || 0), 0);
+        const eligibleClients = clients.filter(c => {
+          if (dataSource === 'combined' && c.dsr_entry_id) return false;
+          return true;
+        });
+        revenueThisMonth += eligibleClients.filter(clientMatches).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
+        revenueLastMonth += eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
+        profitThisMonth += eligibleClients.filter(clientMatches).reduce((s: number, c: any) => s + (c.profit || 0), 0);
+        totalRevenue += eligibleClients.reduce((s: number, c: any) => s + (c.revenue || 0), 0);
+        totalProfit += eligibleClients.reduce((s: number, c: any) => s + (c.profit || 0), 0);
       }
 
       const activeTasks = tasks.filter((t: any) => t.status === 'New' || t.status === 'Processing').length;
@@ -125,7 +130,10 @@ export default function AdminDashboard() {
       const serviceCounts: Record<string, number> = {};
       const serviceRevenue: Record<string, number> = {};
       if (dataSource === 'combined' || dataSource === 'clients') {
-        clients.filter(clientMatches).forEach((c: any) => {
+        clients.filter(c => {
+          if (dataSource === 'combined' && c.dsr_entry_id) return false;
+          return clientMatches(c);
+        }).forEach((c: any) => {
           if (c.service) {
             serviceCounts[c.service] = (serviceCounts[c.service] || 0) + 1;
             serviceRevenue[c.service] = (serviceRevenue[c.service] || 0) + (c.revenue || 0);
@@ -150,7 +158,10 @@ export default function AdminDashboard() {
           clt += m.length;
         }
         if (dataSource === 'combined' || dataSource === 'clients') {
-          const m = clients.filter((c: any) => exactMatch ? c.created_at?.startsWith(datePrefix) : c.created_at?.startsWith(datePrefix));
+          const m = clients.filter((c: any) => {
+            if (dataSource === 'combined' && c.dsr_entry_id) return false;
+            return exactMatch ? c.created_at?.startsWith(datePrefix) : c.created_at?.startsWith(datePrefix);
+          });
           rev += m.reduce((s: number, c: any) => s + (c.revenue || 0), 0);
           prof += m.reduce((s: number, c: any) => s + (c.profit || 0), 0);
           clt += m.length; 

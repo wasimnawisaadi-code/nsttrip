@@ -200,6 +200,8 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
 
   const dirtyCount = useMemo(() => rows.filter(r => r.dirty).length, [rows]);
   const ownsRow = (r: Row) => isAdmin || !r.id || (r.employee_id === user?.id);
+  const WALKIN_REGEX = /walk[\s-]?in/i;
+  const isWalkInRow = (r: Row) => Object.values(r.data || {}).some(v => WALKIN_REGEX.test(String(v || '')));
 
   const filteredRows = useMemo(() => {
     if (!searchTerm.trim()) return rows;
@@ -299,7 +301,16 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
             )}
             {filteredRows.map((r, idx) => (
               <tr key={r.id || `new-${idx}`} className={`border-t hover:bg-muted/20 transition-colors animate-in fade-in slide-in-from-left-2 duration-300 ${r.dirty ? 'bg-warning/5' : ''}`}>
-                <td className="p-2 text-xs text-muted-foreground">{idx + 1}</td>
+                <td className="p-2 text-xs text-muted-foreground">
+                  <div className="flex flex-col items-center gap-1">
+                    {idx + 1}
+                    {isWalkInRow(r) && (
+                      <span className="text-[8px] bg-orange-100 text-orange-600 px-1 rounded font-bold whitespace-nowrap">
+                        WALKIN
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td className="p-1">
                   <Input type="date" value={r.entry_date} onChange={e => updateDate(idx, e.target.value)}
                     disabled={!ownsRow(r)} className="h-8 text-xs" />
