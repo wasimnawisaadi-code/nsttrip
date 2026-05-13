@@ -212,6 +212,7 @@ export default function AddClientWizard() {
     setForm(prev => ({
       ...prev,
       name: searchParams.get('name') || prev.name,
+      mobile: searchParams.get('mobile') || prev.mobile,
       service: 'Air Ticket',
       leadSource: 'Walk-in',
       serviceDetails: {

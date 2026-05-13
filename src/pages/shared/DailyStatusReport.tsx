@@ -127,6 +127,7 @@ export default function DailyStatusReport() {
       supplier: p['Supplier'] || p['supplier'] || '',
       sold: String(entry.sale_amount || ''),
       profit: String(entry.profit_amount || ''),
+      mobile: p['Mobile'] || p['Mobile No'] || p['Phone'] || p['Phone No'] || p['WhatsApp'] || p['whatsapp'] || p['mobile'] || '',
     });
     const path = isAdmin ? '/admin' : '/employee';
     navigate(`${path}/clients/new?${params.toString()}`);
