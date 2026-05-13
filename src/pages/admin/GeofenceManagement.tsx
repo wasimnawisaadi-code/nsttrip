@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { MapPin, Users, Activity, ChevronDown, ChevronUp, Save, Plus, Trash2, Navigation, Edit2 } from 'lucide-react';
+import { MapPin, Users, Activity, ChevronDown, ChevronUp, Save, Plus, Trash2, Navigation, Edit2, Shield, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import ZoneMapPicker from '@/components/ZoneMapPicker';
 import {
@@ -143,13 +143,17 @@ export default function GeofenceManagement() {
   };
 
   // ---- Per-employee save ----
-  const saveEmployee = async (emp: any, patch: { zoneId?: string | null; ov?: EmployeeOverride }) => {
+  const saveEmployee = async (emp: any, patch: { zoneId?: string | null; profileType?: string; ov?: EmployeeOverride }) => {
     setSavingId(emp.id);
     try {
-      if (patch.zoneId !== undefined) {
-        const { error } = await supabase.from('profiles').update({ assigned_zone_id: patch.zoneId }).eq('id', emp.id);
+      if (patch.zoneId !== undefined || patch.profileType !== undefined) {
+        const updates: any = {};
+        if (patch.zoneId !== undefined) updates.assigned_zone_id = patch.zoneId;
+        if (patch.profileType !== undefined) updates.profile_type = patch.profileType;
+        
+        const { error } = await supabase.from('profiles').update(updates).eq('id', emp.id);
         if (error) throw error;
-        setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, assigned_zone_id: patch.zoneId } : e));
+        setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, ...updates } : e));
       }
       if (patch.ov !== undefined) {
         const cleaned: EmployeeOverride = {};
@@ -183,6 +187,42 @@ export default function GeofenceManagement() {
         </div>
         <div className="px-3 py-1.5 rounded-full bg-success/10 text-success text-xs font-medium flex items-center gap-1.5">
           <Activity className="w-3.5 h-3.5" /> {liveCount} active now
+        </div>
+      </div>
+
+      {/* GLOBAL CONTROLS */}
+      <div className="card-nawi border-primary/20 bg-primary/5">
+        <div className="flex items-center gap-2 mb-3">
+          <Shield className="w-5 h-5 text-primary" />
+          <h3 className="font-bold font-display">Global Geofence Configuration</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Toggle 
+            label="Master Geofence Switch"
+            hint="If OFF, all location checks are disabled for the entire company."
+            checked={att.enforce_geofence}
+            onChange={(v) => {
+              const next = { ...att, enforce_geofence: v };
+              setAtt(next);
+              supabase.from('app_settings' as any).upsert({ key: 'attendance', value: next }, { onConflict: 'key' }).then(() => {
+                invalidateAttendanceCache();
+                toast.success(`Geofence system ${v ? 'Enabled' : 'Disabled'}`);
+              });
+            }}
+          />
+          <Toggle 
+            label="Global Auto-Logout"
+            hint="Automatically sign out anyone who leaves their zone (default for Office staff)."
+            checked={att.auto_logout_outside_zone}
+            onChange={(v) => {
+              const next = { ...att, auto_logout_outside_zone: v };
+              setAtt(next);
+              supabase.from('app_settings' as any).upsert({ key: 'attendance', value: next }, { onConflict: 'key' }).then(() => {
+                invalidateAttendanceCache();
+                toast.success(`Auto-logout ${v ? 'Enabled' : 'Disabled'}`);
+              });
+            }}
+          />
         </div>
       </div>
 
@@ -339,7 +379,7 @@ export default function GeofenceManagement() {
                       defaults={att}
                       currentOv={ov}
                       saving={savingId === emp.id}
-                      onSave={(zoneId, newOv) => saveEmployee(emp, { zoneId, ov: newOv })}
+                      onSave={(zoneId, profileType, newOv) => saveEmployee(emp, { zoneId, profileType, ov: newOv })}
                       onReset={() => saveEmployee(emp, { ov: {} })}
                       weekend={weekend}
                       autoLogout={autoLogout}
@@ -365,17 +405,18 @@ function EmployeeEditor({
   defaults: AttendanceSettings;
   currentOv: EmployeeOverride;
   saving: boolean;
-  onSave: (zoneId: string | null, ov: EmployeeOverride) => void;
+  onSave: (zoneId: string | null, profileType: string, ov: EmployeeOverride) => void;
   onReset: () => void;
   weekend: number[];
   autoLogout: boolean;
   enforce: boolean;
 }) {
   const [zoneId, setZoneId] = useState<string>(emp.assigned_zone_id || '');
+  const [profileType, setProfileType] = useState<string>(emp.profile_type || 'office');
   const [ov, setOv] = useState<EmployeeOverride>(currentOv);
 
   // Re-sync when parent state changes (e.g. after a save committed to the server)
-  useEffect(() => { setZoneId(emp.assigned_zone_id || ''); }, [emp.assigned_zone_id]);
+  useEffect(() => { setZoneId(emp.assigned_zone_id || ''); setProfileType(emp.profile_type || 'office'); }, [emp.assigned_zone_id, emp.profile_type]);
   useEffect(() => { setOv(currentOv); }, [JSON.stringify(currentOv)]);
 
   const set = (patch: Partial<EmployeeOverride>) => setOv(o => ({ ...o, ...patch }));
@@ -393,24 +434,41 @@ function EmployeeEditor({
 
   return (
     <div className="border-t border-border bg-muted/20 p-4 space-y-4">
-      {/* ZONE */}
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Assigned Zone</label>
-        <select className="input-nawi text-sm py-1.5 w-full" value={zoneId || ''} onChange={e => setZoneId(e.target.value)}>
-          <option value="" disabled>— Select a Zone —</option>
-          {zones.map(z => (
-            <option key={z.id} value={z.id}>{z.name} · {z.radius}m</option>
-          ))}
-        </select>
+      {/* ZONE & TYPE */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+            <MapPin className="w-3 h-3" /> Assigned Zone
+          </label>
+          <select className="input-nawi text-sm py-1.5 w-full" value={zoneId || ''} onChange={e => setZoneId(e.target.value)}>
+            <option value="" disabled>— Select a Zone —</option>
+            {zones.map(z => (
+              <option key={z.id} value={z.id}>{z.name} · {z.radius}m</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+            <Briefcase className="w-3 h-3" /> Employee Mode
+          </label>
+          <select className="input-nawi text-sm py-1.5 w-full" value={profileType} onChange={e => setProfileType(e.target.value)}>
+            <option value="office">Office Staff (Strict Geofence)</option>
+            <option value="sales">Sales/Field Staff (Flexible)</option>
+          </select>
+        </div>
+
         {selectedZone && (
-          <ZoneMapPicker
-            lat={selectedZone.latitude}
-            lng={selectedZone.longitude}
-            radius={selectedZone.radius}
-            onChange={() => {}}
-            readOnly
-            height={200}
-          />
+          <div className="sm:col-span-2">
+            <ZoneMapPicker
+              lat={selectedZone.latitude}
+              lng={selectedZone.longitude}
+              radius={selectedZone.radius}
+              onChange={() => {}}
+              readOnly
+              height={200}
+            />
+          </div>
         )}
       </div>
 
@@ -490,7 +548,7 @@ function EmployeeEditor({
         </button>
         <button
           className="btn-primary text-xs py-1.5 px-4 flex items-center gap-1.5"
-          onClick={() => onSave(zoneId || null, ov)}
+          onClick={() => onSave(zoneId || null, profileType, ov)}
           disabled={saving}
         >
           <Save className="w-3.5 h-3.5" />
