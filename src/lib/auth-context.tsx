@@ -116,18 +116,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const geoZone = zone as unknown as GeofenceZone;
 
-    // Watch position and auto-logout if leaving zone (office employees)
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-    }
+    const logoutTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     watchIdRef.current = watchPosition(
       (pos: GeoPosition) => {
         const inside = isInsideZone(pos, geoZone);
         setIsInZone(inside);
+        
         if (!inside && profileType === 'office') {
-          toast.error('You have left the authorized zone. Auto-logging out...');
-          setTimeout(() => signOut(), 3000);
+          // Start a 30-second countdown if not already started
+          if (!logoutTimeoutRef.current) {
+            toast.warning('Outside authorized zone. Logging out in 30 seconds if you do not return...', {
+              duration: 30000,
+              id: 'geofence-warning'
+            });
+            logoutTimeoutRef.current = setTimeout(() => {
+              toast.error('Outside zone for too long. Auto-logging out...');
+              signOut();
+            }, 30000);
+          }
+        } else {
+          // If back inside, clear any pending logout
+          if (logoutTimeoutRef.current) {
+            clearTimeout(logoutTimeoutRef.current);
+            logoutTimeoutRef.current = null;
+            toast.dismiss('geofence-warning');
+            toast.success('Back in authorized zone. Logout cancelled.');
+          }
         }
       },
       () => { /* ignore errors during watching */ }
