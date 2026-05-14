@@ -639,11 +639,18 @@ export default function AdminDashboard() {
                     <p className="text-[10px] font-bold text-destructive mb-2 uppercase tracking-wide flex items-center gap-1.5">
                       <AlertTriangle className="w-3 h-3" /> Currently Offline (System Timeout)
                     </p>
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {data.todayAttendance.filter((a: any) => a.is_auto_logout && a.logout_time).map((a: any) => (
-                        <div key={a.id} className="flex items-center justify-between text-xs font-medium">
-                          <span>{a.name}</span>
-                          <span className="text-[10px] text-muted-foreground italic">Logged out at {new Date(a.logout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <div key={a.id} className="flex flex-col gap-1 border-b border-destructive/5 pb-1.5 last:border-0 last:pb-0">
+                          <div className="flex items-center justify-between text-xs font-bold">
+                            <span>{a.name}</span>
+                            <span className="text-[10px] text-destructive">Logged out at {new Date(a.logout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[9px] text-muted-foreground uppercase font-bold tracking-tighter">
+                            <span>{a.auto_logout_count || 1} Total Autos Today</span>
+                            <span>•</span>
+                            <span>{a.offline_minutes || 0}m Total Idle Time</span>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -654,16 +661,21 @@ export default function AdminDashboard() {
                 {data.todayAttendance.filter((a: any) => (a.auto_logout_count || 0) > 0).length > 0 && (
                   <div className="p-2.5 rounded-lg bg-warning/5 border border-warning/10">
                     <p className="text-[10px] font-bold text-warning mb-2 uppercase tracking-wide flex items-center gap-1.5">
-                      <Clock className="w-3 h-3" /> Auto-Logout History (Today)
+                      <Clock className="w-3 h-3" /> Auto-Logout History (Summary Today)
                     </p>
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {data.todayAttendance.filter((a: any) => (a.auto_logout_count || 0) > 0).map((a: any) => (
                         <div key={a.id} className="flex items-center justify-between text-xs">
-                          <span className="font-medium">{a.name}</span>
+                          <div className="flex flex-col">
+                            <span className="font-bold">{a.name}</span>
+                            <span className="text-[9px] text-muted-foreground uppercase">{a.offline_minutes || 0}m total offline gaps</span>
+                          </div>
                           <div className="flex items-center gap-2">
-                            {a.logout_time && a.is_auto_logout && <span className="text-[9px] bg-destructive/10 text-destructive px-1 rounded font-bold">OFFLINE</span>}
-                            <span className="bg-warning/20 text-warning text-[10px] px-1.5 rounded-full font-bold">
-                              {a.auto_logout_count} {a.auto_logout_count === 1 ? 'time' : 'times'}
+                            {a.logout_time && a.is_auto_logout && (
+                              <span className="text-[8px] bg-destructive text-white px-1 rounded font-black animate-pulse">OFFLINE NOW</span>
+                            )}
+                            <span className="bg-warning/20 text-warning text-[10px] px-2 py-0.5 rounded-full font-black border border-warning/30">
+                              {a.auto_logout_count} {a.auto_logout_count === 1 ? 'Auto' : 'Autos'}
                             </span>
                           </div>
                         </div>
