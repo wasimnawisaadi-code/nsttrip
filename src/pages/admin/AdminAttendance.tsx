@@ -408,16 +408,28 @@ export default function AdminAttendance() {
                               <td>
                                 <div className="flex flex-col">
                                   <span className="font-bold text-primary">
-                                    {a.logout_time ? `${a.hours_worked || 0}h` : 
-                                      a.login_time ? 
-                                      `${Math.max(0, ((new Date().getTime() - new Date(a.login_time).getTime()) / 3600000) - (((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60)).toFixed(1)}h` : 
-                                      '—'}
+                                    {(() => {
+                                      if (a.logout_time) return `${a.hours_worked || 0}h`;
+                                      if (!a.login_time) return '—';
+                                      
+                                      const loginDate = new Date(a.login_time);
+                                      const now = new Date();
+                                      const diffMs = now.getTime() - loginDate.getTime();
+                                      
+                                      // If the login was on a previous day, this calculation won't be accurate for "Live"
+                                      // but for today's records it will work perfectly.
+                                      const totalHrs = diffMs / 3600000;
+                                      const idleHrs = ((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60;
+                                      const netHrs = Math.max(0, totalHrs - idleHrs);
+                                      
+                                      return `${netHrs.toFixed(1)}h`;
+                                    })()}
                                   </span>
                                   <span className="text-[8px] text-muted-foreground leading-tight">(Net Work)</span>
                                 </div>
                               </td>
                               <td>
-                                <StatusBadge status={a.status} />
+                                <StatusBadge status={a.status === 'Without Checkout' ? 'Present' : a.status} />
                               </td>
                               <td className="max-w-[180px] text-[10px] leading-snug">
                                 <div className="line-clamp-2" title={a.work_summary}>
