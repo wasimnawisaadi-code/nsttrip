@@ -101,34 +101,29 @@ export default function AppLayout() {
 
     // 2. Inactivity Watcher (Auto-Logout)
     let idleTimer: NodeJS.Timeout;
+    let cachedLimit: number | null = null;
+
     const resetIdleTimer = async () => {
       clearTimeout(idleTimer);
-      const { getAttendanceSettings } = await import('@/lib/settings');
-      const settings = await getAttendanceSettings(user.id);
-      const limit = settings.inactivity_logout_min || 0;
       
-      if (limit > 0) {
+      if (cachedLimit === null) {
+        const { getAttendanceSettings } = await import('@/lib/settings');
+        const settings = await getAttendanceSettings(user.id);
+        cachedLimit = settings.inactivity_logout_min || 0;
+      }
+      
+      if (cachedLimit > 0) {
         idleTimer = setTimeout(async () => {
           console.log('Inactivity limit reached. Auto-logging out...');
-          // Record auto-logout status before signing out
           const today = new Date().toISOString().split('T')[0];
           await supabase.from('attendance').update({ 
             is_auto_logout: true,
             logout_time: new Date().toISOString()
           } as any).eq('employee_id', user.id).eq('date', today).is('logout_time', null);
 
-          // Send Notification about the auto-logout
-          await supabase.from('notifications').insert({
-            user_id: user.id,
-            title: 'Auto-Logout Triggered',
-            message: `You were automatically logged out after ${limit} minutes of inactivity.`,
-            type: 'system',
-            is_read: false
-          });
-          
           await signOut();
           navigate('/login');
-        }, limit * 60 * 1000);
+        }, cachedLimit * 60000);
       }
     };
 

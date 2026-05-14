@@ -224,8 +224,10 @@ export default function AdminDashboard() {
         // Include live shift duration for currently logged-in employees
         const active = empAttendance.find((a: any) => a.login_time && !a.logout_time && a.date === today);
         if (active) {
-          const liveDuration = (new Date().getTime() - new Date(active.login_time).getTime()) / 3600000;
-          totalHours += liveDuration;
+          const breakMs = (Number(active.total_break_minutes) || 0) * 60000;
+          const offlineMs = (Number(active.offline_minutes) || 0) * 60000;
+          const liveDuration = (new Date().getTime() - new Date(active.login_time).getTime() - breakMs - offlineMs) / 3600000;
+          totalHours += Math.max(0, liveDuration);
         }
 
         let empRev = 0, empProf = 0, empClientsCount = 0;
@@ -631,10 +633,49 @@ export default function AdminDashboard() {
               </div>
               
               <div className="space-y-3">
-                {/* Active Breaks */}
-                {data.todayAttendance.filter((a: any) => a.break_start_time).length > 0 && (
+                {/* Currently Offline due to Auto-Logout */}
+                {data.todayAttendance.filter((a: any) => a.is_auto_logout && a.logout_time).length > 0 && (
+                  <div className="p-2.5 rounded-lg bg-destructive/5 border border-destructive/10">
+                    <p className="text-[10px] font-bold text-destructive mb-2 uppercase tracking-wide flex items-center gap-1.5">
+                      <AlertTriangle className="w-3 h-3" /> Currently Offline (System Timeout)
+                    </p>
+                    <div className="space-y-1.5">
+                      {data.todayAttendance.filter((a: any) => a.is_auto_logout && a.logout_time).map((a: any) => (
+                        <div key={a.id} className="flex items-center justify-between text-xs font-medium">
+                          <span>{a.name}</span>
+                          <span className="text-[10px] text-muted-foreground italic">Logged out at {new Date(a.logout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Auto-Logout History (People who re-logged in) */}
+                {data.todayAttendance.filter((a: any) => (a.auto_logout_count || 0) > 0).length > 0 && (
                   <div className="p-2.5 rounded-lg bg-warning/5 border border-warning/10">
                     <p className="text-[10px] font-bold text-warning mb-2 uppercase tracking-wide flex items-center gap-1.5">
+                      <Clock className="w-3 h-3" /> Auto-Logout History (Today)
+                    </p>
+                    <div className="space-y-1.5">
+                      {data.todayAttendance.filter((a: any) => (a.auto_logout_count || 0) > 0).map((a: any) => (
+                        <div key={a.id} className="flex items-center justify-between text-xs">
+                          <span className="font-medium">{a.name}</span>
+                          <div className="flex items-center gap-2">
+                            {a.logout_time && a.is_auto_logout && <span className="text-[9px] bg-destructive/10 text-destructive px-1 rounded font-bold">OFFLINE</span>}
+                            <span className="bg-warning/20 text-warning text-[10px] px-1.5 rounded-full font-bold">
+                              {a.auto_logout_count} {a.auto_logout_count === 1 ? 'time' : 'times'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Active Breaks */}
+                {data.todayAttendance.filter((a: any) => a.break_start_time).length > 0 && (
+                  <div className="p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10">
+                    <p className="text-[10px] font-bold text-blue-500 mb-2 uppercase tracking-wide flex items-center gap-1.5">
                       <Clock className="w-3 h-3" /> Employees on Break
                     </p>
                     <div className="space-y-1.5">
@@ -648,24 +689,7 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {/* Auto-Logouts Today */}
-                {data.todayAttendance.filter((a: any) => a.is_auto_logout).length > 0 && (
-                  <div className="p-2.5 rounded-lg bg-destructive/5 border border-destructive/10">
-                    <p className="text-[10px] font-bold text-destructive mb-2 uppercase tracking-wide flex items-center gap-1.5">
-                      <AlertTriangle className="w-3 h-3" /> Auto-Logouts Today
-                    </p>
-                    <div className="space-y-1.5">
-                      {data.todayAttendance.filter((a: any) => a.is_auto_logout).map((a: any) => (
-                        <div key={a.id} className="flex items-center justify-between text-xs font-medium">
-                          <span>{a.name}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive uppercase font-bold">Auto</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {data.todayAttendance.filter((a: any) => a.break_start_time || a.is_auto_logout).length === 0 && (
+                {data.todayAttendance.filter((a: any) => a.break_start_time || a.is_auto_logout || (a.auto_logout_count || 0) > 0).length === 0 && (
                    <div className="text-center py-6 border border-dashed rounded-lg">
                       <UserCheck className="w-6 h-6 mx-auto mb-2 opacity-20 text-success" />
                       <p className="text-xs text-muted-foreground">No anomalies detected today</p>
@@ -692,12 +716,22 @@ export default function AdminDashboard() {
                             <span className="w-1.5 h-1.5 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Online now" />
                           )}
                         </div>
-                        <p className="text-[10px] text-muted-foreground">
-                          {a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                          {a.logout_time ? ` → ${new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}
-                        </p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] text-muted-foreground">
+                            {a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                            {a.logout_time ? ` → ${new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                          </p>
+                          {a.offline_minutes > 0 && <span className="text-[9px] font-bold text-warning bg-warning/5 px-1 rounded">Idle: {a.offline_minutes}m</span>}
+                        </div>
                       </div>
-                      <StatusBadge status={a.status} />
+                      {a.is_auto_logout ? (
+                        <div className="flex flex-col items-end gap-1">
+                           <StatusBadge status="Without Checkout" />
+                           {a.auto_logout_count > 1 && <span className="text-[8px] font-bold text-destructive">({a.auto_logout_count} autos)</span>}
+                        </div>
+                      ) : (
+                        <StatusBadge status={a.status} />
+                      )}
                     </div>
                   ))}
                 </div>

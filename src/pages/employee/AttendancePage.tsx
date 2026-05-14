@@ -48,7 +48,7 @@ export default function AttendancePage() {
   useEffect(() => {
     let interval: any;
     const breakStart = todayRecord?.break_start_time;
-    
+
     if (breakStart) {
       const calculateDiff = () => {
         const start = new Date(breakStart);
@@ -107,7 +107,7 @@ export default function AttendancePage() {
       if (todayRecord && !todayRecord.logout_time) {
         const logoutTime = new Date().toISOString();
         const loginTimeStr = todayRecord.login_time;
-        
+
         if (!loginTimeStr) {
           toast.error("Login time record is missing. Please contact admin.");
           return;
@@ -115,16 +115,17 @@ export default function AttendancePage() {
 
         const loginDate = new Date(loginTimeStr);
         const logoutDate = new Date(logoutTime);
-        
+
         // Safety check for invalid dates
         if (isNaN(loginDate.getTime()) || isNaN(logoutDate.getTime())) {
           toast.error("Invalid time format detected.");
           return;
         }
-        
+
         const totalMs = logoutDate.getTime() - loginDate.getTime();
         const breakMs = (Number(todayRecord.total_break_minutes) || 0) * 60000;
-        const hoursWorked = Math.max(0, Math.round(((totalMs - breakMs) / 3600000) * 10) / 10);
+        const offlineMs = (Number((todayRecord as any).offline_minutes) || 0) * 60000;
+        const hoursWorked = Math.max(0, Math.round(((totalMs - breakMs - offlineMs) / 3600000) * 10) / 10);
 
         let logoutLat: number | null = null;
         let logoutLng: number | null = null;
@@ -164,10 +165,10 @@ export default function AttendancePage() {
     try {
       if (!todayRecord) return;
       const now = new Date();
-      
+
       if (isStart) {
-        const { error } = await supabase.from('attendance').update({ 
-          break_start_time: now.toISOString() 
+        const { error } = await supabase.from('attendance').update({
+          break_start_time: now.toISOString()
         } as any).eq('id', todayRecord.id);
         if (error) throw error;
         toast.success("Break started");
@@ -177,12 +178,12 @@ export default function AttendancePage() {
           toast.error("Error reading break start time.");
           return;
         }
-        
+
         const diffMin = Math.max(0, Math.round((now.getTime() - start.getTime()) / 60000));
         const currentTotal = Number(todayRecord.total_break_minutes) || 0;
         const newTotal = currentTotal + diffMin;
-        
-        const { error } = await supabase.from('attendance').update({ 
+
+        const { error } = await supabase.from('attendance').update({
           break_start_time: null,
           total_break_minutes: isNaN(newTotal) ? currentTotal : newTotal
         } as any).eq('id', todayRecord.id);
@@ -219,16 +220,16 @@ export default function AttendancePage() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold font-display">My Attendance</h2>
         <div className="flex items-center gap-2">
-           {todayRecord && !todayRecord.logout_time && (
-             <>
-               {todayRecord.break_start_time ? (
-                 <button onClick={() => handleBreak(false)} className="bg-success text-success-foreground px-4 py-1.5 rounded-lg text-sm font-bold animate-pulse">End Break</button>
-               ) : (
-                 <button onClick={() => handleBreak(true)} className="bg-warning text-warning-foreground px-4 py-1.5 rounded-lg text-sm font-bold">Start Break</button>
-               )}
-             </>
-           )}
-           <input type="month" value={yearMonth} onChange={(e) => setYearMonth(e.target.value)} className="input-nawi w-auto py-1.5" />
+          {todayRecord && !todayRecord.logout_time && (
+            <>
+              {todayRecord.break_start_time ? (
+                <button onClick={() => handleBreak(false)} className="bg-success text-success-foreground px-4 py-1.5 rounded-lg text-sm font-bold animate-pulse">End Break</button>
+              ) : (
+                <button onClick={() => handleBreak(true)} className="bg-warning text-warning-foreground px-4 py-1.5 rounded-lg text-sm font-bold">Start Break</button>
+              )}
+            </>
+          )}
+          <input type="month" value={yearMonth} onChange={(e) => setYearMonth(e.target.value)} className="input-nawi w-auto py-1.5" />
         </div>
       </div>
 
@@ -239,9 +240,9 @@ export default function AttendancePage() {
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"><Clock className="w-5 h-5 text-primary" /></div>
               <div>
                 <p className="text-sm font-semibold flex items-center gap-2">
-                   Today's Session 
-                   {todayRecord?.is_auto_logout && <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">Auto-Logged Out</span>}
-                   {todayRecord?.break_start_time && <span className="text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded animate-pulse">On Break</span>}
+                  Today's Session
+                  {todayRecord?.is_auto_logout && <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">Auto-Logged Out</span>}
+                  {todayRecord?.break_start_time && <span className="text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded animate-pulse">On Break</span>}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Login: {safeTime(todayRecord?.login_time)}
@@ -260,22 +261,22 @@ export default function AttendancePage() {
 
           {todayRecord?.break_start_time && (
             <div className="mt-4 p-3 bg-warning/5 rounded-lg border border-warning/20 flex items-center justify-between">
-               <div className="flex items-center gap-2 text-warning">
-                  <Clock className="w-4 h-4 animate-spin-slow" />
-                  <span className="text-xs font-bold uppercase tracking-tight">Active Break Timer</span>
-               </div>
-               <div className="flex gap-4">
-                  <div className="text-right">
-                     <p className="text-[10px] text-muted-foreground uppercase font-bold">Time Used</p>
-                     <p className="text-sm font-bold text-warning">{breakTimer}m</p>
-                  </div>
-                  <div className="text-right">
-                     <p className="text-[10px] text-muted-foreground uppercase font-bold">Remaining</p>
-                     <p className={`text-sm font-bold ${lunchAllowance - breakTimer <= 5 ? 'text-destructive animate-pulse' : 'text-success'}`}>
-                        {Math.max(0, lunchAllowance - breakTimer)}m
-                     </p>
-                  </div>
-               </div>
+              <div className="flex items-center gap-2 text-warning">
+                <Clock className="w-4 h-4 animate-spin-slow" />
+                <span className="text-xs font-bold uppercase tracking-tight">Active Break Timer</span>
+              </div>
+              <div className="flex gap-4">
+                <div className="text-right">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Time Used</p>
+                  <p className="text-sm font-bold text-warning">{breakTimer}m</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Remaining</p>
+                  <p className={`text-sm font-bold ${lunchAllowance - breakTimer <= 5 ? 'text-destructive animate-pulse' : 'text-success'}`}>
+                    {Math.max(0, lunchAllowance - breakTimer)}m
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -310,7 +311,7 @@ export default function AttendancePage() {
 
       <div className="card-nawi p-0 overflow-x-auto">
         <table className="table-nawi w-full text-xs">
-          <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Break</th><th>Work</th><th>Summary</th><th>Status</th></tr></thead>
+          <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Break</th><th>Idle</th><th>Autos</th><th>Work</th><th>Summary</th><th>Status</th></tr></thead>
           <tbody>
             {!attendance || attendance.length === 0 ? <tr><td colSpan={7} className="text-center text-muted-foreground py-8">No records found for this period</td></tr> :
               attendance.map((a) => (
@@ -319,12 +320,19 @@ export default function AttendancePage() {
                   <td>{safeTime(a?.login_time)}</td>
                   <td>
                     {a?.logout_time ? safeTime(a.logout_time) : '—'}
-                    {a?.is_auto_logout && <span className="block text-[9px] text-destructive font-bold uppercase">Auto</span>}
                   </td>
                   <td>{a?.total_break_minutes || 0}m</td>
+                  <td className="text-warning font-semibold">{a?.offline_minutes || 0}m</td>
+                  <td className="text-center">{a?.auto_logout_count || 0}</td>
                   <td><span className="font-bold">{a?.hours_worked || 0}h</span></td>
                   <td className="max-w-[150px] truncate">{a?.work_summary || '—'}</td>
-                  <td><StatusBadge status={a?.status || 'Present'} /></td>
+                  <td>
+                    {a?.is_auto_logout ? (
+                      <StatusBadge status="Without Checkout" />
+                    ) : (
+                      <StatusBadge status={a?.status || 'Present'} />
+                    )}
+                  </td>
                 </tr>
               ))}
           </tbody>

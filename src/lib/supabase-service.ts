@@ -86,7 +86,7 @@ import { getAttendanceSettings, classifyLogin, isWeekend } from './settings';
 export async function handleAttendanceHandshake(userId: string, lat?: number | null, lng?: number | null, locStatus?: string) {
   const today = new Date().toISOString().split('T')[0];
   const now = new Date();
-  
+
   // 1. Check for forgotten sessions from YESTERDAY or before
   const { data: forgotten } = await supabase
     .from('attendance')
@@ -103,21 +103,24 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
       .select('last_seen_at')
       .eq('user_id', userId)
       .single();
-    
+
     const lastSeen = profile?.last_seen_at ? new Date(profile.last_seen_at) : null;
-    
+
     // Fallback: If no last seen or last seen is before login, use login + 8 hours or end of that day
     let autoLogoutTime = lastSeen;
     if (!autoLogoutTime || autoLogoutTime <= new Date(forgotten.login_time)) {
-       const loginDate = new Date(forgotten.login_time);
-       autoLogoutTime = new Date(loginDate.setHours(19, 0, 0, 0)); // Default to 7:00 PM
+      const loginDate = new Date(forgotten.login_time);
+      autoLogoutTime = new Date(loginDate.setHours(19, 0, 0, 0)); // Default to 7:00 PM
     }
 
-    const hoursWorked = Math.round(((autoLogoutTime.getTime() - new Date(forgotten.login_time).getTime()) / 3600000) * 10) / 10;
+    const totalMs = autoLogoutTime.getTime() - new Date(forgotten.login_time).getTime();
+    const breakMs = (Number((forgotten as any).total_break_minutes) || 0) * 60000;
+    const offlineMs = (Number((forgotten as any).offline_minutes) || 0) * 60000;
+    const hoursWorked = Math.max(0, Math.round(((totalMs - breakMs - offlineMs) / 3600000) * 10) / 10);
 
     await supabase.from('attendance').update({
       logout_time: autoLogoutTime.toISOString(),
-      hours_worked: Math.max(0, hoursWorked),
+      hours_worked: hoursWorked,
       is_auto_logout: true,
       work_summary: 'Auto-Checkout: Employee forgot to logout yesterday.'
     } as any).eq('id', forgotten.id);
@@ -156,10 +159,19 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
     } as any);
   } else if (existingToday.logout_time) {
     // Re-login after logout on same day -> resume session
+    const logoutDate = new Date(existingToday.logout_time);
+    const offlineMin = Math.max(0, Math.round((now.getTime() - logoutDate.getTime()) / 60000));
+    
+    const currentOffline = Number((existingToday as any).offline_minutes) || 0;
+    const currentAutoCount = Number((existingToday as any).auto_logout_count) || 0;
+    const isAuto = (existingToday as any).is_auto_logout === true;
+
     await supabase.from('attendance').update({
       logout_time: null,
       hours_worked: 0,
-      is_auto_logout: false
+      is_auto_logout: false,
+      offline_minutes: currentOffline + offlineMin,
+      auto_logout_count: isAuto ? currentAutoCount + 1 : currentAutoCount
     } as any).eq('id', existingToday.id);
   }
 }

@@ -214,7 +214,7 @@ async function recordLoginAttendanceWithLocation(
 
   const { data: existing } = await supabase
     .from('attendance')
-    .select('id, login_time, logout_time')
+    .select('id, login_time, logout_time, total_break_minutes, offline_minutes, auto_logout_count, is_auto_logout')
     .eq('employee_id', userId)
     .eq('date', today)
     .maybeSingle();
@@ -237,9 +237,18 @@ async function recordLoginAttendanceWithLocation(
 
   // Re-login after a logout same day → resume the session
   if (existing.logout_time) {
+    const logoutDate = new Date(existing.logout_time);
+    const offlineMin = Math.max(0, Math.round((now.getTime() - logoutDate.getTime()) / 60000));
+    const currentOffline = Number((existing as any).offline_minutes) || 0;
+    const currentAutoCount = Number((existing as any).auto_logout_count) || 0;
+    const isAuto = (existing as any).is_auto_logout === true;
+
     await supabase.from('attendance').update({
       logout_time: null,
       hours_worked: 0,
+      is_auto_logout: false,
+      offline_minutes: currentOffline + offlineMin,
+      auto_logout_count: isAuto ? currentAutoCount + 1 : currentAutoCount
     } as any).eq('id', existing.id);
   }
   // Otherwise (already active) → no-op

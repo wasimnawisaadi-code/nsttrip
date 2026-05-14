@@ -185,7 +185,7 @@ export default function AdminAttendance() {
           </div>
           <div className="table-container">
             <table className="table-nawi w-full">
-              <thead><tr><th>Employee</th><th>Login</th><th>Logout</th><th>Break</th><th>Hours</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Employee</th><th>Login</th><th>Logout</th><th>Break</th><th>Idle</th><th>Autos</th><th>Hours</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {empSummary.map(e => {
                   const today = new Date().toISOString().split('T')[0];
@@ -205,11 +205,22 @@ export default function AdminAttendance() {
                       <td className="text-xs">{att?.login_time ? new Date(att.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                       <td className="text-xs">
                         {att?.logout_time ? new Date(att.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : (att ? 'Active' : '—')}
-                        {att?.is_auto_logout && <span className="block text-[9px] text-destructive font-bold">AUTO</span>}
                       </td>
-                      <td className="text-xs">{att?.total_break_minutes || 0}m</td>
+                      <td className="text-xs text-muted-foreground">{att?.total_break_minutes || 0}m</td>
+                      <td className="text-xs text-warning font-semibold">{att?.offline_minutes || 0}m</td>
+                      <td className="text-center">
+                        {att?.auto_logout_count > 0 ? (
+                          <span className="bg-destructive/10 text-destructive text-[10px] px-1.5 py-0.5 rounded-full font-bold">{att.auto_logout_count}</span>
+                        ) : '—'}
+                      </td>
                       <td className="font-bold">{att?.hours_worked || 0}h</td>
-                      <td>{att ? <StatusBadge status={att.status} /> : '—'}</td>
+                      <td>
+                        {att?.is_auto_logout ? (
+                          <StatusBadge status="Without Checkout" />
+                        ) : att ? (
+                          <StatusBadge status={att.status} />
+                        ) : '—'}
+                      </td>
                       <td><button onClick={() => { setSelectedEmpId(e.user_id); setView('employee'); }} className="text-primary text-xs hover:underline"><Eye className="w-3 h-3 inline mr-1" />View</button></td>
                     </tr>
                   );
@@ -303,17 +314,18 @@ export default function AdminAttendance() {
                 </div>
                 <div className="table-container">
                   <table className="table-nawi w-full text-xs">
-                    <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Break</th><th>Net Hours</th><th>Status</th><th>Work Summary</th></tr></thead>
+                    <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Break</th><th>Idle</th><th>Autos</th><th>Net Hours</th><th>Status</th><th>Work Summary</th></tr></thead>
                     <tbody>
                       {empRecs.map(a => (
                         <tr key={a.id} className={a.is_auto_logout ? 'bg-destructive/5' : ''}>
                           <td>{formatDate(a.date)}</td>
                           <td>{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                          <td className="relative">
+                          <td>
                             {a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                            {a.is_auto_logout && <span className="block text-[9px] text-destructive font-bold uppercase">Auto-Logout</span>}
                           </td>
-                          <td>{a.total_break_minutes || 0}m</td>
+                          <td className="text-muted-foreground">{a.total_break_minutes || 0}m</td>
+                          <td className="text-warning font-medium">{a.offline_minutes || 0}m</td>
+                          <td className="text-center">{a.auto_logout_count || 0}</td>
                           <td>
                             <span className="font-bold">
                               {a.logout_time ? `${a.hours_worked || 0}h` : 
@@ -322,7 +334,13 @@ export default function AdminAttendance() {
                                 '—'}
                             </span>
                           </td>
-                          <td><StatusBadge status={a.status} /></td>
+                          <td>
+                            {a.is_auto_logout ? (
+                              <StatusBadge status="Without Checkout" />
+                            ) : (
+                              <StatusBadge status={a.status} />
+                            )}
+                          </td>
                           <td className="max-w-[200px] truncate">{a.work_summary || '—'}</td>
                         </tr>
                       ))}
@@ -344,15 +362,13 @@ export default function AdminAttendance() {
                     </div>
                     <div className="table-container">
                       <table className="table-nawi w-full text-xs">
-                        <thead><tr><th>DATE</th><th>LOGIN</th><th>LOGOUT</th><th>BREAK</th><th>HOURS</th><th>STATUS</th><th>WORK SUMMARY</th></tr></thead>
+                        <thead><tr><th>DATE</th><th>LOGIN</th><th>LOGOUT</th><th>BREAK</th><th>IDLE</th><th>AUTOS</th><th>HOURS</th><th>STATUS</th><th>WORK SUMMARY</th></tr></thead>
                         <tbody>
                           {empRecs.map(a => (
                             <tr key={a.id} className={a.is_auto_logout ? 'bg-destructive/5' : ''}>
-                              <td>{formatDate(a.date)}</td>
-                              <td>{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                              <td className="relative">
+                                                          <td>{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                              <td>
                                 {a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                                {a.is_auto_logout && <span className="block text-[9px] text-destructive font-bold uppercase">Auto-Logout</span>}
                               </td>
                               <td className="font-semibold text-warning">
                                 {a.break_start_time ? (
@@ -364,6 +380,8 @@ export default function AdminAttendance() {
                                   `${a.total_break_minutes || 0}m`
                                 )}
                               </td>
+                              <td className="text-warning font-bold">{a.offline_minutes || 0}m</td>
+                              <td className="text-center font-bold text-destructive">{a.auto_logout_count || 0}</td>
                               <td>
                                 <span className="font-bold">
                                   {a.logout_time ? `${a.hours_worked || 0}h` : 
@@ -372,7 +390,13 @@ export default function AdminAttendance() {
                                     '—'}
                                 </span>
                               </td>
-                              <td><StatusBadge status={a.status} /></td>
+                              <td>
+                                {a.is_auto_logout ? (
+                                  <StatusBadge status="Without Checkout" />
+                                ) : (
+                                  <StatusBadge status={a.status} />
+                                )}
+                              </td>
                               <td className="max-w-[200px] truncate">{a.work_summary || '—'}</td>
                             </tr>
                           ))}

@@ -97,10 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const startZoneWatching = async (zoneId: string, profileType: string, userId: string) => {
-    // Honor settings: skip watching if geofence is disabled or auto-logout is off
     const { getAttendanceSettings } = await import('@/lib/settings');
     const settings = await getAttendanceSettings(userId);
-    if (settings.enforce_geofence === false || settings.auto_logout_outside_zone === false) {
+    
+    // If geofence is completely disabled master-style, just mark as in zone
+    if (settings.enforce_geofence === false) {
       setIsInZone(true);
       return;
     }
@@ -115,7 +116,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!zone) { setIsInZone(true); return; }
 
     const geoZone = zone as unknown as GeofenceZone;
-
     const logoutTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     watchIdRef.current = watchPosition(
@@ -123,7 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const inside = isInsideZone(pos, geoZone);
         setIsInZone(inside);
         
-        if (!inside && profileType === 'office') {
+        // Only trigger auto-logout if the setting is ENABLED
+        if (!inside && profileType === 'office' && settings.auto_logout_outside_zone !== false) {
           // Start a 30-second countdown if not already started
           if (!logoutTimeoutRef.current) {
             toast.warning('Outside authorized zone. Logging out in 30 seconds if you do not return...', {
@@ -136,12 +137,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }, 30000);
           }
         } else {
-          // If back inside, clear any pending logout
+          // If back inside OR if auto-logout is disabled, clear any pending logout
           if (logoutTimeoutRef.current) {
             clearTimeout(logoutTimeoutRef.current);
             logoutTimeoutRef.current = null;
             toast.dismiss('geofence-warning');
-            toast.success('Back in authorized zone. Logout cancelled.');
+            if (inside) {
+              toast.success('Back in authorized zone. Logout cancelled.');
+            }
           }
         }
       },
@@ -284,7 +287,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const logoutTime = new Date().toISOString();
         const loginDate = new Date(todayRecord.login_time as string);
         const logoutDate = new Date(logoutTime);
-        const hoursWorked = Math.round(((logoutDate.getTime() - loginDate.getTime()) / 3600000) * 10) / 10;
+        
+        const totalMs = logoutDate.getTime() - loginDate.getTime();
+        const breakMs = (Number(todayRecord.total_break_minutes) || 0) * 60000;
+        const offlineMs = (Number((todayRecord as any).offline_minutes) || 0) * 60000;
+        const hoursWorked = Math.max(0, Math.round(((totalMs - breakMs - offlineMs) / 3600000) * 10) / 10);
 
         // Get current position for logout location
         let logoutLat = null, logoutLng = null;
