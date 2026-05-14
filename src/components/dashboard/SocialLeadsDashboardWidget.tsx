@@ -91,7 +91,9 @@ export default function SocialLeadsDashboardWidget({
         <Link to={`${basePath}/leads`} className="text-xs text-primary hover:underline flex items-center gap-1">View all <ChevronRight className="w-3 h-3" /></Link>
       </div>
 
-      {loading ? <div className="skeleton-nawi h-40" /> : stats.total === 0 ? (
+      {loading ? (
+        <div className="skeleton-nawi h-40" />
+      ) : stats.total === 0 ? (
         <div className="h-48 flex flex-col items-center justify-center text-muted-foreground bg-muted/10 rounded-lg border border-dashed border-border">
           <MessagesSquare className="w-8 h-8 mb-2 opacity-20" />
           <p className="text-xs font-medium">No leads found</p>
@@ -100,6 +102,7 @@ export default function SocialLeadsDashboardWidget({
           </p>
         </div>
       ) : (
+        <>
           <div className="grid grid-cols-4 gap-2">
             <Stat label="Total" value={String(stats.total)} />
             <Stat label="Unassigned" value={String(stats.unassigned)} warn={stats.unassigned > 0} />
@@ -109,7 +112,9 @@ export default function SocialLeadsDashboardWidget({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-2">By Source</p>
-              {stats.bySource.length === 0 ? <p className="text-xs text-muted-foreground py-3">None</p> : (
+              {stats.bySource.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-3">None</p>
+              ) : (
                 <div className="space-y-1.5">
                   {stats.bySource.map((s, i) => {
                     const meta = SOURCE_META[s.name] || { label: s.name, Icon: MessagesSquare, color: '#64748B' };
@@ -131,7 +136,9 @@ export default function SocialLeadsDashboardWidget({
             </div>
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-2">By Status</p>
-              {stats.byStatus.length === 0 ? <p className="text-xs text-muted-foreground py-3">None</p> : (
+              {stats.byStatus.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-3">None</p>
+              ) : (
                 <div className="space-y-1.5">
                   {stats.byStatus.map((s, i) => {
                     const color = STATUS_COLORS[s.name] || '#888';
