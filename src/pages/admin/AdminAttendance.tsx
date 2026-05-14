@@ -409,8 +409,8 @@ export default function AdminAttendance() {
                                 <div className="flex flex-col">
                                   <span className="font-bold text-primary">
                                     {a.logout_time ? `${a.hours_worked || 0}h` : 
-                                      a.login_time && a.date === new Date().toISOString().split('T')[0] ? 
-                                      `${Math.round(((new Date().getTime() - new Date(a.login_time).getTime()) / 3600000) * 10) / 10}h` : 
+                                      a.login_time ? 
+                                      `${Math.max(0, ((new Date().getTime() - new Date(a.login_time).getTime()) / 3600000) - (((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60)).toFixed(1)}h` : 
                                       '—'}
                                   </span>
                                   <span className="text-[8px] text-muted-foreground leading-tight">(Net Work)</span>
