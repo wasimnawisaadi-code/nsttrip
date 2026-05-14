@@ -69,7 +69,7 @@ export default function AdminAttendance() {
     let totalHours = recs.reduce((s, a) => s + (a.hours_worked || 0), 0);
     
     // Include live shift duration for currently logged-in employees
-    const active = recs.find(a => a.login_time && !a.logout_time && a.date === now.toISOString().split('T')[0]);
+    const active = recs.find(a => a.login_time && !a.logout_time && a.date === todayStr);
     if (active) {
       const liveDuration = (new Date().getTime() - new Date(active.login_time).getTime()) / 3600000;
       totalHours += liveDuration;
@@ -91,7 +91,7 @@ export default function AdminAttendance() {
     const recs = allAttendance.filter(a => a.date === dateStr);
     const leaves = allLeave.filter(l => l.status === 'Approved' && l.start_date <= dateStr && l.end_date >= dateStr);
     const dow = new Date(y, m - 1, day).getDay();
-    return { dateStr, recs, leaves, isWeekend: weekendDays.includes(dow), isToday: dateStr === now.toISOString().split('T')[0] };
+    return { dateStr, recs, leaves, isWeekend: weekendDays.includes(dow), isToday: dateStr === todayStr };
   };
 
   const handleManualEntry = async (e: React.FormEvent) => {
@@ -198,8 +198,7 @@ export default function AdminAttendance() {
               <thead><tr><th>Employee</th><th>Login</th><th>Logout</th><th>Break</th><th>Idle</th><th>Autos</th><th>Hours</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {empSummary.map(e => {
-                  const today = new Date().toISOString().split('T')[0];
-                  const att = allAttendance.find(a => a.employee_id === e.user_id && a.date === today);
+                  const att = allAttendance.find(a => a.employee_id === e.user_id && a.date === todayStr);
                   return (
                     <tr key={e.user_id} className={att?.is_auto_logout ? 'bg-destructive/5' : ''}>
                       <td className="font-medium">
