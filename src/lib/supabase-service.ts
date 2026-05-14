@@ -118,7 +118,7 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
 
     const totalMs = autoLogoutTime.getTime() - new Date(forgotten.login_time).getTime();
     const breakMs = (Number((forgotten as any).total_break_minutes) || 0) * 60000;
-    const offlineMs = (Number((forgotten as any).total_break_minutes) || 0) * 60000;
+    const offlineMs = (Number((forgotten as any).offline_minutes) || 0) * 60000;
     const hoursWorked = Math.max(0, Math.round(((totalMs - breakMs - offlineMs) / 3600000) * 10) / 10);
 
     await supabase.from('attendance').update({
@@ -126,7 +126,7 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
       hours_worked: hoursWorked,
       is_auto_logout: true,
       status: 'Without Checkout',
-      work_summary: 'Auto-Checkout: Employee forgot to logout yesterday.'
+      work_summary: 'WITHOUT CHECKOUT'
     } as any).eq('id', forgotten.id);
 
     // Send Notification about the reset

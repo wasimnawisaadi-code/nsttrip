@@ -349,10 +349,28 @@ export default function AdminAttendance() {
                           <td className="text-center">{a.auto_logout_count || 0}</td>
                           <td>
                             <span className="font-bold">
-                              {a.logout_time ? `${a.hours_worked || 0}h` : 
-                                a.login_time && a.date === new Date().toISOString().split('T')[0] ? 
-                                `${Math.round(((new Date().getTime() - new Date(a.login_time).getTime()) / 3600000) * 10) / 10}h` : 
-                                '—'}
+                              {(() => {
+                                if (a.logout_time) return `${a.hours_worked || 0}h`;
+                                if (!a.login_time) return '—';
+                                
+                                if (a.date < todayStr) {
+                                  const loginDate = new Date(a.login_time);
+                                  const forceLogout = new Date(loginDate);
+                                  forceLogout.setHours(19, 0, 0, 0); 
+                                  const totalMs = Math.max(0, forceLogout.getTime() - loginDate.getTime());
+                                  const idleHrs = ((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60;
+                                  return `${Math.max(0, (totalMs / 3600000) - idleHrs).toFixed(1)}h`;
+                                }
+                                
+                                if (a.date === todayStr) {
+                                  const loginDate = new Date(a.login_time);
+                                  const nowMs = new Date().getTime();
+                                  const diffHrs = (nowMs - loginDate.getTime()) / 3600000;
+                                  const idleHrs = ((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60;
+                                  return `${Math.max(0, diffHrs - idleHrs).toFixed(1)}h`;
+                                }
+                                return '—';
+                              })()}
                             </span>
                           </td>
                           <td>
@@ -362,7 +380,9 @@ export default function AdminAttendance() {
                               <StatusBadge status={a.status} />
                             )}
                           </td>
-                          <td className="max-w-[200px] truncate">{a.work_summary || '—'}</td>
+                          <td className="max-w-[200px] truncate text-muted-foreground">
+                            {a.work_summary?.includes('forgot') ? 'Auto-Closed (7 PM)' : (a.work_summary || '—')}
+                          </td>
                         </tr>
                       ))}
                       {empRecs.length === 0 && <tr><td colSpan={7} className="text-center text-muted-foreground py-8">No records for this month</td></tr>}
@@ -405,8 +425,13 @@ export default function AdminAttendance() {
                               <td className="font-mono">{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                               <td className="font-mono">
                                 <div className="flex flex-col">
-                                  <span>{a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
-                                  {a.work_summary?.includes('forgot') && <span className="text-[7px] text-destructive font-bold leading-tight">AUTO-CLEANUP</span>}
+                                  <span>
+                                    {a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 
+                                      (a.date < todayStr ? '07:00 PM' : '—')}
+                                  </span>
+                                  {(a.work_summary?.includes('forgot') || (a.date < todayStr && !a.logout_time)) && 
+                                    <span className="text-[7px] text-destructive font-bold leading-tight uppercase">Auto-Closed</span>
+                                  }
                                 </div>
                               </td>
                               <td className="text-warning">
@@ -433,8 +458,14 @@ export default function AdminAttendance() {
                                       if (a.logout_time) return `${a.hours_worked || 0}h`;
                                       if (!a.login_time) return '—';
                                       
-                                      const todayStr = new Date().toISOString().split('T')[0];
-                                      if (a.date !== todayStr) return '0h'; // Past forgotten logout
+                                      if (a.date < todayStr) {
+                                        const loginDate = new Date(a.login_time);
+                                        const forceLogout = new Date(loginDate);
+                                        forceLogout.setHours(19, 0, 0, 0); 
+                                        const totalMs = Math.max(0, forceLogout.getTime() - loginDate.getTime());
+                                        const idleHrs = ((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60;
+                                        return `${Math.max(0, (totalMs / 3600000) - idleHrs).toFixed(1)}h`;
+                                      }
                                       
                                       const loginDate = new Date(a.login_time);
                                       const nowMs = new Date().getTime();
@@ -450,17 +481,15 @@ export default function AdminAttendance() {
                               <td>
                                 <StatusBadge status={(() => {
                                   if (a.logout_time) return a.status;
-                                  const todayStr = new Date().toISOString().split('T')[0];
-                                  if (a.date !== todayStr) return 'Without Checkout';
+                                  if (a.date < todayStr) return 'Without Checkout';
                                   return a.status === 'Without Checkout' ? 'Present' : a.status;
                                 })()} />
                               </td>
                               <td className="max-w-[180px] text-[10px] leading-snug">
                                 <div className="line-clamp-2" title={a.work_summary}>
-                                  {a.is_auto_logout && a.work_summary?.includes('forgot') && (
-                                    <span className="text-destructive font-black uppercase mr-1">WITHOUT CHECKOUT:</span>
-                                  )}
-                                  {a.work_summary || <span className="opacity-20">—</span>}
+                                  {a.work_summary?.includes('forgot') || (a.date < todayStr && !a.logout_time) ? 
+                                    <span className="text-destructive font-black uppercase">Auto-Closed (7 PM)</span> : 
+                                    (a.work_summary || <span className="opacity-20">—</span>)}
                                 </div>
                               </td>
                             </tr>
