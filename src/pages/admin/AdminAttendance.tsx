@@ -40,13 +40,18 @@ export default function AdminAttendance() {
 
   useEffect(() => { loadData(); }, []);
 
+  const todayStr = now.toISOString().split('T')[0];
+  const todayAttendance = allAttendance.filter(a => a.date === todayStr);
   const monthAttendance = allAttendance.filter(a => a.date?.startsWith(yearMonth));
+  
   const [y, m] = yearMonth.split('-').map(Number);
   const daysInMonth = new Date(y, m, 0).getDate();
   const firstDayOfWeek = new Date(y, m - 1, 1).getDay();
-  const presentCount = monthAttendance.filter(a => a.status === 'Present').length;
-  const lateCount = monthAttendance.filter(a => a.status === 'Late').length;
-  const absentCount = monthAttendance.filter(a => a.status === 'Absent').length;
+
+  // Summary counts for TODAY
+  const presentCount = todayAttendance.filter(a => a.status === 'Present' || (!a.logout_time && a.login_time)).length;
+  const lateCount = todayAttendance.filter(a => a.status === 'Late').length;
+  const absentCount = employees.length - todayAttendance.length;
 
   const dailyData: any[] = [];
   for (let d = 1; d <= daysInMonth; d++) {
@@ -154,7 +159,7 @@ export default function AdminAttendance() {
         <div className="stat-card"><div className="stat-card-icon bg-success"><Clock className="w-5 h-5 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Present</p><p className="text-xl font-bold font-display text-success">{presentCount}</p></div></div>
         <div className="stat-card"><div className="stat-card-icon bg-warning"><Clock className="w-5 h-5 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Late</p><p className="text-xl font-bold font-display text-warning">{lateCount}</p></div></div>
         <div className="stat-card"><div className="stat-card-icon bg-destructive"><AlertTriangle className="w-5 h-5 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Absent</p><p className="text-xl font-bold font-display text-destructive">{absentCount}</p></div></div>
-        <div className="stat-card"><div><p className="text-xs text-muted-foreground">Total Records</p><p className="text-xl font-bold font-display">{monthAttendance.length}</p></div></div>
+        <div className="stat-card"><div><p className="text-xs text-muted-foreground">Today's Presence</p><p className="text-xl font-bold font-display">{todayAttendance.length} / {employees.length}</p></div></div>
       </div>
 
       {view === 'overview' && (
@@ -213,14 +218,26 @@ export default function AdminAttendance() {
                           <span className="bg-destructive/10 text-destructive text-[10px] px-1.5 py-0.5 rounded-full font-bold">{att.auto_logout_count}</span>
                         ) : '—'}
                       </td>
-                      <td className="font-bold">{att?.hours_worked || 0}h</td>
-                      <td>
-                        {att?.is_auto_logout ? (
-                          <StatusBadge status="Without Checkout" />
-                        ) : att ? (
-                          <StatusBadge status={att.status} />
-                        ) : '—'}
-                      </td>
+                       <td className="font-bold">
+                         {(() => {
+                            if (!att) return '—';
+                            if (att.logout_time) return `${att.hours_worked || 0}h`;
+                            
+                            const loginDate = new Date(att.login_time);
+                            const nowMs = new Date().getTime();
+                            const diffHrs = (nowMs - loginDate.getTime()) / 3600000;
+                            const idleHrs = ((att.total_break_minutes || 0) + (att.offline_minutes || 0)) / 60;
+                            const netHrs = Math.max(0, diffHrs - idleHrs);
+                            return `${netHrs.toFixed(1)}h`;
+                         })()}
+                       </td>
+                       <td>
+                         {att ? (
+                           <StatusBadge status={att.status === 'Without Checkout' ? 'Present' : att.status} />
+                         ) : (
+                           <StatusBadge status="Absent" />
+                         )}
+                       </td>
                       <td><button onClick={() => { setSelectedEmpId(e.user_id); setView('employee'); }} className="text-primary text-xs hover:underline"><Eye className="w-3 h-3 inline mr-1" />View</button></td>
                     </tr>
                   );
