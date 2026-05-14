@@ -417,20 +417,13 @@ export default function AdminAttendance() {
                                 </div>
                               </td>
                               <td>
-                                {a.is_auto_logout ? (
-                                  a.work_summary?.includes('forgot') ? (
-                                    <StatusBadge status="Without Checkout" />
-                                  ) : (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">
-                                      OFFLINE (AUTO)
-                                    </span>
-                                  )
-                                ) : (
-                                  <StatusBadge status={a.status} />
-                                )}
+                                <StatusBadge status={a.status} />
                               </td>
                               <td className="max-w-[180px] text-[10px] leading-snug">
                                 <div className="line-clamp-2" title={a.work_summary}>
+                                  {a.is_auto_logout && a.work_summary?.includes('forgot') && (
+                                    <span className="text-destructive font-black uppercase mr-1">WITHOUT CHECKOUT:</span>
+                                  )}
                                   {a.work_summary || <span className="opacity-20">—</span>}
                                 </div>
                               </td>
