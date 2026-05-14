@@ -760,7 +760,7 @@ export default function AdminDashboard() {
                           <StatusBadge status={a.status} />
                         )}
                         {a.is_auto_logout && !a.work_summary?.includes('forgot') && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse" title="Currently Away (Idle/System)" />
+                          <span className="text-[7px] font-black text-warning bg-warning/10 px-1 rounded-sm border border-warning/20 animate-pulse uppercase tracking-tighter">System Kick</span>
                         )}
                       </div>
                     </div>
