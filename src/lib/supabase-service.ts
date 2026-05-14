@@ -106,30 +106,34 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
 
     const lastSeen = profile?.last_seen_at ? new Date(profile.last_seen_at) : null;
 
-    // Fallback: If no last seen or last seen is before login, use login + 8 hours or end of that day
+    // Fallback: If no last seen or last seen is before login, use settings.work_end or 7 PM
+    const settings = await getAttendanceSettings(userId);
+    const [h, m] = (settings.work_end || '19:00').split(':').map(Number);
+    
     let autoLogoutTime = lastSeen;
     if (!autoLogoutTime || autoLogoutTime <= new Date(forgotten.login_time)) {
       const loginDate = new Date(forgotten.login_time);
-      autoLogoutTime = new Date(loginDate.setHours(19, 0, 0, 0)); // Default to 7:00 PM
+      autoLogoutTime = new Date(loginDate.setHours(h, m, 0, 0));
     }
 
     const totalMs = autoLogoutTime.getTime() - new Date(forgotten.login_time).getTime();
     const breakMs = (Number((forgotten as any).total_break_minutes) || 0) * 60000;
-    const offlineMs = (Number((forgotten as any).offline_minutes) || 0) * 60000;
+    const offlineMs = (Number((forgotten as any).total_break_minutes) || 0) * 60000;
     const hoursWorked = Math.max(0, Math.round(((totalMs - breakMs - offlineMs) / 3600000) * 10) / 10);
 
     await supabase.from('attendance').update({
       logout_time: autoLogoutTime.toISOString(),
       hours_worked: hoursWorked,
       is_auto_logout: true,
+      status: 'Without Checkout',
       work_summary: 'Auto-Checkout: Employee forgot to logout yesterday.'
     } as any).eq('id', forgotten.id);
 
     // Send Notification about the reset
     await supabase.from('notifications').insert({
       user_id: userId,
-      title: 'Morning Session Reset',
-      message: `Your session from ${forgotten.date} was automatically closed at ${autoLogoutTime.toLocaleTimeString()}.`,
+      title: 'Session Auto-Closed',
+      message: `Your session from ${forgotten.date} was auto-closed as 'Without Checkout' at ${autoLogoutTime.toLocaleTimeString()}.`,
       type: 'system',
       is_read: false
     });

@@ -429,16 +429,14 @@ export default function AdminAttendance() {
                                       if (a.logout_time) return `${a.hours_worked || 0}h`;
                                       if (!a.login_time) return '—';
                                       
+                                      const todayStr = new Date().toISOString().split('T')[0];
+                                      if (a.date !== todayStr) return '0h'; // Past forgotten logout
+                                      
                                       const loginDate = new Date(a.login_time);
-                                      const now = new Date();
-                                      const diffMs = now.getTime() - loginDate.getTime();
-                                      
-                                      // If the login was on a previous day, this calculation won't be accurate for "Live"
-                                      // but for today's records it will work perfectly.
-                                      const totalHrs = diffMs / 3600000;
+                                      const nowMs = new Date().getTime();
+                                      const diffHrs = (nowMs - loginDate.getTime()) / 3600000;
                                       const idleHrs = ((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60;
-                                      const netHrs = Math.max(0, totalHrs - idleHrs);
-                                      
+                                      const netHrs = Math.max(0, diffHrs - idleHrs);
                                       return `${netHrs.toFixed(1)}h`;
                                     })()}
                                   </span>
@@ -446,7 +444,12 @@ export default function AdminAttendance() {
                                 </div>
                               </td>
                               <td>
-                                <StatusBadge status={a.status === 'Without Checkout' ? 'Present' : a.status} />
+                                <StatusBadge status={(() => {
+                                  if (a.logout_time) return a.status;
+                                  const todayStr = new Date().toISOString().split('T')[0];
+                                  if (a.date !== todayStr) return 'Without Checkout';
+                                  return a.status === 'Without Checkout' ? 'Present' : a.status;
+                                })()} />
                               </td>
                               <td className="max-w-[180px] text-[10px] leading-snug">
                                 <div className="line-clamp-2" title={a.work_summary}>
