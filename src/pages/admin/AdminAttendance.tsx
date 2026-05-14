@@ -366,13 +366,14 @@ export default function AdminAttendance() {
                         <tbody>
                           {empRecs.map(a => (
                             <tr key={a.id} className={a.is_auto_logout ? 'bg-destructive/5' : ''}>
-                                                          <td>{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                              <td>
-                                {a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                              <td className="whitespace-nowrap font-medium text-primary">
+                                {a.date ? new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
                               </td>
+                              <td>{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                              <td>{a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                               <td className="font-semibold text-warning">
                                 {a.break_start_time ? (
-                                  <span className="flex items-center gap-1 animate-pulse">
+                                  <span className="flex items-center gap-1 animate-pulse text-[10px]">
                                     <span className="w-1.5 h-1.5 rounded-full bg-warning" />
                                     ON BREAK
                                   </span>
@@ -397,7 +398,7 @@ export default function AdminAttendance() {
                                   <StatusBadge status={a.status} />
                                 )}
                               </td>
-                              <td className="max-w-[200px] truncate">{a.work_summary || '—'}</td>
+                              <td className="max-w-[200px] truncate" title={a.work_summary}>{a.work_summary || '—'}</td>
                             </tr>
                           ))}
                           {empRecs.length === 0 && <tr><td colSpan={7} className="text-center text-muted-foreground py-4">No records found</td></tr>}
