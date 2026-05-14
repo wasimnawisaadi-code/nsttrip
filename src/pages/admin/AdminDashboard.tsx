@@ -688,8 +688,6 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 )}
-              </div>
-
                 {/* Active Breaks */}
                 {data.todayAttendance.filter((a: any) => a.break_start_time).length > 0 && (
                   <div className="p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10">
