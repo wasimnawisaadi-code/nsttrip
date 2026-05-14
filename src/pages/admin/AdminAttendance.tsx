@@ -362,7 +362,19 @@ export default function AdminAttendance() {
                     </div>
                     <div className="table-container">
                       <table className="table-nawi w-full text-xs">
-                        <thead><tr><th>DATE</th><th>LOGIN</th><th>LOGOUT</th><th>BREAK</th><th>IDLE</th><th>AUTOS</th><th>HOURS</th><th>STATUS</th><th>WORK SUMMARY</th></tr></thead>
+                        <thead>
+                          <tr>
+                            <th>DATE</th>
+                            <th>LOGIN</th>
+                            <th>LOGOUT</th>
+                            <th>BREAK</th>
+                            <th>IDLE</th>
+                            <th>AUTO LOGOUT & RELOGIN</th>
+                            <th>HOURS</th>
+                            <th>STATUS</th>
+                            <th>WORK SUMMARY</th>
+                          </tr>
+                        </thead>
                         <tbody>
                           {empRecs.map(a => (
                             <tr key={a.id} className={a.is_auto_logout ? 'bg-destructive/5' : ''}>
