@@ -22,9 +22,11 @@ export default function AdminAttendance() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [allAttendance, setAllAttendance] = useState<any[]>([]);
   const [allLeave, setAllLeave] = useState<any[]>([]);
-  const [weekendDays, setWeekendDays] = useState<number[]>([0]); // Default to Sunday only
+  const [weekendDays, setWeekendDays] = useState<number[]>([0]);
+  const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
+    setLoading(true);
     const [empRes, attRes, leaveRes] = await Promise.all([
       supabase.from('profiles').select('*'),
       supabase.from('attendance').select('*'),
@@ -36,11 +38,12 @@ export default function AdminAttendance() {
     
     const settings = await getAttendanceSettings();
     setWeekendDays(settings.weekend_days);
+    setLoading(false);
   };
 
   useEffect(() => { loadData(); }, []);
 
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
   const todayAttendance = allAttendance.filter(a => a.date === todayStr);
   const monthAttendance = allAttendance.filter(a => a.date?.startsWith(yearMonth));
   
@@ -136,6 +139,8 @@ export default function AdminAttendance() {
     }));
     exportToExcel(rows, `attendance_${yearMonth}`, 'Attendance');
   };
+
+  if (loading) return <div className="flex items-center justify-center py-20"><Clock className="w-8 h-8 animate-spin text-primary" /><span className="ml-3 font-bold">Loading Attendance Data...</span></div>;
 
   return (
     <div className="space-y-6 animate-fade-in">
