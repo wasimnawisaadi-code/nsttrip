@@ -374,11 +374,7 @@ export default function AdminAttendance() {
                             </span>
                           </td>
                           <td>
-                            {a.is_auto_logout ? (
-                              <StatusBadge status="Without Checkout" />
-                            ) : (
-                              <StatusBadge status={a.status} />
-                            )}
+                            <StatusBadge status={a.status} />
                           </td>
                           <td className="max-w-[200px] truncate text-muted-foreground">
                             {a.work_summary?.includes('forgot') ? 'Auto-Closed (7 PM)' : (a.work_summary || '—')}
@@ -479,11 +475,7 @@ export default function AdminAttendance() {
                                 </div>
                               </td>
                               <td>
-                                <StatusBadge status={(() => {
-                                  if (a.logout_time) return a.status;
-                                  if (a.date < todayStr) return 'Without Checkout';
-                                  return a.status === 'Without Checkout' ? 'Present' : a.status;
-                                })()} />
+                                <StatusBadge status={a.status} />
                               </td>
                               <td className="max-w-[180px] text-[10px] leading-snug">
                                 <div className="line-clamp-2" title={a.work_summary}>
