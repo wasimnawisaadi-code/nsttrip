@@ -631,25 +631,22 @@ export default function AdminDashboard() {
                 </h3>
                 <span className="text-[10px] bg-warning/10 text-warning px-2 py-0.5 rounded-full font-bold uppercase">Real-Time</span>
               </div>
-              
-              <div className="space-y-3">
+                            <div className="space-y-3">
                 {/* Currently Offline due to Auto-Logout */}
                 {data.todayAttendance.filter((a: any) => a.is_auto_logout && a.logout_time).length > 0 && (
                   <div className="p-2.5 rounded-lg bg-destructive/5 border border-destructive/10">
                     <p className="text-[10px] font-bold text-destructive mb-2 uppercase tracking-wide flex items-center gap-1.5">
-                      <AlertTriangle className="w-3 h-3" /> Currently Offline (System Timeout)
+                      <AlertTriangle className="w-3 h-3" /> LIVE: Currently Kicked (Auto)
                     </p>
                     <div className="space-y-2">
                       {data.todayAttendance.filter((a: any) => a.is_auto_logout && a.logout_time).map((a: any) => (
                         <div key={a.id} className="flex flex-col gap-1 border-b border-destructive/5 pb-1.5 last:border-0 last:pb-0">
                           <div className="flex items-center justify-between text-xs font-bold">
                             <span>{a.name}</span>
-                            <span className="text-[10px] text-destructive">Logged out at {new Date(a.logout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-[10px] text-destructive bg-destructive/10 px-1 rounded animate-pulse">OFFLINE since {new Date(a.logout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
-                          <div className="flex items-center gap-2 text-[9px] text-muted-foreground uppercase font-bold tracking-tighter">
-                            <span>{a.auto_logout_count || 1} Total Autos Today</span>
-                            <span>•</span>
-                            <span>{a.offline_minutes || 0}m Total Idle Time</span>
+                          <div className="text-[9px] text-muted-foreground font-medium italic">
+                            System kick detected. Waiting for employee to re-login.
                           </div>
                         </div>
                       ))}
@@ -657,32 +654,41 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {/* Auto-Logout History (People who re-logged in) */}
+                {/* Auto-Logout Detailed History */}
                 {data.todayAttendance.filter((a: any) => (a.auto_logout_count || 0) > 0).length > 0 && (
                   <div className="p-2.5 rounded-lg bg-warning/5 border border-warning/10">
                     <p className="text-[10px] font-bold text-warning mb-2 uppercase tracking-wide flex items-center gap-1.5">
-                      <Clock className="w-3 h-3" /> Auto-Logout History (Summary Today)
+                      <Clock className="w-3 h-3" /> Live Shield: Re-login History
                     </p>
                     <div className="space-y-2">
                       {data.todayAttendance.filter((a: any) => (a.auto_logout_count || 0) > 0).map((a: any) => (
-                        <div key={a.id} className="flex items-center justify-between text-xs">
-                          <div className="flex flex-col">
+                        <div key={a.id} className="flex flex-col gap-1 border-b border-warning/10 pb-1.5 last:border-0 last:pb-0">
+                          <div className="flex items-center justify-between text-xs">
                             <span className="font-bold">{a.name}</span>
-                            <span className="text-[9px] text-muted-foreground uppercase">{a.offline_minutes || 0}m total offline gaps</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {a.logout_time && a.is_auto_logout && (
-                              <span className="text-[8px] bg-destructive text-white px-1 rounded font-black animate-pulse">OFFLINE NOW</span>
-                            )}
-                            <span className="bg-warning/20 text-warning text-[10px] px-2 py-0.5 rounded-full font-black border border-warning/30">
-                              {a.auto_logout_count} {a.auto_logout_count === 1 ? 'Auto' : 'Autos'}
+                            <span className="bg-warning/20 text-warning text-[9px] px-1.5 rounded-full font-black border border-warning/30">
+                              {a.auto_logout_count} {a.auto_logout_count === 1 ? 'Gap' : 'Gaps'} Tracked
                             </span>
+                          </div>
+                          <div className="text-[9px] text-muted-foreground leading-tight">
+                            {a.work_summary?.includes('Offline:') ? (
+                              <div className="flex flex-col gap-0.5">
+                                {a.work_summary.split('Offline:').slice(1).map((log: string, idx: number) => (
+                                  <div key={idx} className="flex items-center gap-1">
+                                    <span className="w-1 h-1 rounded-full bg-warning/50" />
+                                    <span>Gap {idx + 1}: {log.split('.')[0]}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span>System is monitoring active session gaps.</span>
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
+              </div>
 
                 {/* Active Breaks */}
                 {data.todayAttendance.filter((a: any) => a.break_start_time).length > 0 && (
@@ -731,25 +737,19 @@ export default function AdminDashboard() {
                         <div className="flex items-center justify-between">
                           <p className="text-[10px] text-muted-foreground">
                             {a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                            {a.logout_time ? ` → ${new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : ''}
                           </p>
-                          {a.offline_minutes > 0 && <span className="text-[9px] font-bold text-warning bg-warning/5 px-1 rounded">Idle: {a.offline_minutes}m</span>}
                         </div>
                       </div>
-                      {a.is_auto_logout ? (
-                        <div className="flex flex-col items-end gap-1">
-                           {a.work_summary?.includes('forgot') ? (
-                             <StatusBadge status="Without Checkout" />
-                           ) : (
-                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700 border border-blue-200">
-                               OFFLINE (AUTO)
-                             </span>
-                           )}
-                           {a.auto_logout_count > 1 && <span className="text-[8px] font-bold text-destructive">({a.auto_logout_count} autos)</span>}
-                        </div>
-                      ) : (
-                        <StatusBadge status={a.status} />
-                      )}
+                      <div className="flex flex-col items-end gap-1">
+                        {a.is_auto_logout && a.work_summary?.includes('forgot') ? (
+                          <StatusBadge status="Without Checkout" />
+                        ) : (
+                          <StatusBadge status={a.status} />
+                        )}
+                        {a.is_auto_logout && !a.work_summary?.includes('forgot') && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse" title="Currently Away (Idle/System)" />
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
