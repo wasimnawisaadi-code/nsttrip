@@ -311,7 +311,7 @@ export default function AttendancePage() {
 
       <div className="card-nawi p-0 overflow-x-auto">
         <table className="table-nawi w-full text-xs">
-          <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Break</th><th>Idle</th><th>Autos</th><th>Work</th><th>Summary</th><th>Status</th></tr></thead>
+          <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Break</th><th>Idle</th><th>Autos</th><th>Total</th><th>Work</th><th>Summary</th><th>Status</th></tr></thead>
           <tbody>
             {!attendance || attendance.length === 0 ? <tr><td colSpan={7} className="text-center text-muted-foreground py-8">No records found for this period</td></tr> :
               attendance.map((a) => (
@@ -324,7 +324,16 @@ export default function AttendancePage() {
                   <td>{a?.total_break_minutes || 0}m</td>
                   <td className="text-warning font-semibold">{a?.offline_minutes || 0}m</td>
                   <td className="text-center">{a?.auto_logout_count || 0}</td>
-                  <td><span className="font-bold">{a?.hours_worked || 0}h</span></td>
+                  <td className="text-muted-foreground">
+                    {(() => {
+                      if (!a?.login_time) return '—';
+                      const loginDate = new Date(a.login_time);
+                      const logoutDate = a.logout_time ? new Date(a.logout_time) : new Date();
+                      const diffHrs = (logoutDate.getTime() - loginDate.getTime()) / 3600000;
+                      return `${Math.max(0, diffHrs).toFixed(1)}h`;
+                    })()}
+                  </td>
+                  <td><span className="font-bold text-primary">{a?.hours_worked || 0}h</span></td>
                   <td className="max-w-[150px] truncate">{a?.work_summary || '—'}</td>
                   <td>
                     {a?.is_auto_logout ? (

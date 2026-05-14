@@ -195,7 +195,7 @@ export default function AdminAttendance() {
           </div>
           <div className="table-container">
             <table className="table-nawi w-full">
-              <thead><tr><th>Employee</th><th>Login</th><th>Logout</th><th>Break</th><th>Idle</th><th>Autos</th><th>Hours</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Employee</th><th>Login</th><th>Logout</th><th>Break</th><th>Idle</th><th>Autos</th><th>Total Time</th><th>Work Hours</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {empSummary.map(e => {
                   const att = allAttendance.find(a => a.employee_id === e.user_id && a.date === todayStr);
@@ -222,14 +222,21 @@ export default function AdminAttendance() {
                           <span className="bg-destructive/10 text-destructive text-[10px] px-1.5 py-0.5 rounded-full font-bold">{att.auto_logout_count}</span>
                         ) : '—'}
                       </td>
-                       <td className="font-bold">
+                       <td className="text-xs text-muted-foreground font-medium">
                          {(() => {
                             if (!att) return '—';
-                            if (att.logout_time) return `${att.hours_worked || 0}h`;
-                            
                             const loginDate = new Date(att.login_time);
-                            const nowMs = new Date().getTime();
-                            const diffHrs = (nowMs - loginDate.getTime()) / 3600000;
+                            const logoutDate = att.logout_time ? new Date(att.logout_time) : new Date();
+                            const diffHrs = (logoutDate.getTime() - loginDate.getTime()) / 3600000;
+                            return `${Math.max(0, diffHrs).toFixed(1)}h`;
+                         })()}
+                       </td>
+                       <td className="font-bold text-primary">
+                         {(() => {
+                            if (!att) return '—';
+                            const loginDate = new Date(att.login_time);
+                            const logoutDate = att.logout_time ? new Date(att.logout_time) : new Date();
+                            const diffHrs = (logoutDate.getTime() - loginDate.getTime()) / 3600000;
                             const idleHrs = ((att.total_break_minutes || 0) + (att.offline_minutes || 0)) / 60;
                             const netHrs = Math.max(0, diffHrs - idleHrs);
                             return `${netHrs.toFixed(1)}h`;
@@ -335,7 +342,7 @@ export default function AdminAttendance() {
                 </div>
                 <div className="table-container">
                   <table className="table-nawi w-full text-xs">
-                    <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Break</th><th>Idle</th><th>Autos</th><th>Net Hours</th><th>Status</th><th>Work Summary</th></tr></thead>
+                    <thead><tr><th>Date</th><th>Login</th><th>Logout</th><th>Break</th><th>Idle</th><th>Autos</th><th>Total</th><th>Work Hours</th><th>Status</th><th>Work Summary</th></tr></thead>
                     <tbody>
                       {empRecs.map(a => (
                         <tr key={a.id} className={a.is_auto_logout ? 'bg-destructive/5' : ''}>
@@ -347,29 +354,22 @@ export default function AdminAttendance() {
                           <td className="text-muted-foreground">{a.total_break_minutes || 0}m</td>
                           <td className="text-warning font-medium">{a.offline_minutes || 0}m</td>
                           <td className="text-center">{a.auto_logout_count || 0}</td>
+                          <td className="text-muted-foreground text-[10px]">
+                            {(() => {
+                              const loginDate = new Date(a.login_time);
+                              let logoutDate = a.logout_time ? new Date(a.logout_time) : (a.date < todayStr ? new Date(new Date(a.date).setHours(19,0,0,0)) : new Date());
+                              const totalHrs = Math.max(0, (logoutDate.getTime() - loginDate.getTime()) / 3600000);
+                              return `${totalHrs.toFixed(1)}h`;
+                            })()}
+                          </td>
                           <td>
-                            <span className="font-bold">
+                            <span className="font-bold text-primary">
                               {(() => {
-                                if (a.logout_time) return `${a.hours_worked || 0}h`;
-                                if (!a.login_time) return '—';
-                                
-                                if (a.date < todayStr) {
-                                  const loginDate = new Date(a.login_time);
-                                  const forceLogout = new Date(loginDate);
-                                  forceLogout.setHours(19, 0, 0, 0); 
-                                  const totalMs = Math.max(0, forceLogout.getTime() - loginDate.getTime());
-                                  const idleHrs = ((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60;
-                                  return `${Math.max(0, (totalMs / 3600000) - idleHrs).toFixed(1)}h`;
-                                }
-                                
-                                if (a.date === todayStr) {
-                                  const loginDate = new Date(a.login_time);
-                                  const nowMs = new Date().getTime();
-                                  const diffHrs = (nowMs - loginDate.getTime()) / 3600000;
-                                  const idleHrs = ((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60;
-                                  return `${Math.max(0, diffHrs - idleHrs).toFixed(1)}h`;
-                                }
-                                return '—';
+                                const loginDate = new Date(a.login_time);
+                                let logoutDate = a.logout_time ? new Date(a.logout_time) : (a.date < todayStr ? new Date(new Date(a.date).setHours(19,0,0,0)) : new Date());
+                                const totalMs = Math.max(0, logoutDate.getTime() - loginDate.getTime());
+                                const idleHrs = ((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60;
+                                return `${Math.max(0, (totalMs / 3600000) - idleHrs).toFixed(1)}h`;
                               })()}
                             </span>
                           </td>
@@ -399,19 +399,20 @@ export default function AdminAttendance() {
                     </div>
                     <div className="table-container">
                       <table className="table-nawi w-full text-xs">
-                        <thead>
-                          <tr>
-                            <th>DATE</th>
-                            <th>LOGIN</th>
-                            <th>LOGOUT</th>
-                            <th>BREAK</th>
-                            <th>IDLE</th>
-                            <th>AUTO LOGOUT & RELOGIN</th>
-                            <th>HOURS</th>
-                            <th>STATUS</th>
-                            <th>WORK SUMMARY</th>
-                          </tr>
-                        </thead>
+                         <thead>
+                           <tr>
+                             <th>DATE</th>
+                             <th>LOGIN</th>
+                             <th>LOGOUT</th>
+                             <th>BREAK</th>
+                             <th>IDLE</th>
+                             <th>AUTO LOGOUT & RELOGIN</th>
+                             <th>TOTAL</th>
+                             <th>WORK HOURS</th>
+                             <th>STATUS</th>
+                             <th>WORK SUMMARY</th>
+                           </tr>
+                         </thead>
                         <tbody>
                           {empRecs.map(a => (
                             <tr key={a.id} className={a.is_auto_logout ? 'bg-destructive/5' : ''}>
@@ -447,33 +448,32 @@ export default function AdminAttendance() {
                                   {a.auto_logout_count > 0 && <span className="text-[8px] text-destructive uppercase font-medium">Logouts</span>}
                                 </div>
                               </td>
-                              <td>
-                                <div className="flex flex-col">
-                                  <span className="font-bold text-primary">
-                                    {(() => {
-                                      if (a.logout_time) return `${a.hours_worked || 0}h`;
-                                      if (!a.login_time) return '—';
-                                      
-                                      if (a.date < todayStr) {
-                                        const loginDate = new Date(a.login_time);
-                                        const forceLogout = new Date(loginDate);
-                                        forceLogout.setHours(19, 0, 0, 0); 
-                                        const totalMs = Math.max(0, forceLogout.getTime() - loginDate.getTime());
-                                        const idleHrs = ((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60;
-                                        return `${Math.max(0, (totalMs / 3600000) - idleHrs).toFixed(1)}h`;
-                                      }
-                                      
-                                      const loginDate = new Date(a.login_time);
-                                      const nowMs = new Date().getTime();
-                                      const diffHrs = (nowMs - loginDate.getTime()) / 3600000;
-                                      const idleHrs = ((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60;
-                                      const netHrs = Math.max(0, diffHrs - idleHrs);
-                                      return `${netHrs.toFixed(1)}h`;
-                                    })()}
-                                  </span>
-                                  <span className="text-[8px] text-muted-foreground leading-tight">(Net Work)</span>
-                                </div>
-                              </td>
+                               <td>
+                                 <div className="flex flex-col text-center">
+                                   <span className="text-[10px] text-muted-foreground font-medium">
+                                     {(() => {
+                                       const loginDate = new Date(a.login_time);
+                                       let logoutDate = a.logout_time ? new Date(a.logout_time) : (a.date < todayStr ? new Date(new Date(a.date).setHours(19,0,0,0)) : new Date());
+                                       const totalHrs = Math.max(0, (logoutDate.getTime() - loginDate.getTime()) / 3600000);
+                                       return `${totalHrs.toFixed(1)}h`;
+                                     })()}
+                                   </span>
+                                 </div>
+                               </td>
+                               <td>
+                                 <div className="flex flex-col">
+                                   <span className="font-bold text-primary">
+                                     {(() => {
+                                       const loginDate = new Date(a.login_time);
+                                       let logoutDate = a.logout_time ? new Date(a.logout_time) : (a.date < todayStr ? new Date(new Date(a.date).setHours(19,0,0,0)) : new Date());
+                                       const totalMs = Math.max(0, logoutDate.getTime() - loginDate.getTime());
+                                       const idleHrs = ((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60;
+                                       return `${Math.max(0, (totalMs / 3600000) - idleHrs).toFixed(1)}h`;
+                                     })()}
+                                   </span>
+                                   <span className="text-[8px] text-muted-foreground leading-tight">(Net Work)</span>
+                                 </div>
+                               </td>
                               <td>
                                 <StatusBadge status={a.status} />
                               </td>
