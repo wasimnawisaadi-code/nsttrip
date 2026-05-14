@@ -370,7 +370,12 @@ export default function AdminAttendance() {
                                 {a.date ? new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
                               </td>
                               <td className="font-mono">{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                              <td className="font-mono">{a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                              <td className="font-mono">
+                                <div className="flex flex-col">
+                                  <span>{a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+                                  {a.work_summary?.includes('forgot') && <span className="text-[7px] text-destructive font-bold leading-tight">AUTO-CLEANUP</span>}
+                                </div>
+                              </td>
                               <td className="text-warning">
                                 <div className="flex flex-col">
                                   <span className="font-bold">{a.total_break_minutes || 0}m</span>
@@ -380,7 +385,12 @@ export default function AdminAttendance() {
                               <td>
                                 <div className="flex flex-col">
                                   <span className="font-bold text-orange-600">{a.offline_minutes || 0}m</span>
-                                  {a.auto_logout_count > 0 && <span className="text-[9px] text-destructive font-medium">{a.auto_logout_count} auto-logouts</span>}
+                                </div>
+                              </td>
+                              <td>
+                                <div className="flex flex-col items-center">
+                                  <span className="font-bold text-destructive">{a.auto_logout_count || 0}</span>
+                                  {a.auto_logout_count > 0 && <span className="text-[8px] text-destructive uppercase font-medium">Logouts</span>}
                                 </div>
                               </td>
                               <td>
