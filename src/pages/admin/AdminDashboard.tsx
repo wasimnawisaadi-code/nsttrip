@@ -726,7 +726,13 @@ export default function AdminDashboard() {
                       </div>
                       {a.is_auto_logout ? (
                         <div className="flex flex-col items-end gap-1">
-                           <StatusBadge status="Without Checkout" />
+                           {a.work_summary?.includes('forgot') ? (
+                             <StatusBadge status="Without Checkout" />
+                           ) : (
+                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700 border border-blue-200">
+                               OFFLINE (AUTO)
+                             </span>
+                           )}
                            {a.auto_logout_count > 1 && <span className="text-[8px] font-bold text-destructive">({a.auto_logout_count} autos)</span>}
                         </div>
                       ) : (
