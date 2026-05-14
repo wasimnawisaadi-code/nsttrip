@@ -456,8 +456,8 @@ export default function AdminDashboard() {
             ))}
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <DSRDashboardWidget basePath="/admin" />
-            <SocialLeadsDashboardWidget basePath="/admin" />
+            <DSRDashboardWidget basePath="/admin" viewType={viewType as any} reportMonth={reportMonth} />
+            <SocialLeadsDashboardWidget basePath="/admin" viewType={viewType as any} reportMonth={reportMonth} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

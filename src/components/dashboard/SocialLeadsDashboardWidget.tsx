@@ -15,7 +15,17 @@ const SOURCE_META: Record<string, { label: string; Icon: any; color: string }> =
   messenger: { label: 'Messenger', Icon: Facebook,     color: '#1A5B96' },
 };
 
-export default function SocialLeadsDashboardWidget({ basePath = '/admin', employeeId }: { basePath?: string; employeeId?: string }) {
+export default function SocialLeadsDashboardWidget({ 
+  basePath = '/admin', 
+  employeeId,
+  viewType = 'weekly',
+  reportMonth
+}: { 
+  basePath?: string; 
+  employeeId?: string;
+  viewType?: 'monthly' | 'weekly' | 'annual';
+  reportMonth?: string;
+}) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<{ total: number; unassigned: number; converted: number; bySource: { name: string; value: number }[]; byStatus: { name: string; value: number }[] }>({
     total: 0, unassigned: 0, converted: 0, bySource: [], byStatus: [],
@@ -23,7 +33,28 @@ export default function SocialLeadsDashboardWidget({ basePath = '/admin', employ
 
   useEffect(() => {
     (async () => {
-      let query = supabase.from('social_leads').select('source, status, assigned_to');
+      setLoading(true);
+      const now = new Date();
+      let fromStr = '';
+      let toStr = '';
+
+      if (viewType === 'weekly') {
+        const start = new Date(); start.setDate(now.getDate() - 6);
+        fromStr = start.toISOString().split('T')[0];
+        toStr = now.toISOString(); // Use full ISO for upper bound
+      } else if (viewType === 'monthly' && reportMonth) {
+        const [y, m] = reportMonth.split('-').map(Number);
+        fromStr = `${y}-${String(m).padStart(2, '0')}-01T00:00:00`;
+        toStr = new Date(y, m, 0).toISOString().split('T')[0] + 'T23:59:59';
+      } else if (viewType === 'annual' && reportMonth) {
+        const y = reportMonth.split('-')[0];
+        fromStr = `${y}-01-01T00:00:00`;
+        toStr = `${y}-12-31T23:59:59`;
+      }
+
+      let query = supabase.from('social_leads').select('source, status, assigned_to, created_at');
+      if (fromStr) query = query.gte('created_at', fromStr);
+      if (toStr) query = query.lte('created_at', toStr);
       if (employeeId) query = query.eq('assigned_to', employeeId);
       
       const { data } = await query;
@@ -44,7 +75,7 @@ export default function SocialLeadsDashboardWidget({ basePath = '/admin', employ
       });
       setLoading(false);
     })();
-  }, []);
+  }, [employeeId, viewType, reportMonth]);
 
   const conversionRate = stats.total > 0 ? Math.round((stats.converted / stats.total) * 100) : 0;
 
@@ -53,13 +84,22 @@ export default function SocialLeadsDashboardWidget({ basePath = '/admin', employ
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessagesSquare className="w-5 h-5 text-secondary" />
-          <h3 className="text-base font-semibold font-display">Social Leads</h3>
+          <h3 className="text-base font-semibold font-display">
+            Social Leads — {viewType === 'weekly' ? 'Last 7 Days' : viewType === 'monthly' ? 'Monthly Overview' : 'Annual Performance'}
+          </h3>
         </div>
         <Link to={`${basePath}/leads`} className="text-xs text-primary hover:underline flex items-center gap-1">View all <ChevronRight className="w-3 h-3" /></Link>
       </div>
 
-      {loading ? <div className="skeleton-nawi h-40" /> : (
-        <>
+      {loading ? <div className="skeleton-nawi h-40" /> : stats.total === 0 ? (
+        <div className="h-48 flex flex-col items-center justify-center text-muted-foreground bg-muted/10 rounded-lg border border-dashed border-border">
+          <MessagesSquare className="w-8 h-8 mb-2 opacity-20" />
+          <p className="text-xs font-medium">No leads found</p>
+          <p className="text-[10px] opacity-60">
+            {viewType === 'weekly' ? 'Last 7 days' : viewType === 'monthly' ? 'Selected month' : 'Selected year'}
+          </p>
+        </div>
+      ) : (
           <div className="grid grid-cols-4 gap-2">
             <Stat label="Total" value={String(stats.total)} />
             <Stat label="Unassigned" value={String(stats.unassigned)} warn={stats.unassigned > 0} />
