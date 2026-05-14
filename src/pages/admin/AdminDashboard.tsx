@@ -660,27 +660,42 @@ export default function AdminDashboard() {
                     <p className="text-[10px] font-bold text-warning mb-2 uppercase tracking-wide flex items-center gap-1.5">
                       <Clock className="w-3 h-3" /> Live Shield: Re-login History
                     </p>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {data.todayAttendance.filter((a: any) => (a.auto_logout_count || 0) > 0).map((a: any) => (
-                        <div key={a.id} className="flex flex-col gap-1 border-b border-warning/10 pb-1.5 last:border-0 last:pb-0">
+                        <div key={a.id} className="flex flex-col gap-1.5 border-b border-warning/10 pb-2.5 last:border-0 last:pb-0">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="font-bold">{a.name}</span>
-                            <span className="bg-warning/20 text-warning text-[9px] px-1.5 rounded-full font-black border border-warning/30">
-                              {a.auto_logout_count} {a.auto_logout_count === 1 ? 'Gap' : 'Gaps'} Tracked
+                            <span className="font-black text-primary">{a.name}</span>
+                            <span className="bg-warning text-white text-[9px] px-1.5 rounded-full font-black shadow-sm">
+                              {a.auto_logout_count} {a.auto_logout_count === 1 ? 'Auto-Kick' : 'Auto-Kicks'}
                             </span>
                           </div>
-                          <div className="text-[9px] text-muted-foreground leading-tight">
+                          <div className="space-y-1">
                             {a.work_summary?.includes('Offline:') ? (
-                              <div className="flex flex-col gap-0.5">
-                                {a.work_summary.split('Offline:').slice(1).map((log: string, idx: number) => (
-                                  <div key={idx} className="flex items-center gap-1">
-                                    <span className="w-1 h-1 rounded-full bg-warning/50" />
-                                    <span>Gap {idx + 1}: {log.split('.')[0]}</span>
-                                  </div>
-                                ))}
+                              <div className="grid grid-cols-1 gap-1">
+                                {a.work_summary.split('Offline:').slice(1).map((log: string, idx: number) => {
+                                  const parts = log.split('to');
+                                  const logoutTime = parts[0]?.trim();
+                                  const loginPart = parts[1]?.split('(');
+                                  const loginTime = loginPart ? loginPart[0]?.trim() : 'Active';
+                                  const duration = loginPart && loginPart[1] ? `(${loginPart[1].split(')')[0]})` : '';
+                                  
+                                  return (
+                                    <div key={idx} className="flex items-center justify-between bg-warning/10 px-2 py-1 rounded text-[9px] border border-warning/5">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="w-3 h-3 rounded-full bg-warning/20 flex items-center justify-center text-[7px] font-bold text-warning">{idx + 1}</span>
+                                        <span className="font-bold text-destructive">{logoutTime}</span>
+                                        <span className="text-muted-foreground">→</span>
+                                        <span className="font-bold text-success">{loginTime}</span>
+                                      </div>
+                                      <span className="text-muted-foreground font-medium">{duration}</span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             ) : (
-                              <span>System is monitoring active session gaps.</span>
+                              <div className="text-[9px] text-muted-foreground italic bg-muted/30 p-1 rounded px-2">
+                                Analyzing session data for patterns...
+                              </div>
                             )}
                           </div>
                         </div>
