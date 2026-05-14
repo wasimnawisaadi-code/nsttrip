@@ -243,12 +243,17 @@ async function recordLoginAttendanceWithLocation(
     const currentAutoCount = Number((existing as any).auto_logout_count) || 0;
     const isAuto = (existing as any).is_auto_logout === true;
 
+    const gapText = `Offline: ${logoutDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} to ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (${offlineMin}m). `;
+    const { data: currentRec } = await supabase.from('attendance').select('work_summary').eq('id', existing.id).single();
+    const newSummary = ((currentRec?.work_summary || '') + ' ' + gapText).trim().slice(0, 500);
+
     await supabase.from('attendance').update({
       logout_time: null,
       hours_worked: 0,
       is_auto_logout: false,
       offline_minutes: currentOffline + offlineMin,
-      auto_logout_count: isAuto ? currentAutoCount + 1 : currentAutoCount
+      auto_logout_count: isAuto ? currentAutoCount + 1 : currentAutoCount,
+      work_summary: newSummary
     } as any).eq('id', existing.id);
   }
   // Otherwise (already active) → no-op

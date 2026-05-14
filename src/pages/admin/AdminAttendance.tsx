@@ -369,27 +369,30 @@ export default function AdminAttendance() {
                               <td className="whitespace-nowrap font-medium text-primary">
                                 {a.date ? new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
                               </td>
-                              <td>{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                              <td>{a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                              <td className="font-semibold text-warning">
-                                {a.break_start_time ? (
-                                  <span className="flex items-center gap-1 animate-pulse text-[10px]">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-warning" />
-                                    ON BREAK
-                                  </span>
-                                ) : (
-                                  `${a.total_break_minutes || 0}m`
-                                )}
+                              <td className="font-mono">{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                              <td className="font-mono">{a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                              <td className="text-warning">
+                                <div className="flex flex-col">
+                                  <span className="font-bold">{a.total_break_minutes || 0}m</span>
+                                  {a.break_start_time && <span className="text-[9px] animate-pulse text-destructive font-black">ACTIVE</span>}
+                                </div>
                               </td>
-                              <td className="text-warning font-bold">{a.offline_minutes || 0}m</td>
-                              <td className="text-center font-bold text-destructive">{a.auto_logout_count || 0}</td>
                               <td>
-                                <span className="font-bold">
-                                  {a.logout_time ? `${a.hours_worked || 0}h` : 
-                                    a.login_time && a.date === new Date().toISOString().split('T')[0] ? 
-                                    `${Math.round(((new Date().getTime() - new Date(a.login_time).getTime()) / 3600000) * 10) / 10}h` : 
-                                    '—'}
-                                </span>
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-orange-600">{a.offline_minutes || 0}m</span>
+                                  {a.auto_logout_count > 0 && <span className="text-[9px] text-destructive font-medium">{a.auto_logout_count} auto-logouts</span>}
+                                </div>
+                              </td>
+                              <td>
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-primary">
+                                    {a.logout_time ? `${a.hours_worked || 0}h` : 
+                                      a.login_time && a.date === new Date().toISOString().split('T')[0] ? 
+                                      `${Math.round(((new Date().getTime() - new Date(a.login_time).getTime()) / 3600000) * 10) / 10}h` : 
+                                      '—'}
+                                  </span>
+                                  <span className="text-[8px] text-muted-foreground leading-tight">(Net Work)</span>
+                                </div>
                               </td>
                               <td>
                                 {a.is_auto_logout ? (
@@ -398,7 +401,11 @@ export default function AdminAttendance() {
                                   <StatusBadge status={a.status} />
                                 )}
                               </td>
-                              <td className="max-w-[200px] truncate" title={a.work_summary}>{a.work_summary || '—'}</td>
+                              <td className="max-w-[180px] text-[10px] leading-snug">
+                                <div className="line-clamp-2" title={a.work_summary}>
+                                  {a.work_summary || <span className="opacity-20">—</span>}
+                                </div>
+                              </td>
                             </tr>
                           ))}
                           {empRecs.length === 0 && <tr><td colSpan={7} className="text-center text-muted-foreground py-4">No records found</td></tr>}
