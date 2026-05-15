@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { exportToExcel } from '@/lib/excel-export';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
-import { formatDate } from '@/lib/supabase-service';
+import { formatDate, safeTime } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { ClipboardList, Download, Users as UsersIcon, Briefcase, Clock, FileText } from 'lucide-react';
 
@@ -57,8 +57,8 @@ export default function DailyStatusReport() {
     const data = rows.map(r => ({
       Employee: r.emp.name || '—',
       Status: r.leave ? `Leave (${r.leave.leave_type})` : (r.att?.status || 'No record'),
-      Login: r.att?.login_time ? new Date(r.att.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—',
-      Logout: r.att?.logout_time ? new Date(r.att.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—',
+      Login: safeTime(r.att?.login_time),
+      Logout: safeTime(r.att?.logout_time),
       Hours: r.att?.hours_worked || 0,
       'Clients Added': r.newClients,
       'Tasks Done': r.completed,
@@ -112,9 +112,9 @@ export default function DailyStatusReport() {
                     : <span className="text-destructive text-xs">No record</span>}
                 </td>
                 <td className="text-xs">
-                  {r.att?.login_time ? new Date(r.att.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                  {safeTime(r.att?.login_time)}
                   {' → '}
-                  {r.att?.logout_time ? new Date(r.att.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                  {safeTime(r.att?.logout_time)}
                 </td>
                 <td>{r.att?.hours_worked || 0}h</td>
                 <td>{r.newClients}</td>

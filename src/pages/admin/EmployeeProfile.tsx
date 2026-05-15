@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Save, X, MapPin, Power, PowerOff, Trash2, Clock, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { formatCurrency, formatDate, auditLog } from '@/lib/supabase-service';
+import { formatCurrency, formatDate, auditLog, safeTime } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PasswordConfirmDialog from '@/components/PasswordConfirmDialog';
 import { getAttendanceSettings, getAttendanceOverrides, saveAttendanceOverrides, type EmployeeOverride } from '@/lib/settings';
@@ -370,8 +370,8 @@ export default function EmployeeProfile() {
               <tbody>{attendance.map(a => (
                 <tr key={a.id}>
                   <td>{formatDate(a.date)}</td>
-                  <td>{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                  <td>{a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                  <td>{safeTime(a.login_time)}</td>
+                  <td>{safeTime(a.logout_time)}</td>
                   <td>{a.hours_worked || 0}h</td>
                   <td className="max-w-[200px] truncate text-xs">{a.work_summary || '—'}</td>
                   <td><StatusBadge status={a.status} /></td>

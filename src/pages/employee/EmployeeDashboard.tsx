@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, TrendingUp, CheckSquare, Target, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
-import { formatCurrency, formatDate, daysUntil } from '@/lib/supabase-service';
+import { formatCurrency, formatDate, daysUntil, safeTime } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { Link } from 'react-router-dom';
 import DSRDashboardWidget from '@/components/dashboard/DSRDashboardWidget';
@@ -74,8 +74,8 @@ export default function EmployeeDashboard() {
             <div>
               <p className="text-sm font-medium">Today's Attendance</p>
               <p className="text-xs text-muted-foreground">
-                Login: {data.attendance.login_time ? new Date(data.attendance.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                {data.attendance.logout_time ? ` • Logout: ${new Date(data.attendance.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : ' • Active'}
+                Login: {safeTime(data.attendance.login_time)}
+                {data.attendance.logout_time ? ` • Logout: ${safeTime(data.attendance.logout_time)}` : ' • Active'}
               </p>
             </div>
           </div>

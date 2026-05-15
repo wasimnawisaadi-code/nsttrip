@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { exportToExcel } from '@/lib/excel-export';
 import { Link } from 'react-router-dom';
 import { Users, TrendingUp, CheckSquare, UserCheck, AlertTriangle, ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, Download, Calendar, Clock, Target, LayoutGrid, BarChart3, CheckCircle2 } from 'lucide-react';
-import { formatCurrency, formatDate, daysUntil } from '@/lib/supabase-service';
+import { formatCurrency, formatDate, daysUntil, safeTime } from '@/lib/supabase-service';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -343,7 +343,11 @@ export default function AdminDashboard() {
   const tabs = ['dashboard', 'reports', 'clients', 'employees', 'services', 'revenue'];
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-8 animate-fade-in max-w-[1600px] mx-auto">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold font-display tracking-tight text-primary">Business Intelligence Hub</h1>
+        <p className="text-sm text-muted-foreground font-medium">Real-time performance analytics and operational insights</p>
+      </div>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex gap-1 border-b border-border overflow-x-auto">
           {tabs.map(t => (
@@ -365,60 +369,60 @@ export default function AdminDashboard() {
 
       {tab === 'dashboard' && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="card-nawi relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-secondary/10 rounded-bl-[40px]" />
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div className="card-nawi-hover relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-secondary/5 rounded-bl-[40px] transition-all group-hover:w-20 group-hover:h-20" />
               <div className="relative">
                 <Users className="w-5 h-5 text-secondary mb-2" />
-                <p className="text-2xl font-bold font-display">{data.totalClients}</p>
-                <p className="text-xs text-muted-foreground">Clients</p>
-                {clientChange !== 0 && <span className={`text-xs font-medium ${clientChange > 0 ? 'text-success' : 'text-destructive'}`}>{clientChange > 0 ? '+' : ''}{clientChange}%</span>}
+                <p className="text-2xl font-black font-display">{data.totalClients}</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Total Clients</p>
+                {clientChange !== 0 && <span className={`text-xs font-bold ${clientChange > 0 ? 'text-success' : 'text-destructive'}`}>{clientChange > 0 ? '↑' : '↓'} {Math.abs(clientChange)}%</span>}
               </div>
             </div>
-            <div className="card-nawi relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-success/10 rounded-bl-[40px]" />
+            <div className="card-nawi-hover relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-success/5 rounded-bl-[40px] transition-all group-hover:w-20 group-hover:h-20" />
               <div className="relative">
                 <TrendingUp className="w-5 h-5 text-success mb-2" />
-                <p className="text-2xl font-bold font-display">{formatCurrency(data.revenueThisMonth)}</p>
-                <p className="text-xs text-muted-foreground">Revenue</p>
-                {revenueChange !== 0 && <span className={`text-xs font-medium ${revenueChange > 0 ? 'text-success' : 'text-destructive'}`}>{revenueChange > 0 ? '+' : ''}{revenueChange}%</span>}
+                <p className="text-2xl font-black font-display">{formatCurrency(data.revenueThisMonth)}</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Net Revenue</p>
+                {revenueChange !== 0 && <span className={`text-xs font-bold ${revenueChange > 0 ? 'text-success' : 'text-destructive'}`}>{revenueChange > 0 ? '↑' : '↓'} {Math.abs(revenueChange)}%</span>}
               </div>
             </div>
-            <div className="card-nawi relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-primary/10 rounded-bl-[40px]" />
+            <div className="card-nawi-hover relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-bl-[40px] transition-all group-hover:w-20 group-hover:h-20" />
               <div className="relative">
                 <DollarSign className="w-5 h-5 text-primary mb-2" />
-                <p className="text-2xl font-bold font-display text-success">{formatCurrency(data.profitThisMonth)}</p>
-                <p className="text-xs text-muted-foreground">Profit</p>
+                <p className="text-2xl font-black font-display text-success">{formatCurrency(data.profitThisMonth)}</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Total Profit</p>
               </div>
             </div>
-            <div className="card-nawi relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-warning/10 rounded-bl-[40px]" />
+            <div className="card-nawi-hover relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-warning/5 rounded-bl-[40px] transition-all group-hover:w-20 group-hover:h-20" />
               <div className="relative">
                 <CheckSquare className="w-5 h-5 text-warning mb-2" />
-                <p className="text-2xl font-bold font-display">{data.activeTasks}</p>
-                <p className="text-xs text-muted-foreground">Active Tasks</p>
-                {data.overdueTasks > 0 && <span className="text-xs text-destructive font-medium">{data.overdueTasks} overdue</span>}
+                <p className="text-2xl font-black font-display">{data.activeTasks}</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Tasks Pending</p>
+                {data.overdueTasks > 0 && <span className="text-[10px] text-destructive font-black animate-pulse">{data.overdueTasks} OVERDUE</span>}
               </div>
             </div>
             <Popover>
               <PopoverTrigger asChild>
-                <div className="card-nawi relative overflow-hidden cursor-pointer hover:bg-muted/50 transition-colors">
-                  <div className="absolute top-0 right-0 w-16 h-16 bg-primary/10 rounded-bl-[40px]" />
+                <div className="card-nawi-hover relative overflow-hidden cursor-pointer group">
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-bl-[40px] transition-all group-hover:w-20 group-hover:h-20" />
                   <div className="relative">
                     <UserCheck className="w-5 h-5 text-primary mb-2" />
-                    <p className="text-2xl font-bold font-display">{data.employeesOnline}/{data.totalActiveEmp}</p>
-                    <p className="text-xs text-muted-foreground">Online</p>
+                    <p className="text-2xl font-black font-display">{data.employeesOnline}<span className="text-xs text-muted-foreground font-medium">/{data.totalActiveEmp}</span></p>
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Live Support</p>
                   </div>
                 </div>
               </PopoverTrigger>
               <PopoverContent className="w-64 p-3 bg-card border-border shadow-xl rounded-xl">
-                <h4 className="text-sm font-bold mb-3 border-b pb-2 flex items-center gap-2">
+                <h4 className="text-[10px] font-black mb-3 border-b pb-2 flex items-center gap-2 uppercase tracking-widest">
                   <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                  Online Employees ({data.employeesOnline})
+                  Active Sessions ({data.employeesOnline})
                 </h4>
                 {data.onlineEmployeesList.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-4 text-center">No one is online right now</p>
+                  <p className="text-xs text-muted-foreground py-4 text-center">No active employees</p>
                 ) : (
                   <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                     {data.onlineEmployeesList.map((emp: any, i: number) => (
@@ -430,19 +434,19 @@ export default function AdminDashboard() {
                             {emp.name.split(' ').map((n: any) => n[0]).join('').slice(0, 2)}
                           </div>
                         )}
-                        <span className="text-xs font-medium truncate">{emp.name}</span>
+                        <span className="text-[11px] font-bold truncate">{emp.name}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </PopoverContent>
             </Popover>
-            <div className="card-nawi relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-warning/10 rounded-bl-[40px]" />
+            <div className="card-nawi-hover relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-warning/5 rounded-bl-[40px] transition-all group-hover:w-20 group-hover:h-20" />
               <div className="relative">
                 <Calendar className="w-5 h-5 text-warning mb-2" />
-                <p className="text-2xl font-bold font-display">{data.pendingLeave}</p>
-                <p className="text-xs text-muted-foreground">Pending Leave</p>
+                <p className="text-2xl font-black font-display">{data.pendingLeave}</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Leave Requests</p>
               </div>
             </div>
           </div>
@@ -479,34 +483,66 @@ export default function AdminDashboard() {
               </ResponsiveContainer>
             </div>
             <div className="card-nawi">
-              <h3 className="text-base font-semibold font-display mb-4">Service Distribution</h3>
-              {data.serviceData.length === 0 ? <p className="text-sm text-muted-foreground text-center py-16">No data</p> : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={data.serviceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={75} paddingAngle={3}
-                      label={({ name, percent }) => `${name.split(' ')[0]} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                      {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-              <div className="mt-3 pt-3 border-t border-border">
-                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">By Status</p>
-                <div className="space-y-1.5">
+              <h3 className="text-base font-semibold font-display mb-4">Service Insights</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="h-[200px]">
+                  {data.serviceData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-16">No data</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie 
+                          data={data.serviceData} 
+                          dataKey="value" 
+                          nameKey="name" 
+                          cx="50%" 
+                          cy="50%" 
+                          innerRadius={50} 
+                          outerRadius={80} 
+                          paddingAngle={4}
+                        >
+                          {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        </Pie>
+                        <Tooltip formatter={(v: any, name: any) => [v, name]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+                <div className="space-y-3 overflow-y-auto max-h-[200px] pr-2 scrollbar-thin">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b pb-1">Top Services</p>
+                  {data.serviceData.sort((a: any, b: any) => b.value - a.value).map((s: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between group">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
+                        <span className="text-xs font-medium truncate max-w-[100px]">{s.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-bold text-primary">{s.value}</span>
+                        <span className="text-[10px] font-mono text-muted-foreground">{formatCurrency(s.revenue)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-border">
+                <p className="text-[10px] font-bold text-muted-foreground mb-3 uppercase tracking-widest flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3 h-3" /> Client Status Breakdown
+                </p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                   {(['New', 'Processing', 'Success', 'Failed'] as const).map(st => {
                     const count = (data.statusCounts[st] as number) || 0;
                     const total = data.totalClients || 1;
                     const pct = Math.round((count / total) * 100);
                     const color = st === 'New' ? '#1A5B96' : st === 'Processing' ? '#C45000' : st === 'Success' ? '#0A7040' : '#C0392B';
                     return (
-                      <div key={st} className="flex items-center gap-2 text-xs">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
-                        <span className="w-20 shrink-0">{st}</span>
-                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                      <div key={st} className="space-y-1">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="font-semibold text-muted-foreground">{st}</span>
+                          <span className="font-mono font-bold">{count} ({pct}%)</span>
                         </div>
-                        <span className="w-8 text-right font-mono font-medium">{count}</span>
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
+                        </div>
                       </div>
                     );
                   })}
@@ -657,7 +693,7 @@ export default function AdminDashboard() {
                         <div key={a.id} className="flex flex-col gap-1 border-b border-destructive/5 pb-1.5 last:border-0 last:pb-0">
                           <div className="flex items-center justify-between text-xs font-bold">
                             <span>{a.name}</span>
-                            <span className="text-[10px] text-destructive bg-destructive/10 px-1 rounded animate-pulse">OFFLINE since {new Date(a.logout_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-[10px] text-destructive bg-destructive/10 px-1 rounded animate-pulse">OFFLINE since {safeTime(a.logout_time)}</span>
                           </div>
                           <div className="text-[9px] text-muted-foreground font-medium italic">
                             System kick detected. Waiting for employee to re-login.
@@ -727,7 +763,7 @@ export default function AdminDashboard() {
                       {data.todayAttendance.filter((a: any) => a.break_start_time).map((a: any) => (
                         <div key={a.id} className="flex items-center justify-between text-xs">
                           <span className="font-medium">{a.name}</span>
-                          <span className="text-muted-foreground animate-pulse font-medium">Started {new Date(a.break_start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-muted-foreground animate-pulse font-medium">Started {safeTime(a.break_start_time)}</span>
                         </div>
                       ))}
                     </div>
@@ -763,7 +799,7 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex items-center justify-between">
                           <p className="text-[10px] text-muted-foreground">
-                            {a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                            {safeTime(a.login_time)}
                           </p>
                         </div>
                       </div>
@@ -925,17 +961,81 @@ export default function AdminDashboard() {
       )}
 
       {tab === 'services' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="card-nawi">
-            <h3 className="text-base font-semibold font-display mb-4">Service Distribution</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart><Pie data={data.serviceData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={100} paddingAngle={3} label>{data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip /></PieChart>
-            </ResponsiveContainer>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="card-nawi lg:col-span-1">
+              <h3 className="text-base font-semibold font-display mb-4">Volume Distribution</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie 
+                    data={data.serviceData} 
+                    dataKey="value" 
+                    nameKey="name" 
+                    cx="50%" 
+                    cy="50%" 
+                    innerRadius={60} 
+                    outerRadius={100} 
+                    paddingAngle={4}
+                  >
+                    {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip formatter={(v: any, name: any) => [v, name]} />
+                  <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', paddingTop: '20px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="card-nawi lg:col-span-2">
+              <h3 className="text-base font-semibold font-display mb-4">Service Performance Data</h3>
+              <div className="table-container border-none max-h-[300px] overflow-y-auto">
+                <table className="table-nawi w-full text-xs">
+                  <thead className="sticky top-0 z-10">
+                    <tr>
+                      <th>Service Name</th>
+                      <th>Total Clients</th>
+                      <th>Share %</th>
+                      <th>Total Revenue</th>
+                      <th>Avg Revenue/Client</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.serviceData.sort((a: any, b: any) => b.value - a.value).map((s: any, i: number) => {
+                      const totalValue = data.serviceData.reduce((acc: number, curr: any) => acc + curr.value, 0) || 1;
+                      const pct = ((s.value / totalValue) * 100).toFixed(1);
+                      return (
+                        <tr key={i}>
+                          <td className="font-bold flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
+                            {s.name}
+                          </td>
+                          <td className="font-mono">{s.value}</td>
+                          <td>
+                            <div className="flex items-center gap-2">
+                              <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                              </div>
+                              {pct}%
+                            </div>
+                          </td>
+                          <td className="font-bold text-success">{formatCurrency(s.revenue)}</td>
+                          <td className="text-muted-foreground">{formatCurrency(s.revenue / (s.value || 1))}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
           <div className="card-nawi">
-            <h3 className="text-base font-semibold font-display mb-4">Revenue by Service</h3>
+            <h3 className="text-base font-semibold font-display mb-4">Revenue Comparison by Service</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={data.serviceData} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="hsl(213,45%,92%)" /><XAxis type="number" tick={{ fontSize: 11 }} /><YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={90} /><Tooltip formatter={(v: number) => formatCurrency(v)} /><Bar dataKey="revenue" fill="#052F59" radius={[0, 4, 4, 0]} /></BarChart>
+              <BarChart data={data.serviceData} layout="vertical" margin={{ left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(213,45%,92%)" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={100} />
+                <Tooltip formatter={(v: number) => formatCurrency(v)} cursor={{ fill: 'hsl(var(--muted)/0.3)' }} />
+                <Bar dataKey="revenue" fill="#052F59" radius={[0, 4, 4, 0]} barSize={20} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
