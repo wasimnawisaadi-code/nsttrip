@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { exportToExcel } from '@/lib/excel-export';
 import { Download, Clock, Users, AlertTriangle, Plus, Calendar, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { formatDate, generateDisplayId, auditLog } from '@/lib/supabase-service';
+import { formatDate, safeTime, generateDisplayId, auditLog } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { getAttendanceSettings } from '@/lib/settings';
@@ -27,12 +27,15 @@ export default function AdminAttendance() {
 
   const loadData = async () => {
     setLoading(true);
-    const [empRes, attRes, leaveRes] = await Promise.all([
+    const [empRes, attRes, leaveRes, rolesRes] = await Promise.all([
       supabase.from('profiles').select('*'),
       supabase.from('attendance').select('*'),
       supabase.from('leave_requests').select('*'),
+      supabase.from('user_roles').select('*'),
     ]);
-    setEmployees(empRes.data || []);
+
+    const adminIds = new Set((rolesRes.data || []).filter((r: any) => r.role === 'admin' || r.role === 'superadmin').map((r: any) => r.user_id));
+    setEmployees((empRes.data || []).filter((e: any) => !adminIds.has(e.user_id)));
     setAllAttendance(attRes.data || []);
     setAllLeave(leaveRes.data || []);
     
@@ -211,9 +214,9 @@ export default function AdminAttendance() {
                           </div>
                         </div>
                       </td>
-                      <td className="text-xs">{att?.login_time ? new Date(att.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                      <td className="text-xs">{safeTime(att?.login_time)}</td>
                       <td className="text-xs">
-                        {att?.logout_time ? new Date(att.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : (att ? 'Active' : '—')}
+                        {att?.logout_time ? safeTime(att.logout_time) : (att ? 'Active' : '—')}
                       </td>
                       <td className="text-xs text-muted-foreground">{att?.total_break_minutes || 0}m</td>
                       <td className="text-xs text-warning font-semibold">{att?.offline_minutes || 0}m</td>
@@ -304,8 +307,8 @@ export default function AdminAttendance() {
                           <div className="text-xs">
                             <StatusBadge status={rec.status} />
                             <span className="text-muted-foreground ml-1">
-                              {rec.login_time ? new Date(rec.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : ''}
-                              {rec.logout_time ? ` → ${new Date(rec.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : ' (Active)'}
+                              {rec.login_time ? safeTime(rec.login_time) : ''}
+                              {rec.logout_time ? ` → ${safeTime(rec.logout_time)}` : ' (Active)'}
                             </span>
                           </div>
                         ) : leave ? (
@@ -347,9 +350,9 @@ export default function AdminAttendance() {
                       {empRecs.map(a => (
                         <tr key={a.id} className={a.is_auto_logout ? 'bg-destructive/5' : ''}>
                           <td>{formatDate(a.date)}</td>
-                          <td>{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                          <td>{safeTime(a.login_time)}</td>
                           <td>
-                            {a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                            {safeTime(a.logout_time)}
                           </td>
                           <td className="text-muted-foreground">{a.total_break_minutes || 0}m</td>
                           <td className="text-warning font-medium">{a.offline_minutes || 0}m</td>
@@ -419,11 +422,11 @@ export default function AdminAttendance() {
                               <td className="whitespace-nowrap font-medium text-primary">
                                 {a.date ? new Date(a.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
                               </td>
-                              <td className="font-mono">{a.login_time ? new Date(a.login_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                              <td className="font-mono">{safeTime(a.login_time)}</td>
                               <td className="font-mono">
                                 <div className="flex flex-col">
                                   <span>
-                                    {a.logout_time ? new Date(a.logout_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 
+                                    {a.logout_time ? safeTime(a.logout_time) : 
                                       (a.date < todayStr ? '07:00 PM' : '—')}
                                   </span>
                                   {(a.work_summary?.includes('forgot') || (a.date < todayStr && !a.logout_time)) && 
@@ -467,8 +470,7 @@ export default function AdminAttendance() {
                                        const loginDate = new Date(a.login_time);
                                        let logoutDate = a.logout_time ? new Date(a.logout_time) : (a.date < todayStr ? new Date(new Date(a.date).setHours(19,0,0,0)) : new Date());
                                        const totalMs = Math.max(0, logoutDate.getTime() - loginDate.getTime());
-                                       const idleHrs = ((a.total_break_minutes || 0) + (a.offline_minutes || 0)) / 60;
-                                       return `${Math.max(0, (totalMs / 3600000) - idleHrs).toFixed(1)}h`;
+                                       return `${(totalMs / 3600000).toFixed(1)}h`;
                                      })()}
                                    </span>
                                    <span className="text-[8px] text-muted-foreground leading-tight">(Net Work)</span>
