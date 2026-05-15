@@ -21,6 +21,7 @@ export default function AdminDashboard() {
   const [dataSource, setDataSource] = useState<'combined' | 'dsr' | 'clients'>('clients');
   const [reportMonth, setReportMonth] = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`; });
   const [viewType, setViewType] = useState<'monthly' | 'weekly' | 'annual'>('monthly');
+  const [selectedService, setSelectedService] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -488,18 +489,30 @@ export default function AdminDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 border-b border-border/50 pb-6">
                 <div>
                   <h3 className="text-xl font-black font-display text-primary tracking-tight uppercase tracking-widest text-sm">Service Insights Matrix</h3>
-                  <p className="text-xs text-muted-foreground mt-1 font-medium">Real-time volume and performance breakdown</p>
+                  <p className="text-xs text-muted-foreground mt-1 font-medium">
+                    {selectedService ? `Viewing details for: ${selectedService}` : 'Click a service to view specific processing status'}
+                  </p>
                 </div>
-                <div className="bg-primary/5 px-4 py-2 rounded-xl border border-primary/10">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Active Services</p>
-                  <p className="text-lg font-black text-primary">{data.serviceData.length}</p>
+                <div className="flex gap-4">
+                  {selectedService && (
+                    <button 
+                      onClick={() => setSelectedService(null)}
+                      className="px-5 py-2.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-primary/30 active:scale-95"
+                    >
+                      Show All Services
+                    </button>
+                  )}
+                  <div className="bg-primary/5 px-4 py-2 rounded-xl border border-primary/10">
+                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Services</p>
+                    <p className="text-lg font-black text-primary">{data.serviceData.length}</p>
+                  </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-12 gap-12">
                 <div className="xl:col-span-4 flex flex-col items-center">
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-8 self-start">Volume Distribution</p>
-                  <div className="h-[280px] w-full">
+                  <div className="h-[280px] w-full cursor-pointer">
                     {data.serviceData.length === 0 ? (
                       <div className="h-full flex items-center justify-center text-sm text-muted-foreground bg-muted/10 rounded-xl border border-dashed border-border">
                         No data available
@@ -518,8 +531,16 @@ export default function AdminDashboard() {
                             paddingAngle={8}
                             stroke="none"
                             label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                            onClick={(entry) => setSelectedService(entry.name)}
                           >
-                            {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                            {data.serviceData.map((_: any, i: number) => (
+                              <Cell 
+                                key={i} 
+                                fill={COLORS[i % COLORS.length]} 
+                                opacity={selectedService === null || selectedService === data.serviceData[i].name ? 1 : 0.3}
+                                className="transition-all duration-300"
+                              />
+                            ))}
                           </Pie>
                           <Tooltip 
                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
@@ -535,17 +556,23 @@ export default function AdminDashboard() {
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-8">Service Breakdown</p>
                   <div className="space-y-4 max-h-[300px] overflow-y-auto pr-4 scrollbar-thin">
                     {data.serviceData.sort((a: any, b: any) => b.value - a.value).map((s: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between group p-4 rounded-2xl hover:bg-muted/40 transition-all border border-transparent hover:border-border/50 shadow-sm hover:shadow-md">
+                      <div 
+                        key={i} 
+                        onClick={() => setSelectedService(s.name)}
+                        className={`flex items-center justify-between group p-4 rounded-2xl transition-all border shadow-sm cursor-pointer ${
+                          selectedService === s.name ? 'bg-primary text-white border-primary shadow-xl scale-[1.02]' : 'hover:bg-muted/40 border-transparent hover:border-border/50'
+                        }`}
+                      >
                         <div className="flex items-center gap-4">
-                          <div className="w-4 h-4 rounded-full shadow-sm" style={{ background: COLORS[i % COLORS.length] }} />
+                          <div className={`w-4 h-4 rounded-full shadow-sm ${selectedService === s.name ? 'ring-2 ring-white' : ''}`} style={{ background: selectedService === s.name ? 'white' : COLORS[i % COLORS.length] }} />
                           <div>
-                            <p className="text-sm font-black text-foreground">{s.name}</p>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Revenue Impact</p>
+                            <p className={`text-sm font-black ${selectedService === s.name ? 'text-white' : 'text-foreground'}`}>{s.name}</p>
+                            <p className={`text-[10px] font-bold uppercase tracking-widest ${selectedService === s.name ? 'text-white/70' : 'text-muted-foreground'}`}>Revenue Impact</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-base font-black text-primary">{s.value} <span className="text-[10px] text-muted-foreground font-medium uppercase">Clients</span></p>
-                          <p className="text-xs font-mono font-bold text-success">{formatCurrency(s.revenue)}</p>
+                          <p className={`text-base font-black ${selectedService === s.name ? 'text-white' : 'text-primary'}`}>{s.value} <span className={`text-[10px] font-medium uppercase ${selectedService === s.name ? 'text-white/70' : 'text-muted-foreground'}`}>Clients</span></p>
+                          <p className={`text-xs font-mono font-bold ${selectedService === s.name ? 'text-white' : 'text-success'}`}>{formatCurrency(s.revenue)}</p>
                         </div>
                       </div>
                     ))}
@@ -554,12 +581,21 @@ export default function AdminDashboard() {
 
                 <div className="xl:col-span-4 border-l border-border/50 pl-12">
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-success" /> Processing Status
+                    <CheckCircle2 className="w-4 h-4 text-success" /> {selectedService ? `${selectedService} Status` : 'Overall Status'}
                   </p>
                   <div className="space-y-8">
                     {(['New', 'Processing', 'Success', 'Failed'] as const).map(st => {
-                      const count = (data.statusCounts[st] as number) || 0;
-                      const total = data.totalClients || 1;
+                      // Filter counts if a service is selected
+                      let count = 0;
+                      if (selectedService) {
+                        count = data.allClients.filter((c: any) => c.service === selectedService && c.status === st).length;
+                      } else {
+                        count = (data.statusCounts[st] as number) || 0;
+                      }
+                      
+                      const total = selectedService 
+                        ? data.allClients.filter((c: any) => c.service === selectedService).length || 1
+                        : data.totalClients || 1;
                       const pct = Math.round((count / total) * 100);
                       const color = st === 'New' ? '#1A5B96' : st === 'Processing' ? '#C45000' : st === 'Success' ? '#0A7040' : '#C0392B';
                       return (
