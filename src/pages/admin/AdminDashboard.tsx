@@ -482,12 +482,14 @@ export default function AdminDashboard() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-            <div className="card-nawi flex flex-col">
-              <h3 className="text-base font-semibold font-display mb-6">Service Insights</h3>
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                <div className="h-[220px]">
+            <div className="card-nawi flex flex-col p-6">
+              <h3 className="text-base font-semibold font-display mb-8">Service Insights</h3>
+              <div className="flex flex-col gap-8">
+                <div className="h-[240px] w-full">
                   {data.serviceData.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-20">No data available</p>
+                    <div className="h-full flex items-center justify-center text-sm text-muted-foreground bg-muted/10 rounded-xl border border-dashed border-border">
+                      No data available for this period
+                    </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -497,58 +499,64 @@ export default function AdminDashboard() {
                           nameKey="name" 
                           cx="50%" 
                           cy="50%" 
-                          innerRadius={55} 
-                          outerRadius={85} 
-                          paddingAngle={5}
-                          label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                          innerRadius={65} 
+                          outerRadius={100} 
+                          paddingAngle={6}
                           stroke="none"
                         >
                           {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Pie>
                         <Tooltip 
-                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
                           formatter={(v: any, name: any) => [`${v} Clients`, name]} 
                         />
                       </PieChart>
                     </ResponsiveContainer>
                   )}
                 </div>
-                <div className="space-y-4 pr-2">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] border-b pb-2 mb-4">Volume Breakdown</p>
-                  <div className="grid grid-cols-1 gap-3 overflow-y-auto max-h-[180px] scrollbar-none">
+                
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] border-b border-border/50 pb-3 mb-4 flex justify-between">
+                    <span>Volume Breakdown</span>
+                    <span>Clients / Revenue</span>
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 max-h-[220px] overflow-y-auto scrollbar-none">
                     {data.serviceData.sort((a: any, b: any) => b.value - a.value).map((s: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between group py-1">
+                      <div key={i} className="flex items-center justify-between group p-3 rounded-xl hover:bg-muted/30 transition-all border border-transparent hover:border-border/50">
                         <div className="flex items-center gap-3">
-                          <div className="w-2.5 h-2.5 rounded-full ring-2 ring-offset-2 ring-transparent group-hover:ring-current transition-all" style={{ background: COLORS[i % COLORS.length], color: COLORS[i % COLORS.length] }} />
-                          <span className="text-xs font-bold text-foreground/80">{s.name}</span>
+                          <div className="w-3 h-3 rounded-full shadow-sm" style={{ background: COLORS[i % COLORS.length] }} />
+                          <span className="text-sm font-bold text-foreground/90">{s.name}</span>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <span className="text-xs font-black text-primary">{s.value}</span>
-                          <span className="text-[10px] font-mono font-bold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">{formatCurrency(s.revenue)}</span>
+                        <div className="flex items-center gap-6">
+                          <div className="flex flex-col items-end">
+                            <span className="text-sm font-black text-primary">{s.value}</span>
+                            <span className="text-[10px] font-bold text-muted-foreground">{formatCurrency(s.revenue)}</span>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
-              <div className="mt-8 pt-6 border-t border-border/50">
-                <p className="text-[10px] font-black text-muted-foreground mb-4 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-success" /> Processing Status
+
+              <div className="mt-10 pt-8 border-t border-border/50">
+                <p className="text-[10px] font-black text-muted-foreground mb-6 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-success" /> Service Processing Status
                 </p>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                <div className="grid grid-cols-2 gap-x-10 gap-y-6">
                   {(['New', 'Processing', 'Success', 'Failed'] as const).map(st => {
                     const count = (data.statusCounts[st] as number) || 0;
                     const total = data.totalClients || 1;
                     const pct = Math.round((count / total) * 100);
                     const color = st === 'New' ? '#1A5B96' : st === 'Processing' ? '#C45000' : st === 'Success' ? '#0A7040' : '#C0392B';
                     return (
-                      <div key={st} className="space-y-2">
-                        <div className="flex items-center justify-between text-[11px]">
+                      <div key={st} className="space-y-3">
+                        <div className="flex items-center justify-between text-[12px]">
                           <span className="font-bold text-muted-foreground">{st}</span>
-                          <span className="font-mono font-black text-primary">{count} <span className="text-[9px] text-muted-foreground font-medium">({pct}%)</span></span>
+                          <span className="font-mono font-black text-primary">{count} <span className="text-[10px] text-muted-foreground font-medium">({pct}%)</span></span>
                         </div>
-                        <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%`, background: color }} />
+                        <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-1000 ease-in-out shadow-sm" style={{ width: `${pct}%`, background: color }} />
                         </div>
                       </div>
                     );
