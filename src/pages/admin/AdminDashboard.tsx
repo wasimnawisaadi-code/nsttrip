@@ -500,10 +500,21 @@ export default function AdminDashboard() {
                           innerRadius={50} 
                           outerRadius={80} 
                           paddingAngle={4}
+                          label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                         >
                           {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Pie>
-                        <Tooltip formatter={(v: any, name: any) => [v, name]} />
+                        <Tooltip formatter={(v: any, name: any) => [`${v} Clients`, name]} />
+                        <Legend 
+                          layout="horizontal" 
+                          verticalAlign="bottom" 
+                          align="center" 
+                          formatter={(value, entry: any) => {
+                            const item = data.serviceData.find(d => d.name === value);
+                            return <span className="text-[9px] font-bold">{value} ({item?.value || 0})</span>;
+                          }}
+                          wrapperStyle={{ fontSize: '9px', paddingTop: '10px' }}
+                        />
                       </PieChart>
                     </ResponsiveContainer>
                   )}
@@ -976,11 +987,21 @@ export default function AdminDashboard() {
                     innerRadius={60} 
                     outerRadius={100} 
                     paddingAngle={4}
+                    label={({ name, value, percent }) => `${(percent * 100).toFixed(0)}%`}
                   >
                     {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
-                  <Tooltip formatter={(v: any, name: any) => [v, name]} />
-                  <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '10px', paddingTop: '20px' }} />
+                  <Tooltip formatter={(v: any, name: any) => [`${v} Clients`, name]} />
+                  <Legend 
+                    layout="horizontal" 
+                    verticalAlign="bottom" 
+                    align="center" 
+                    formatter={(value, entry: any) => {
+                      const item = data.serviceData.find(d => d.name === value);
+                      return <span className="text-[10px] font-bold text-primary">{value}: {item?.value || 0}</span>;
+                    }}
+                    wrapperStyle={{ fontSize: '10px', paddingTop: '20px' }} 
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
