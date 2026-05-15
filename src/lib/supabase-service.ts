@@ -57,6 +57,24 @@ export function getDateStatus(dateString: string): 'safe' | 'warning' | 'urgent'
   return 'safe';
 }
 
+export function safeTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  try {
+    const d = parseDbDate(dateStr);
+    if (!d) return '—';
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return '—';
+  }
+}
+
+export function parseDbDate(dateStr: string | null | undefined): Date | null {
+  if (!dateStr) return null;
+  const parseStr = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : `${dateStr}Z`;
+  const d = new Date(parseStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export function calculateWorkingDays(start: string, end: string): number {
   const s = new Date(start);
   const e = new Date(end);
@@ -111,12 +129,17 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
     const [h, m] = (settings.work_end || '19:00').split(':').map(Number);
     
     let autoLogoutTime = lastSeen;
-    if (!autoLogoutTime || autoLogoutTime <= new Date(forgotten.login_time)) {
-      const loginDate = new Date(forgotten.login_time);
-      autoLogoutTime = new Date(loginDate.setHours(h, m, 0, 0));
+    const forgottenLoginDate = parseDbDate(forgotten.login_time);
+    
+    if (!autoLogoutTime || (forgottenLoginDate && autoLogoutTime <= forgottenLoginDate)) {
+      if (forgottenLoginDate) {
+        autoLogoutTime = new Date(forgottenLoginDate.setHours(h, m, 0, 0));
+      } else {
+        autoLogoutTime = new Date(); // Fallback if parsing fails completely
+      }
     }
 
-    const totalMs = autoLogoutTime.getTime() - new Date(forgotten.login_time).getTime();
+    const totalMs = autoLogoutTime.getTime() - (forgottenLoginDate ? forgottenLoginDate.getTime() : autoLogoutTime.getTime());
     const breakMs = (Number((forgotten as any).total_break_minutes) || 0) * 60000;
     const offlineMs = (Number((forgotten as any).offline_minutes) || 0) * 60000;
     const hoursWorked = Math.max(0, Math.round(((totalMs - breakMs - offlineMs) / 3600000) * 10) / 10);

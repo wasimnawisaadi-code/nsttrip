@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
-import { formatDate } from '@/lib/supabase-service';
+import { formatDate, safeTime, parseDbDate } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { getAttendanceSettings } from '@/lib/settings';
 import { LogOut, Clock, Check } from 'lucide-react';
@@ -18,17 +18,7 @@ export default function AttendancePage() {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [todayRecord, setTodayRecord] = useState<any>(null);
 
-  // Ultimate safety wrapper for date formatting
-  const safeTime = (dateStr: string | null | undefined) => {
-    if (!dateStr) return '—';
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return '—';
-      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    } catch (e) {
-      return '—';
-    }
-  };
+
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -113,11 +103,11 @@ export default function AttendancePage() {
           return;
         }
 
-        const loginDate = new Date(loginTimeStr);
+        const loginDate = parseDbDate(loginTimeStr);
         const logoutDate = new Date(logoutTime);
 
         // Safety check for invalid dates
-        if (isNaN(loginDate.getTime()) || isNaN(logoutDate.getTime())) {
+        if (!loginDate || isNaN(logoutDate.getTime())) {
           toast.error("Invalid time format detected.");
           return;
         }
@@ -327,8 +317,9 @@ export default function AttendancePage() {
                   <td className="text-muted-foreground">
                     {(() => {
                       if (!a?.login_time) return '—';
-                      const loginDate = new Date(a.login_time);
-                      const logoutDate = a.logout_time ? new Date(a.logout_time) : new Date();
+                      const loginDate = parseDbDate(a.login_time);
+                      const logoutDate = a.logout_time ? parseDbDate(a.logout_time) : new Date();
+                      if (!loginDate || !logoutDate) return '—';
                       const diffHrs = (logoutDate.getTime() - loginDate.getTime()) / 3600000;
                       return `${Math.max(0, diffHrs).toFixed(1)}h`;
                     })()}
