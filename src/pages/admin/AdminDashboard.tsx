@@ -482,12 +482,12 @@ export default function AdminDashboard() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-            <div className="card-nawi">
-              <h3 className="text-base font-semibold font-display mb-4">Service Insights</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="h-[250px]">
+            <div className="card-nawi flex flex-col">
+              <h3 className="text-base font-semibold font-display mb-6">Service Insights</h3>
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div className="h-[220px]">
                   {data.serviceData.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-16">No data</p>
+                    <p className="text-sm text-muted-foreground text-center py-20">No data available</p>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -497,67 +497,58 @@ export default function AdminDashboard() {
                           nameKey="name" 
                           cx="50%" 
                           cy="50%" 
-                          innerRadius={60} 
-                          outerRadius={90} 
+                          innerRadius={55} 
+                          outerRadius={85} 
                           paddingAngle={5}
-                          label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                          labelLine={true}
+                          label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                          stroke="none"
                         >
                           {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Pie>
                         <Tooltip 
-                          formatter={(v: any, name: any) => [`${v} Clients`, name]} 
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                        />
-                        <Legend 
-                          layout="horizontal" 
-                          verticalAlign="bottom" 
-                          align="center" 
-                          iconType="circle"
-                          formatter={(value) => {
-                            const item = data.serviceData.find(d => d.name === value);
-                            return <span className="text-[10px] font-semibold text-primary/80">{value} ({item?.value || 0})</span>;
-                          }}
-                          wrapperStyle={{ paddingTop: '20px' }}
+                          formatter={(v: any, name: any) => [`${v} Clients`, name]} 
                         />
                       </PieChart>
                     </ResponsiveContainer>
                   )}
                 </div>
-                <div className="space-y-3 overflow-y-auto max-h-[200px] pr-2 scrollbar-thin">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b pb-1">Top Services</p>
-                  {data.serviceData.sort((a: any, b: any) => b.value - a.value).map((s: any, i: number) => (
-                    <div key={i} className="flex items-center justify-between group">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
-                        <span className="text-xs font-medium truncate max-w-[100px]">{s.name}</span>
+                <div className="space-y-4 pr-2">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] border-b pb-2 mb-4">Volume Breakdown</p>
+                  <div className="grid grid-cols-1 gap-3 overflow-y-auto max-h-[180px] scrollbar-none">
+                    {data.serviceData.sort((a: any, b: any) => b.value - a.value).map((s: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between group py-1">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2.5 h-2.5 rounded-full ring-2 ring-offset-2 ring-transparent group-hover:ring-current transition-all" style={{ background: COLORS[i % COLORS.length], color: COLORS[i % COLORS.length] }} />
+                          <span className="text-xs font-bold text-foreground/80">{s.name}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="text-xs font-black text-primary">{s.value}</span>
+                          <span className="text-[10px] font-mono font-bold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded">{formatCurrency(s.revenue)}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-bold text-primary">{s.value}</span>
-                        <span className="text-[10px] font-mono text-muted-foreground">{formatCurrency(s.revenue)}</span>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div className="mt-4 pt-4 border-t border-border">
-                <p className="text-[10px] font-bold text-muted-foreground mb-3 uppercase tracking-widest flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3 h-3" /> Client Status Breakdown
+              <div className="mt-8 pt-6 border-t border-border/50">
+                <p className="text-[10px] font-black text-muted-foreground mb-4 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-success" /> Processing Status
                 </p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                   {(['New', 'Processing', 'Success', 'Failed'] as const).map(st => {
                     const count = (data.statusCounts[st] as number) || 0;
                     const total = data.totalClients || 1;
                     const pct = Math.round((count / total) * 100);
                     const color = st === 'New' ? '#1A5B96' : st === 'Processing' ? '#C45000' : st === 'Success' ? '#0A7040' : '#C0392B';
                     return (
-                      <div key={st} className="space-y-1">
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className="font-semibold text-muted-foreground">{st}</span>
-                          <span className="font-mono font-bold">{count} ({pct}%)</span>
+                      <div key={st} className="space-y-2">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-bold text-muted-foreground">{st}</span>
+                          <span className="font-mono font-black text-primary">{count} <span className="text-[9px] text-muted-foreground font-medium">({pct}%)</span></span>
                         </div>
-                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
+                        <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${pct}%`, background: color }} />
                         </div>
                       </div>
                     );
@@ -977,75 +968,82 @@ export default function AdminDashboard() {
       )}
 
       {tab === 'services' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="card-nawi lg:col-span-1">
-              <h3 className="text-base font-semibold font-display mb-4">Volume Distribution</h3>
-              <ResponsiveContainer width="100%" height={350}>
-                <PieChart>
-                  <Pie 
-                    data={data.serviceData} 
-                    dataKey="value" 
-                    nameKey="name" 
-                    cx="50%" 
-                    cy="45%" 
-                    innerRadius={70} 
-                    outerRadius={105} 
-                    paddingAngle={5}
-                    label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                    labelLine={true}
-                  >
-                    {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip formatter={(v: any, name: any) => [`${v} Clients`, name]} />
-                  <Legend 
-                    layout="horizontal" 
-                    verticalAlign="bottom" 
-                    align="center" 
-                    iconType="circle"
-                    formatter={(value) => {
-                      const item = data.serviceData.find(d => d.name === value);
-                      return <span className="text-[11px] font-bold text-primary">{value}: {item?.value || 0}</span>;
-                    }}
-                    wrapperStyle={{ paddingTop: '30px' }} 
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+            <div className="card-nawi lg:col-span-2 flex flex-col min-h-[450px]">
+              <h3 className="text-base font-semibold font-display mb-8">Volume Distribution</h3>
+              <div className="flex-1 flex flex-col justify-center">
+                <ResponsiveContainer width="100%" height={320}>
+                  <PieChart>
+                    <Pie 
+                      data={data.serviceData} 
+                      dataKey="value" 
+                      nameKey="name" 
+                      cx="50%" 
+                      cy="45%" 
+                      innerRadius={70} 
+                      outerRadius={110} 
+                      paddingAngle={5}
+                      label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                      stroke="none"
+                    >
+                      {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      formatter={(v: any, name: any) => [`${v} Clients`, name]} 
+                    />
+                    <Legend 
+                      layout="horizontal" 
+                      verticalAlign="bottom" 
+                      align="center" 
+                      formatter={(value) => {
+                        const item = data.serviceData.find(d => d.name === value);
+                        return <span className="text-[11px] font-bold text-primary px-2">{value}: {item?.value || 0}</span>;
+                      }}
+                      wrapperStyle={{ paddingTop: '30px' }} 
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            <div className="card-nawi lg:col-span-2">
-              <h3 className="text-base font-semibold font-display mb-4">Service Performance Data</h3>
-              <div className="table-container border-none max-h-[300px] overflow-y-auto">
-                <table className="table-nawi w-full text-xs">
-                  <thead className="sticky top-0 z-10">
-                    <tr>
-                      <th>Service Name</th>
-                      <th>Total Clients</th>
-                      <th>Share %</th>
-                      <th>Total Revenue</th>
-                      <th>Avg Revenue/Client</th>
+            <div className="card-nawi lg:col-span-3 flex flex-col">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-base font-semibold font-display">Service Performance Matrix</h3>
+                <div className="flex gap-2">
+                  <div className="px-3 py-1 bg-primary/5 rounded-full text-[10px] font-bold text-primary uppercase tracking-widest">Live Metrics</div>
+                </div>
+              </div>
+              <div className="table-container border-none flex-1 overflow-visible">
+                <table className="table-nawi w-full text-[13px]">
+                  <thead>
+                    <tr className="bg-transparent border-b-2 border-primary/10">
+                      <th className="py-4 text-left font-black text-muted-foreground uppercase tracking-widest text-[10px]">Service Name</th>
+                      <th className="py-4 text-center font-black text-muted-foreground uppercase tracking-widest text-[10px]">Clients</th>
+                      <th className="py-4 text-center font-black text-muted-foreground uppercase tracking-widest text-[10px]">Market Share</th>
+                      <th className="py-4 text-right font-black text-muted-foreground uppercase tracking-widest text-[10px]">Revenue</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-border/50">
                     {data.serviceData.sort((a: any, b: any) => b.value - a.value).map((s: any, i: number) => {
                       const totalValue = data.serviceData.reduce((acc: number, curr: any) => acc + curr.value, 0) || 1;
                       const pct = ((s.value / totalValue) * 100).toFixed(1);
                       return (
-                        <tr key={i}>
-                          <td className="font-bold flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
+                        <tr key={i} className="hover:bg-primary/[0.02] transition-colors group">
+                          <td className="py-4 font-bold flex items-center gap-3">
+                            <div className="w-3 h-3 rounded-full shadow-sm" style={{ background: COLORS[i % COLORS.length] }} />
                             {s.name}
                           </td>
-                          <td className="font-mono">{s.value}</td>
-                          <td>
-                            <div className="flex items-center gap-2">
-                              <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                          <td className="py-4 text-center font-mono font-black text-primary">{s.value}</td>
+                          <td className="py-4">
+                            <div className="flex items-center justify-center gap-3">
+                              <div className="w-20 h-2 bg-muted rounded-full overflow-hidden shadow-inner">
+                                <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${pct}%` }} />
                               </div>
-                              {pct}%
+                              <span className="font-mono text-[11px] font-bold text-muted-foreground">{pct}%</span>
                             </div>
                           </td>
-                          <td className="font-bold text-success">{formatCurrency(s.revenue)}</td>
-                          <td className="text-muted-foreground">{formatCurrency(s.revenue / (s.value || 1))}</td>
+                          <td className="py-4 text-right font-black text-success text-[14px]">{formatCurrency(s.revenue)}</td>
                         </tr>
                       );
                     })}
@@ -1054,15 +1052,19 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-          <div className="card-nawi">
-            <h3 className="text-base font-semibold font-display mb-4">Revenue Comparison by Service</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={data.serviceData} layout="vertical" margin={{ left: 20 }}>
+          <div className="card-nawi p-8">
+            <h3 className="text-base font-semibold font-display mb-8">Revenue Comparison by Service</h3>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={data.serviceData} layout="vertical" margin={{ left: 40, right: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(213,45%,92%)" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={100} />
-                <Tooltip formatter={(v: number) => formatCurrency(v)} cursor={{ fill: 'hsl(var(--muted)/0.3)' }} />
-                <Bar dataKey="revenue" fill="#052F59" radius={[0, 4, 4, 0]} barSize={20} />
+                <XAxis type="number" tick={{ fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fontWeight: 700 }} width={120} axisLine={false} tickLine={false} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  formatter={(v: number) => [formatCurrency(v), 'Revenue']} 
+                  cursor={{ fill: 'hsl(var(--muted)/0.2)' }} 
+                />
+                <Bar dataKey="revenue" fill="#052F59" radius={[0, 6, 6, 0]} barSize={32} animationDuration={1500} />
               </BarChart>
             </ResponsiveContainer>
           </div>
