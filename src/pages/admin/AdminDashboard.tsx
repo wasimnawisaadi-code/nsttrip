@@ -500,46 +500,35 @@ export default function AdminDashboard() {
                           innerRadius={50} 
                           outerRadius={80} 
                           paddingAngle={4}
-                          label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                         >
                           {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Pie>
                         <Tooltip formatter={(v: any, name: any) => [`${v} Clients`, name]} />
-                        <Legend 
-                          layout="horizontal" 
-                          verticalAlign="bottom" 
-                          align="center" 
-                          formatter={(value, entry: any) => {
-                            const item = data.serviceData.find(d => d.name === value);
-                            return <span className="text-[9px] font-bold">{value} ({item?.value || 0})</span>;
-                          }}
-                          wrapperStyle={{ fontSize: '9px', paddingTop: '10px' }}
-                        />
                       </PieChart>
                     </ResponsiveContainer>
                   )}
                 </div>
-                <div className="space-y-3 overflow-y-auto max-h-[200px] pr-2 scrollbar-thin">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b pb-1">Top Services</p>
+                <div className="space-y-4 overflow-y-auto max-h-[220px] pr-2 scrollbar-thin">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b pb-1.5 mb-1">Performance Details</p>
                   {data.serviceData.sort((a: any, b: any) => b.value - a.value).map((s: any, i: number) => (
-                    <div key={i} className="flex items-center justify-between group">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
-                        <span className="text-xs font-medium truncate max-w-[100px]">{s.name}</span>
+                    <div key={i} className="flex items-center justify-between group py-0.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
+                        <span className="text-xs font-bold truncate max-w-[120px]">{s.name}</span>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-bold text-primary">{s.value}</span>
-                        <span className="text-[10px] font-mono text-muted-foreground">{formatCurrency(s.revenue)}</span>
+                      <div className="flex items-center gap-4">
+                        <span className="text-[11px] font-black text-primary bg-primary/5 px-2 py-0.5 rounded">{s.value}</span>
+                        <span className="text-[10px] font-mono font-bold text-muted-foreground w-20 text-right">{formatCurrency(s.revenue)}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="mt-4 pt-4 border-t border-border">
-                <p className="text-[10px] font-bold text-muted-foreground mb-3 uppercase tracking-widest flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3 h-3" /> Client Status Breakdown
+              <div className="mt-6 pt-5 border-t border-border">
+                <p className="text-[10px] font-bold text-muted-foreground mb-4 uppercase tracking-widest flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-success" /> Pipeline Health
                 </p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                   {(['New', 'Processing', 'Success', 'Failed'] as const).map(st => {
                     const count = (data.statusCounts[st] as number) || 0;
                     const total = data.totalClients || 1;
@@ -987,21 +976,10 @@ export default function AdminDashboard() {
                     innerRadius={60} 
                     outerRadius={100} 
                     paddingAngle={4}
-                    label={({ name, value, percent }) => `${(percent * 100).toFixed(0)}%`}
                   >
                     {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
                   <Tooltip formatter={(v: any, name: any) => [`${v} Clients`, name]} />
-                  <Legend 
-                    layout="horizontal" 
-                    verticalAlign="bottom" 
-                    align="center" 
-                    formatter={(value, entry: any) => {
-                      const item = data.serviceData.find(d => d.name === value);
-                      return <span className="text-[10px] font-bold text-primary">{value}: {item?.value || 0}</span>;
-                    }}
-                    wrapperStyle={{ fontSize: '10px', paddingTop: '20px' }} 
-                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
