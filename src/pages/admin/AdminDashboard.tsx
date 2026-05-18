@@ -14,6 +14,28 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 
 const COLORS = ['#052F59', '#1A5B96', '#0A7040', '#C45000', '#C0392B', '#64748B', '#7C3AED', '#0891B2'];
 
+const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+  const RADIAN = Math.PI / 180;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+  if (percent < 0.05) return null;
+
+  return (
+    <text 
+      x={x} 
+      y={y} 
+      fill="#ffffff" 
+      textAnchor="middle" 
+      dominantBaseline="central" 
+      className="text-xs font-black select-none pointer-events-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
+    >
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
+  );
+};
+
 export default function AdminDashboard() {
   const { user } = useAuth();
   const [data, setData] = useState<any>(null);
@@ -509,8 +531,8 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-12">
-                <div className="xl:col-span-4 flex flex-col items-center">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+                <div className="lg:col-span-4 flex flex-col items-center">
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-8 self-start">Volume Distribution</p>
                   <div className="h-[280px] w-full cursor-pointer">
                     {data.serviceData.length === 0 ? (
@@ -530,7 +552,8 @@ export default function AdminDashboard() {
                             outerRadius={105} 
                             paddingAngle={8}
                             stroke="none"
-                            label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                            label={renderCustomizedLabel}
+                            labelLine={false}
                             onClick={(entry) => setSelectedService(entry.name)}
                           >
                             {data.serviceData.map((_: any, i: number) => (
@@ -552,7 +575,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="xl:col-span-4">
+                <div className="lg:col-span-4">
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-8">Service Breakdown</p>
                   <div className="space-y-4 max-h-[300px] overflow-y-auto pr-4 scrollbar-thin">
                     {data.serviceData.sort((a: any, b: any) => b.value - a.value).map((s: any, i: number) => (
@@ -579,7 +602,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="xl:col-span-4 border-l border-border/50 pl-12">
+                <div className="lg:col-span-4 lg:border-l border-border/50 lg:pl-8 xl:pl-12 pl-0 pt-6 lg:pt-0">
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-success" /> {selectedService ? `${selectedService} Status` : 'Overall Status'}
                   </p>
@@ -616,7 +639,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             <div className="card-nawi">
               <h3 className="text-base font-semibold font-display mb-3">Top Performers</h3>
               {data.topEmployees.length === 0 ? (
@@ -632,7 +655,7 @@ export default function AdminDashboard() {
                       {emp.photo ? <img src={emp.photo} alt="" className="w-8 h-8 rounded-full object-cover" /> :
                         <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground">{emp.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{emp.name}</p>
+                        <p className="text-sm font-medium truncate hover:whitespace-normal hover:break-all relative cursor-help" title={emp.name}>{emp.name}</p>
                         <p className="text-xs text-muted-foreground">{emp.clients} clients</p>
                       </div>
                       <span className="text-sm font-semibold text-success">{formatCurrency(emp.revenue)}</span>
@@ -657,7 +680,7 @@ export default function AdminDashboard() {
                       {emp.photo ? <img src={emp.photo} alt="" className="w-8 h-8 rounded-full object-cover" /> :
                         <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground">{emp.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{emp.name}</p>
+                        <p className="text-sm font-medium truncate hover:whitespace-normal hover:break-all relative cursor-help" title={emp.name}>{emp.name}</p>
                         <p className="text-[10px] text-muted-foreground">{emp.assigned} total assigned</p>
                       </div>
                       <div className="text-right">
@@ -1027,8 +1050,8 @@ export default function AdminDashboard() {
 
       {tab === 'services' && (
         <div className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-            <div className="card-nawi lg:col-span-2 flex flex-col min-h-[450px]">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="card-nawi lg:col-span-5 xl:col-span-4 flex flex-col min-h-[450px]">
               <h3 className="text-base font-semibold font-display mb-8">Volume Distribution</h3>
               <div className="flex-1 flex flex-col justify-center">
                 <ResponsiveContainer width="100%" height={320}>
@@ -1042,7 +1065,8 @@ export default function AdminDashboard() {
                       innerRadius={70} 
                       outerRadius={110} 
                       paddingAngle={5}
-                      label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                      label={renderCustomizedLabel}
+                      labelLine={false}
                       stroke="none"
                     >
                       {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
@@ -1065,7 +1089,7 @@ export default function AdminDashboard() {
                 </ResponsiveContainer>
               </div>
             </div>
-            <div className="card-nawi lg:col-span-3 flex flex-col">
+            <div className="card-nawi lg:col-span-7 xl:col-span-8 flex flex-col">
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-base font-semibold font-display">Service Performance Matrix</h3>
                 <div className="flex gap-2">
