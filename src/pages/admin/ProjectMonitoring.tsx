@@ -32,6 +32,7 @@ export default function ProjectMonitoring() {
   const [dubaiDate, setDubaiDate] = useState('');
   const [dubaiDay, setDubaiDay] = useState('');
   const [blinkColon, setBlinkColon] = useState(true);
+  const [currentTick, setCurrentTick] = useState(new Date());
 
   // Interactive Calendar States
   const [calYear, setCalYear] = useState(new Date().getFullYear());
@@ -42,6 +43,7 @@ export default function ProjectMonitoring() {
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
+      setCurrentTick(now);
       // Dubai is UTC+4. Calculate UTC then add 4 hours.
       const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
       const dxbTime = new Date(utc + (3600000 * 4));
@@ -127,6 +129,137 @@ export default function ProjectMonitoring() {
   const timeStr = clockParts[0] || '';
   const ampmStr = clockParts[1] || '';
   const [hh, mm, ss] = timeStr.split(':');
+
+  // Time Logging and Tracker Helpers
+  const parseTaskDescription = (desc: string | null | undefined) => {
+    if (!desc) return { text: '', logs: [] };
+    const splitKey = '###TIMELOGS###';
+    if (desc.includes(splitKey)) {
+      const parts = desc.split(splitKey);
+      try {
+        return { text: parts[0], logs: JSON.parse(parts[1]) || [] };
+      } catch (e) {
+        return { text: parts[0], logs: [] };
+      }
+    }
+    return { text: desc, logs: [] };
+  };
+
+  const serializeTaskDescription = (text: string, logs: any[]) => {
+    return `${text || ''}###TIMELOGS###${JSON.stringify(logs)}`;
+  };
+
+  const getActiveDuration = (startStr: string) => {
+    const diffMs = currentTick.getTime() - new Date(startStr).getTime();
+    if (diffMs < 0) return '00:00:00';
+    
+    const secs = Math.floor((diffMs / 1000) % 60);
+    const mins = Math.floor((diffMs / 60000) % 60);
+    const hrs = Math.floor(diffMs / 3600000);
+    
+    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  const getFormattedDuration = (startStr: string, endStr: string) => {
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    const diffMs = end.getTime() - start.getTime();
+    if (diffMs < 0) return '0s';
+    
+    const secs = Math.floor((diffMs / 1000) % 60);
+    const mins = Math.floor((diffMs / 60000) % 60);
+    const hrs = Math.floor(diffMs / 3600000);
+    
+    const parts = [];
+    if (hrs > 0) parts.push(`${hrs}h`);
+    if (mins > 0) parts.push(`${mins}m`);
+    if (secs > 0 || parts.length === 0) parts.push(`${secs}s`);
+    return parts.join(' ');
+  };
+
+  const getTaskTotalDuration = (logs: any[]) => {
+    let totalMs = 0;
+    logs.forEach(l => {
+      if (l.start && l.end) {
+        totalMs += new Date(l.end).getTime() - new Date(l.start).getTime();
+      } else if (l.start && !l.end) {
+        totalMs += currentTick.getTime() - new Date(l.start).getTime();
+      }
+    });
+    
+    if (totalMs === 0) return '0s';
+    const secs = Math.floor((totalMs / 1000) % 60);
+    const mins = Math.floor((totalMs / 60000) % 60);
+    const hrs = Math.floor(totalMs / 3600000);
+    
+    const parts = [];
+    if (hrs > 0) parts.push(`${hrs}h`);
+    if (mins > 0) parts.push(`${mins}m`);
+    if (secs > 0 || parts.length === 0) parts.push(`${secs}s`);
+    return parts.join(' ');
+  };
+
+  const handleStartSession = async (t: any) => {
+    const { text: cleanDesc, logs } = parseTaskDescription(t.description);
+    const newEntry = { start: new Date().toISOString(), end: null };
+    const updatedLogs = [...logs, newEntry];
+    const newFullDesc = serializeTaskDescription(cleanDesc, updatedLogs);
+    
+    // Optimistic state updates
+    const updatedProjects = projects.map(p => {
+      if (p.id === selectedProject.id) {
+        const updatedTasks = p.tasks.map((task: any) => 
+          task.id === t.id ? { ...task, description: newFullDesc, status: 'In Progress', progress_percentage: Math.max(task.progress_percentage || 0, 10) } : task
+        );
+        return { ...p, tasks: updatedTasks };
+      }
+      return p;
+    });
+    setProjects(updatedProjects);
+    setSelectedProject(updatedProjects.find(p => p.id === selectedProject.id));
+
+    // Supabase update
+    await supabase.from('monitoring_tasks').update({ 
+      description: newFullDesc,
+      status: 'In Progress',
+      progress_percentage: Math.max(t.progress_percentage || 0, 10)
+    }).eq('id', t.id);
+    
+    toast.success('Session started! Real-time operations timer running.');
+  };
+
+  const handleStopSession = async (t: any) => {
+    const { text: cleanDesc, logs } = parseTaskDescription(t.description);
+    const activeSessionIdx = logs.findIndex((l: any) => !l.end);
+    if (activeSessionIdx === -1) return;
+    
+    const updatedLogs = [...logs];
+    updatedLogs[activeSessionIdx] = { 
+      ...updatedLogs[activeSessionIdx], 
+      end: new Date().toISOString() 
+    };
+    const newFullDesc = serializeTaskDescription(cleanDesc, updatedLogs);
+    
+    // Optimistic state updates
+    const updatedProjects = projects.map(p => {
+      if (p.id === selectedProject.id) {
+        const updatedTasks = p.tasks.map((task: any) => 
+          task.id === t.id ? { ...task, description: newFullDesc } : task
+        );
+        return { ...p, tasks: updatedTasks };
+      }
+      return p;
+    });
+    setProjects(updatedProjects);
+    setSelectedProject(updatedProjects.find(p => p.id === selectedProject.id));
+
+    // Supabase update
+    await supabase.from('monitoring_tasks').update({ 
+      description: newFullDesc 
+    }).eq('id', t.id);
+    
+    toast.success('Work session paused & logged successfully!');
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -373,77 +506,160 @@ export default function ProjectMonitoring() {
                     <p className="text-sm">Create your first task to start monitoring</p>
                   </div>
                 ) : (
-                  selectedProject.tasks.map((t: any) => (
-                    <div key={t.id} className={`p-5 rounded-2xl border transition-all relative ${t.progress_percentage === 100 ? 'bg-success/5 border-success/20' : t.progress_percentage > 0 ? 'bg-primary/5 border-primary/20' : 'bg-muted/10 border-border hover:border-primary/30'}`}>
-                      <div className="absolute top-4 right-4 flex gap-2">
-                        <button 
-                          onClick={() => handleDeleteTask(t.id)} 
-                          className="p-1.5 rounded-lg bg-destructive/5 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all shadow-sm"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      <div className="flex items-start justify-between gap-4 mb-4 pr-12">
-                        <div className="flex-1 min-w-0">
-                          <h5 className={`font-bold text-base ${t.progress_percentage === 100 ? 'line-through text-muted-foreground/60' : ''}`}>{t.name}</h5>
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{t.description}</p>
+                  selectedProject.tasks.map((t: any) => {
+                    const { text: cleanDesc, logs } = parseTaskDescription(t.description);
+                    const activeSession = logs.find((l: any) => !l.end);
+                    
+                    return (
+                      <div key={t.id} className={`p-5 rounded-2xl border transition-all relative ${t.progress_percentage === 100 ? 'bg-success/5 border-success/20' : t.progress_percentage > 0 ? 'bg-primary/5 border-primary/20' : 'bg-muted/10 border-border hover:border-primary/30'}`}>
+                        <div className="absolute top-4 right-4 flex gap-2">
+                          <button 
+                            onClick={() => handleDeleteTask(t.id)} 
+                            className="p-1.5 rounded-lg bg-destructive/5 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all shadow-sm"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between mt-6">
-                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded uppercase tracking-widest">
-                               Weight: {Math.round(100 / (selectedProject.tasks.length || 1))}% of Project
+
+                        <div className="flex items-start justify-between gap-4 mb-3 pr-12">
+                          <div className="flex-1 min-w-0">
+                            <h5 className={`font-bold text-base ${t.progress_percentage === 100 ? 'line-through text-muted-foreground/60' : ''}`}>{t.name}</h5>
+                            {cleanDesc && <p className="text-xs text-muted-foreground mt-1">{cleanDesc}</p>}
+                          </div>
+                        </div>
+                        
+                        {/* Premium Operations Time Tracker Section */}
+                        <div className="bg-background/40 p-4 rounded-xl border border-border/40 mt-4 space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2.5 h-2.5 rounded-full ${activeSession ? 'bg-destructive animate-ping' : 'bg-muted'}`} />
+                              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                                {activeSession ? 'Recording Live Session' : 'Time Recorder'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {activeSession ? (
+                                <button 
+                                  onClick={() => handleStopSession(t)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-[10px] font-black uppercase tracking-wider hover:scale-[1.03] active:scale-95 transition-all shadow-md shadow-destructive/10"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                  Stop Session
+                                </button>
+                              ) : (
+                                t.progress_percentage < 100 && (
+                                  <button 
+                                    onClick={() => handleStartSession(t)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider hover:scale-[1.03] active:scale-95 transition-all shadow-md shadow-emerald-500/10"
+                                  >
+                                    ▶ Start Tracker
+                                  </button>
+                                )
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-baseline border-t border-border/30 pt-2.5">
+                            <span className="text-[10px] font-bold text-muted-foreground">Tracked Duration:</span>
+                            <span className="font-mono text-xs font-black text-primary">
+                              {activeSession ? (
+                                <span className="flex items-center gap-1.5 text-destructive animate-pulse">
+                                  ⏱️ {getActiveDuration(activeSession.start)}
+                                </span>
+                              ) : (
+                                <span>📁 {getTaskTotalDuration(logs)}</span>
+                              )}
                             </span>
-                            {t.progress_percentage === 100 && (
-                               <span className="text-[10px] font-black bg-success text-success-foreground px-2 py-0.5 rounded uppercase tracking-widest flex items-center gap-1">
-                                  <Check className="w-2.5 h-2.5 stroke-[4px]" /> Contribution Full
-                               </span>
-                            )}
-                         </div>
-                      </div>
+                          </div>
 
-                      <div className="flex items-center gap-4 bg-background/30 p-4 rounded-xl border border-border/50 mt-4">
-                        <input 
-                          type="range" 
-                          min="0" 
-                          max="100" 
-                          step="1"
-                          value={t.progress_percentage}
-                          onChange={async (e) => {
-                            const val = parseInt(e.target.value);
-                            let status = 'To Do';
-                            if (val === 100) status = 'Completed';
-                            else if (val > 0) status = 'In Progress';
-                            
-                            // High-speed optimistic update
-                            const updatedProjects = projects.map(p => {
-                              if (p.id === selectedProject.id) {
-                                const updatedTasks = p.tasks.map((task: any) => 
-                                  task.id === t.id ? { ...task, progress_percentage: val, status: status } : task
-                                );
-                                const totalProgress = Math.round(updatedTasks.reduce((acc: number, tk: any) => acc + (tk.progress_percentage || 0), 0) / updatedTasks.length);
-                                return { ...p, tasks: updatedTasks, totalProgress };
-                              }
-                              return p;
-                            });
-                            setProjects(updatedProjects);
-                            setSelectedProject(updatedProjects.find(p => p.id === selectedProject.id));
+                          {logs.length > 0 && (
+                            <div className="border-t border-border/30 pt-2">
+                              <details className="group/details">
+                                <summary className="text-[9px] font-black text-primary uppercase tracking-widest cursor-pointer select-none hover:opacity-85 list-none flex items-center justify-between">
+                                  <span>Show Work Sessions ({logs.length})</span>
+                                  <span className="transition-transform group-open/details:rotate-180 text-xs">▼</span>
+                                </summary>
+                                <div className="space-y-2 mt-2.5 max-h-[120px] overflow-y-auto pr-1">
+                                  {logs.map((log: any, idx: number) => {
+                                    const startDxb = new Date(new Date(log.start).getTime() + (new Date().getTimezoneOffset() * 60000) + (3600000 * 4));
+                                    
+                                    return (
+                                      <div key={idx} className="flex justify-between items-start text-[10px] bg-background/50 p-2 rounded-lg border border-border/20">
+                                        <div className="flex flex-col">
+                                          <span className="font-bold text-foreground">Session #{idx + 1}</span>
+                                          <span className="text-[9px] text-muted-foreground mt-0.5">
+                                            {new Date(log.start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {startDxb.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                          </span>
+                                        </div>
+                                        <div className="text-right">
+                                          <span className="font-mono font-black text-secondary">
+                                            {log.end ? getFormattedDuration(log.start, log.end) : 'Active...'}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </details>
+                            </div>
+                          )}
+                        </div>
 
-                            await supabase.from('monitoring_tasks').update({ 
-                              progress_percentage: val,
-                              status: status
-                            }).eq('id', t.id);
-                          }}
-                          className="flex-1 h-2.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                        />
-                        <div className="min-w-[60px] text-right">
-                           <span className="text-lg font-black text-primary">{t.progress_percentage}%</span>
+                        <div className="flex items-center justify-between mt-6">
+                           <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded uppercase tracking-widest">
+                                 Weight: {Math.round(100 / (selectedProject.tasks.length || 1))}% of Project
+                              </span>
+                              {t.progress_percentage === 100 && (
+                                 <span className="text-[10px] font-black bg-success text-success-foreground px-2 py-0.5 rounded uppercase tracking-widest flex items-center gap-1">
+                                    <Check className="w-2.5 h-2.5 stroke-[4px]" /> Contribution Full
+                                 </span>
+                              )}
+                           </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 bg-background/30 p-4 rounded-xl border border-border/50 mt-4">
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="100" 
+                            step="1"
+                            value={t.progress_percentage}
+                            onChange={async (e) => {
+                              const val = parseInt(e.target.value);
+                              let status = 'To Do';
+                              if (val === 100) status = 'Completed';
+                              else if (val > 0) status = 'In Progress';
+                              
+                              // High-speed optimistic update
+                              const updatedProjects = projects.map(p => {
+                                if (p.id === selectedProject.id) {
+                                  const updatedTasks = p.tasks.map((task: any) => 
+                                    task.id === t.id ? { ...task, progress_percentage: val, status: status } : task
+                                  );
+                                  const totalProgress = Math.round(updatedTasks.reduce((acc: number, tk: any) => acc + (tk.progress_percentage || 0), 0) / updatedTasks.length);
+                                  return { ...p, tasks: updatedTasks, totalProgress };
+                                }
+                                return p;
+                              });
+                              setProjects(updatedProjects);
+                              setSelectedProject(updatedProjects.find(p => p.id === selectedProject.id));
+
+                              await supabase.from('monitoring_tasks').update({ 
+                                progress_percentage: val,
+                                status: status
+                              }).eq('id', t.id);
+                            }}
+                            className="flex-1 h-2.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                          />
+                          <div className="min-w-[60px] text-right">
+                             <span className="text-lg font-black text-primary">{t.progress_percentage}%</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
