@@ -4,7 +4,8 @@ import {
   Plus, Search, LayoutGrid, List, 
   Clock, CheckCircle2, AlertCircle, FileText, 
   MessageSquare, UserPlus, Calendar, BarChart3,
-  TrendingUp, CheckSquare, Target, Paperclip, Trash2, Edit, Check
+  TrendingUp, CheckSquare, Target, Paperclip, Trash2, Edit, Check,
+  ChevronLeft, ChevronRight, Sparkles, Globe, CalendarDays
 } from 'lucide-react';
 import { formatDate } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -25,6 +26,107 @@ export default function ProjectMonitoring() {
     start_date: new Date().toISOString().split('T')[0],
     deadline: '', status: 'To Do', progress_percentage: 0
   });
+
+  // Real-Time Dubai Time Clock States
+  const [dubaiTime, setDubaiTime] = useState('');
+  const [dubaiDate, setDubaiDate] = useState('');
+  const [dubaiDay, setDubaiDay] = useState('');
+  const [blinkColon, setBlinkColon] = useState(true);
+
+  // Interactive Calendar States
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [calSelectedDay, setCalSelectedDay] = useState<number | null>(null);
+
+  // Ticking Effect for Clock
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      // Dubai is UTC+4. Calculate UTC then add 4 hours.
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const dxbTime = new Date(utc + (3600000 * 4));
+      
+      let hours = dxbTime.getHours();
+      const minutes = String(dxbTime.getMinutes()).padStart(2, '0');
+      const seconds = String(dxbTime.getSeconds()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const formattedHours = String(hours).padStart(2, '0');
+
+      setDubaiTime(`${formattedHours}:${minutes}:${seconds} ${ampm}`);
+      setDubaiDate(dxbTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+      setDubaiDay(dxbTime.toLocaleDateString('en-US', { weekday: 'long' }));
+      
+      setBlinkColon(prev => !prev);
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calendar Helpers
+  const calDaysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const calFirstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
+  const calToday = new Date();
+  
+  const isCalToday = (d: number) => 
+    calYear === calToday.getFullYear() && 
+    calMonth === calToday.getMonth() && 
+    d === calToday.getDate();
+
+  const handleCalPrev = () => {
+    if (calMonth === 0) {
+      setCalMonth(11);
+      setCalYear(calYear - 1);
+    } else {
+      setCalMonth(calMonth - 1);
+    }
+    setCalSelectedDay(null);
+  };
+
+  const handleCalNext = () => {
+    if (calMonth === 11) {
+      setCalMonth(0);
+      setCalYear(calYear + 1);
+    } else {
+      setCalMonth(calMonth + 1);
+    }
+    setCalSelectedDay(null);
+  };
+
+  const getItemsForDay = (day: number) => {
+    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
+    // Match project creation dates
+    const dayProjects = projects.filter(p => {
+      const pDate = p.created_at ? p.created_at.split('T')[0] : '';
+      return pDate === dateStr;
+    });
+
+    // Match task creation dates
+    const dayTasks: any[] = [];
+    projects.forEach(p => {
+      if (p.tasks) {
+        const pTasks = p.tasks.filter((t: any) => {
+          const tDate = t.created_at ? t.created_at.split('T')[0] : '';
+          return tDate === dateStr;
+        });
+        pTasks.forEach((t: any) => {
+          dayTasks.push({ ...t, projectTitle: p.title });
+        });
+      }
+    });
+
+    return { projects: dayProjects, tasks: dayTasks };
+  };
+
+  // Clock string parsers
+  const clockParts = dubaiTime.split(' ');
+  const timeStr = clockParts[0] || '';
+  const ampmStr = clockParts[1] || '';
+  const [hh, mm, ss] = timeStr.split(':');
 
   const loadData = async () => {
     setLoading(true);
@@ -125,14 +227,26 @@ export default function ProjectMonitoring() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50 pb-4">
         <div>
-          <h2 className="text-2xl font-bold font-display">Project Monitoring</h2>
-          <p className="text-sm text-muted-foreground">Track enterprise integrations and development progress</p>
+          <h2 className="text-2xl font-bold font-display tracking-tight text-primary">Project Monitoring</h2>
+          <p className="text-sm text-muted-foreground font-medium">Track enterprise integrations and development progress</p>
         </div>
-        <button onClick={() => setShowAddProject(true)} className="btn-primary">
-          <Plus className="w-4 h-4" /> Create New Project
-        </button>
+        <div className="flex items-center gap-3">
+          {hh && (
+            <div className="hidden md:flex flex-col items-end bg-primary/5 px-3 py-1 border border-primary/10 rounded-xl">
+              <span className="text-[9px] font-black text-primary flex items-center gap-1 uppercase tracking-wider">
+                <Clock className="w-2.5 h-2.5 text-primary animate-pulse" /> Dubai Time
+              </span>
+              <span className="text-xs font-mono font-bold mt-0.5">
+                {hh}:{mm} <span className="text-[9px] font-black text-muted-foreground">{ampmStr}</span>
+              </span>
+            </div>
+          )}
+          <button onClick={() => setShowAddProject(true)} className="btn-primary shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
+            <Plus className="w-4 h-4" /> Create New Project
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -379,17 +493,165 @@ export default function ProjectMonitoring() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                 <div className="card-nawi p-6 flex flex-col items-center justify-center text-center opacity-70 border-dashed">
-                    <BarChart3 className="w-8 h-8 mb-3 text-muted-foreground" />
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Team Performance Metrics</p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-1">Select a project to view details</p>
-                 </div>
-                 <div className="card-nawi p-6 flex flex-col items-center justify-center text-center opacity-70 border-dashed">
-                    <Calendar className="w-8 h-8 mb-3 text-muted-foreground" />
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Upcoming Deadlines</p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-1">Real-time scheduling active</p>
-                 </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Column 1: Monthly Interactive Calendar */}
+                <div className="card-nawi p-5 bg-card/65 backdrop-blur-md border border-border/80 shadow-md">
+                  <div className="flex items-center justify-between mb-4 border-b border-border/50 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
+                        <CalendarDays className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-primary">Operations Calendar</h4>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={handleCalPrev} className="p-1.5 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground transition-all">
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="text-xs font-bold font-display px-1.5 min-w-[90px] text-center">
+                        {new Date(calYear, calMonth).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      </span>
+                      <button onClick={handleCalNext} className="p-1.5 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground transition-all">
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, idx) => (
+                      <span key={idx} className={`text-[10px] font-black uppercase py-1 ${idx === 0 || idx === 6 ? 'text-muted-foreground/50' : 'text-muted-foreground/80'}`}>
+                        {d}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1">
+                    {Array.from({ length: calFirstDayOfWeek }).map((_, i) => (
+                      <div key={`empty-${i}`} className="aspect-square" />
+                    ))}
+                    {Array.from({ length: calDaysInMonth }).map((_, i) => {
+                      const day = i + 1;
+                      const dayData = getItemsForDay(day);
+                      const hasProj = dayData.projects.length > 0;
+                      const hasTask = dayData.tasks.length > 0;
+                      const isSelected = calSelectedDay === day;
+                      
+                      return (
+                        <button
+                          key={day}
+                          onClick={() => setCalSelectedDay(isSelected ? null : day)}
+                          className={`aspect-square relative rounded-xl text-xs font-semibold flex flex-col items-center justify-center transition-all duration-300 ${
+                            isSelected 
+                              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-105' 
+                              : isCalToday(day)
+                                ? 'border border-primary text-primary bg-primary/5 font-black' 
+                                : 'hover:bg-muted/80 text-foreground'
+                          }`}
+                        >
+                          <span>{day}</span>
+                          {(hasProj || hasTask) && (
+                            <span className="absolute bottom-1.5 flex gap-0.5 justify-center">
+                              {hasProj && <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-primary-foreground' : 'bg-primary animate-ping'}`} />}
+                              {hasTask && <span className={`w-1 h-1 rounded-full ${isSelected ? 'bg-primary-foreground' : 'bg-emerald-500'}`} />}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Column 2: Dubai Live Clock & Details Panel */}
+                <div className="card-nawi p-5 bg-gradient-to-br from-primary/5 via-transparent to-emerald-500/5 border border-border/80 shadow-md flex flex-col justify-between min-h-[300px]">
+                  {calSelectedDay ? (
+                    // Day Activity Details View
+                    <div className="space-y-4 h-full flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between border-b border-border/50 pb-3">
+                          <h4 className="text-xs font-black uppercase tracking-wider text-emerald-500 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            Activity: {new Date(calYear, calMonth, calSelectedDay).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                          </h4>
+                          <button 
+                            onClick={() => setCalSelectedDay(null)}
+                            className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground px-2 py-1 rounded transition-all"
+                          >
+                            Show Clock
+                          </button>
+                        </div>
+
+                        <div className="space-y-3 max-h-[180px] overflow-y-auto pr-1 mt-3 scrollbar-thin">
+                          {getItemsForDay(calSelectedDay).projects.length === 0 && getItemsForDay(calSelectedDay).tasks.length === 0 ? (
+                            <div className="text-center py-8 opacity-50">
+                              <Sparkles className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                              <p className="text-xs font-bold text-muted-foreground">No operations recorded</p>
+                              <p className="text-[9px] text-muted-foreground/60 mt-0.5">Perfect day to initiate new projects</p>
+                            </div>
+                          ) : (
+                            <>
+                              {getItemsForDay(calSelectedDay).projects.map(p => (
+                                <div key={p.id} className="p-2.5 rounded-xl bg-primary/5 border border-primary/10 hover:scale-[1.01] transition-transform animate-fade-in">
+                                  <span className="text-[8px] font-black bg-primary text-primary-foreground px-1.5 py-0.5 rounded uppercase tracking-widest">Project Launched</span>
+                                  <p className="text-xs font-bold text-foreground mt-1.5">{p.title}</p>
+                                  <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{p.description || 'No description'}</p>
+                                </div>
+                              ))}
+                              {getItemsForDay(calSelectedDay).tasks.map(t => (
+                                <div key={t.id} className="p-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/10 hover:scale-[1.01] transition-transform animate-fade-in">
+                                  <span className="text-[8px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded uppercase tracking-widest">Task Assigned</span>
+                                  <p className="text-xs font-bold text-foreground mt-1.5">{t.name}</p>
+                                  <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">Project: {t.projectTitle}</p>
+                                  <div className="flex items-center gap-1.5 mt-2">
+                                    <span className="text-[9px] font-black text-muted-foreground uppercase">{t.status}</span>
+                                    <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                                      <div className="h-full bg-emerald-500" style={{ width: `${t.progress_percentage}%` }} />
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-muted-foreground/60 border-t border-border/50 pt-2 font-medium italic">
+                        Visualizing operations from actual local database integrations.
+                      </p>
+                    </div>
+                  ) : (
+                    // Live Dubai Time Clock View
+                    <div className="flex flex-col items-center justify-center text-center py-6">
+                      <div className="relative mb-3 flex items-center justify-center">
+                        <div className="absolute inset-0 w-16 h-16 bg-primary/10 rounded-full animate-ping opacity-25" />
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary-foreground flex items-center justify-center shadow-lg shadow-primary/20 animate-pulse">
+                          <Clock className="w-6 h-6 text-white" />
+                        </div>
+                      </div>
+                      
+                      <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.25em] mb-2">Dubai Control Center</h4>
+                      
+                      {hh ? (
+                        <div className="flex items-baseline justify-center gap-1 font-mono tracking-tight text-3xl font-black text-primary select-none">
+                          <span className="drop-shadow-[0_0_8px_rgba(var(--primary),0.3)]">{hh}</span>
+                          <span className={`transition-opacity duration-300 ${blinkColon ? 'opacity-100' : 'opacity-20'}`}>:</span>
+                          <span className="drop-shadow-[0_0_8px_rgba(var(--primary),0.3)]">{mm}</span>
+                          <span className={`transition-opacity duration-300 ${blinkColon ? 'opacity-100' : 'opacity-20'}`}>:</span>
+                          <span className="text-secondary drop-shadow-[0_0_8px_rgba(var(--secondary),0.3)]">{ss}</span>
+                          <span className="ml-2 text-[10px] font-black bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase tracking-wider">{ampmStr}</span>
+                        </div>
+                      ) : (
+                        <div className="h-9 flex items-center justify-center">
+                          <span className="text-xs text-muted-foreground animate-pulse font-bold">Synchronizing Live Node...</span>
+                        </div>
+                      )}
+                      
+                      <p className="text-xs font-semibold text-muted-foreground mt-2">{dubaiDay}, {dubaiDate}</p>
+
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[9px] font-black uppercase tracking-wider mt-5 select-none transition-all hover:bg-emerald-500/15">
+                        <Globe className="w-3.5 h-3.5 text-emerald-500 animate-spin-slow" />
+                        GST Timezone (UTC+4)
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
