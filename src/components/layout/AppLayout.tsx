@@ -243,7 +243,7 @@ export default function AppLayout() {
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex min-h-screen lg:h-screen overflow-x-hidden lg:overflow-hidden bg-background w-full">
       {mobileOpen && (
         <div className="fixed inset-0 bg-foreground/50 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
@@ -319,7 +319,7 @@ export default function AppLayout() {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0">
         <header className="h-14 border-b border-border bg-background flex items-center px-4 gap-4 flex-shrink-0">
           <button onClick={() => setMobileOpen(true)} className="lg:hidden text-foreground">
             <Menu className="w-5 h-5" />
@@ -375,7 +375,7 @@ export default function AppLayout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 min-h-0 min-w-0 w-full">
           <Outlet />
         </main>
       </div>
