@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { exportToExcel } from '@/lib/excel-export';
 import { Link } from 'react-router-dom';
 import { Calendar as CalendarIcon, AlertTriangle, Bell, Download, Search, MessageCircle, LayoutGrid, CalendarDays, ChevronLeft, ChevronRight, BellOff } from 'lucide-react';
-import { formatDate, daysUntil } from '@/lib/supabase-service';
+import { formatDate, daysUntil, isExpiryOrDueDate } from '@/lib/supabase-service';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import WhatsAppTemplateModal from '@/components/WhatsAppTemplateModal';
@@ -157,7 +157,10 @@ export default function ImportantDates() {
         }
         const displayLabel = CANONICAL[cat.key] || label;
         const days = getDaysFor(displayLabel, val);
-        const status: DateRow['status'] = days < 0 ? 'overdue' : days <= 2 ? 'urgent' : days <= 30 ? 'warning' : 'safe';
+        const isExpiry = isExpiryOrDueDate(displayLabel);
+        const status: DateRow['status'] = !isExpiry
+          ? 'safe'
+          : days < 0 ? 'overdue' : days <= 2 ? 'urgent' : days <= 30 ? 'warning' : 'safe';
         rows.push({
           clientId: c.id, clientName: c.name, mobile: c.mobile, email: c.email,
           nationality: c.nationality, service: c.service,
@@ -183,7 +186,7 @@ export default function ImportantDates() {
     else if (timeFilter === 'week') f = f.filter(d => d.days >= 0 && d.days <= 7);
     else if (timeFilter === 'month') f = f.filter(d => d.days >= 0 && d.days <= 30);
     else if (timeFilter === '90days') f = f.filter(d => d.days >= 0 && d.days <= 90);
-    else if (timeFilter === 'overdue') f = f.filter(d => d.days < 0);
+    else if (timeFilter === 'overdue') f = f.filter(d => d.status === 'overdue');
     return [...f].sort((a, b) => a.days - b.days);
   }, [allDates, filter, search, timeFilter, nationalityFilter]);
 
@@ -215,12 +218,24 @@ export default function ImportantDates() {
 
   const DateCard = ({ d }: { d: DateRow }) => {
     const silenced = !!prefs[`${d.clientId}::${d.label}`];
+    const isExpiry = isExpiryOrDueDate(d.label);
+    const cardBorderBg = !isExpiry
+      ? 'border-border bg-slate-50/50 dark:bg-slate-900/50 dark:border-slate-800'
+      : statusBorder[d.status];
     return (
-      <div className={`p-3 rounded-xl border ${statusBorder[d.status]} hover:shadow-md transition-all`}>
+      <div className={`p-3 rounded-xl border ${cardBorderBg} hover:shadow-md transition-all`}>
         <div className="flex items-center justify-between mb-1">
           <span className={`text-xs px-2 py-0.5 rounded-full ${d.color}`}>{d.emoji} {d.label}</span>
-          <span className={`text-xs font-bold ${d.days < 0 ? 'text-destructive' : d.days <= 2 ? 'text-destructive' : d.days <= 7 ? 'text-warning' : d.days <= 30 ? 'text-warning' : 'text-success'}`}>
-            {d.days < 0 ? `${Math.abs(d.days)}d overdue` : d.days === 0 ? '🔴 TODAY' : d.days === 1 ? '🟠 TOMORROW' : `${d.days}d left`}
+          <span className={`text-xs font-bold ${
+            !isExpiry 
+              ? 'text-slate-500 font-medium dark:text-slate-400'
+              : d.days < 0 ? 'text-destructive' : d.days <= 2 ? 'text-destructive' : d.days <= 7 ? 'text-warning' : d.days <= 30 ? 'text-warning' : 'text-success'
+          }`}>
+            {!isExpiry ? (
+              d.days < 0 ? `${Math.abs(d.days)}d ago` : d.days === 0 ? '🔴 TODAY' : d.days === 1 ? '🟠 TOMORROW' : `in ${d.days}d`
+            ) : (
+              d.days < 0 ? `${Math.abs(d.days)}d overdue` : d.days === 0 ? '🔴 TODAY' : d.days === 1 ? '🟠 TOMORROW' : `${d.days}d left`
+            )}
           </span>
         </div>
         <Link to={`${basePath}/clients/${d.clientId}`} className="hover:underline">

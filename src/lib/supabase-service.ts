@@ -49,8 +49,32 @@ export function formatDate(dateString: string): string {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
-export function getDateStatus(dateString: string): 'safe' | 'warning' | 'urgent' | 'overdue' {
+export function isExpiryOrDueDate(label?: string): boolean {
+  if (!label) return true;
+  const n = label.toLowerCase();
+  if (
+    n.includes('birth') || n === 'dob' ||
+    n.includes('issue') ||
+    n.includes('start') ||
+    n.includes('departure') ||
+    n.includes('return') ||
+    n.includes('check-in') || n.includes('checkin') ||
+    n.includes('check-out') || n.includes('checkout') ||
+    n.includes('anniversary') || n.includes('wedding') ||
+    n.includes('arrival') ||
+    n.includes('time') ||
+    n === 'travel date'
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function getDateStatus(dateString: string, label?: string): 'safe' | 'warning' | 'urgent' | 'overdue' {
   const days = daysUntil(dateString);
+  if (label && !isExpiryOrDueDate(label)) {
+    return 'safe';
+  }
   if (days < 0) return 'overdue';
   if (days < 30) return 'urgent';
   if (days < 90) return 'warning';
