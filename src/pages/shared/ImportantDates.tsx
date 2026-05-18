@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { exportToExcel } from '@/lib/excel-export';
 import { Link } from 'react-router-dom';
 import { Calendar as CalendarIcon, AlertTriangle, Bell, Download, Search, MessageCircle, LayoutGrid, CalendarDays, ChevronLeft, ChevronRight, BellOff } from 'lucide-react';
-import { formatDate, daysUntil, isExpiryOrDueDate } from '@/lib/supabase-service';
+import { formatDate, daysUntil, isExpiryOrDueDate, isRecurringDate, getUpcomingAgeOrYears } from '@/lib/supabase-service';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import WhatsAppTemplateModal from '@/components/WhatsAppTemplateModal';
@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 function detectCategory(name: string): { key: string; emoji: string; color: string } {
   const n = name.toLowerCase();
   if (n.includes('birthday') || n === 'dob' || n.includes('birth')) return { key: 'birthday', emoji: '🎂', color: 'bg-purple-100 text-purple-700' };
-  if (n.includes('anniversary') || n.includes('wedding')) return { key: 'anniversary', emoji: '💍', color: 'bg-pink-100 text-pink-700' };
+  if (n.includes('anniversary') || n.includes('wedding')) return { key: 'anniversary', emoji: '💑', color: 'bg-pink-100 text-pink-700' };
   if (n.includes('passport')) return { key: 'passport', emoji: '📕', color: 'bg-destructive/10 text-destructive' };
   if (n.includes('visa')) return { key: 'visa', emoji: '🪪', color: 'bg-warning/10 text-warning' };
   if (n.includes('emirates') || n.includes('eid')) return { key: 'emiratesId', emoji: '🆔', color: 'bg-primary/10 text-primary' };
@@ -28,15 +28,7 @@ function detectCategory(name: string): { key: string; emoji: string; color: stri
 const RECURRING = new Set(['birthday', 'anniversary']);
 
 function getDaysFor(name: string, dateStr: string): number {
-  const cat = detectCategory(name);
-  if (RECURRING.has(cat.key)) {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const src = new Date(dateStr);
-    const next = new Date(today.getFullYear(), src.getMonth(), src.getDate());
-    if (next < today) next.setFullYear(today.getFullYear() + 1);
-    return Math.ceil((next.getTime() - today.getTime()) / 86400000);
-  }
-  return daysUntil(dateStr);
+  return daysUntil(dateStr, name);
 }
 
 function buildTemplate(category: string, clientName: string, label: string, days: number, dateStr: string): string {
@@ -219,9 +211,22 @@ export default function ImportantDates() {
   const DateCard = ({ d }: { d: DateRow }) => {
     const silenced = !!prefs[`${d.clientId}::${d.label}`];
     const isExpiry = isExpiryOrDueDate(d.label);
+    const isRecurring = isRecurringDate(d.label);
     const cardBorderBg = !isExpiry
       ? 'border-border bg-slate-50/50 dark:bg-slate-900/50 dark:border-slate-800'
       : statusBorder[d.status];
+
+    let recurringSuffix = '';
+    if (isRecurring) {
+      const labelLower = d.label.toLowerCase();
+      const count = getUpcomingAgeOrYears(d.date);
+      if (labelLower.includes('birth') || labelLower === 'dob') {
+        recurringSuffix = ` (Turns ${count})`;
+      } else if (labelLower.includes('anniversary') || labelLower.includes('wedding')) {
+        recurringSuffix = ` (${count} yrs)`;
+      }
+    }
+
     return (
       <div className={`p-3 rounded-xl border ${cardBorderBg} hover:shadow-md transition-all`}>
         <div className="flex items-center justify-between mb-1">
@@ -231,7 +236,9 @@ export default function ImportantDates() {
               ? 'text-slate-500 font-medium dark:text-slate-400'
               : d.days < 0 ? 'text-destructive' : d.days <= 2 ? 'text-destructive' : d.days <= 7 ? 'text-warning' : d.days <= 30 ? 'text-warning' : 'text-success'
           }`}>
-            {!isExpiry ? (
+            {isRecurring ? (
+              (d.days === 0 ? '🔴 TODAY' : d.days === 1 ? '🟠 TOMORROW' : `in ${d.days}d`) + recurringSuffix
+            ) : !isExpiry ? (
               d.days < 0 ? `${Math.abs(d.days)}d ago` : d.days === 0 ? '🔴 TODAY' : d.days === 1 ? '🟠 TOMORROW' : `in ${d.days}d`
             ) : (
               d.days < 0 ? `${Math.abs(d.days)}d overdue` : d.days === 0 ? '🔴 TODAY' : d.days === 1 ? '🟠 TOMORROW' : `${d.days}d left`
@@ -283,11 +290,12 @@ export default function ImportantDates() {
     const map = new Map<string, DateRow[]>();
     filtered.forEach(d => {
       const dt = new Date(d.date);
+      if (isNaN(dt.getTime())) return;
       // for recurring dates, project to current year of calendar
       const year = calMonth.getFullYear();
       const projected = RECURRING.has(d.category) ? new Date(year, dt.getMonth(), dt.getDate()) : dt;
       if (projected.getMonth() !== calMonth.getMonth() || projected.getFullYear() !== calMonth.getFullYear()) return;
-      const key = projected.toISOString().slice(0, 10);
+      const key = `${projected.getFullYear()}-${String(projected.getMonth() + 1).padStart(2, '0')}-${String(projected.getDate()).padStart(2, '0')}`;
       const arr = map.get(key) || [];
       arr.push(d);
       map.set(key, arr);
@@ -295,7 +303,8 @@ export default function ImportantDates() {
     return map;
   }, [filtered, calMonth]);
 
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   return (
     <div className="space-y-4 animate-fade-in">

@@ -34,11 +34,42 @@ export async function auditLog(
 }
 
 // =================== DATE UTILITIES ===================
-export function daysUntil(dateString: string): number {
+export function isRecurringDate(label?: string): boolean {
+  if (!label) return false;
+  const n = label.toLowerCase();
+  return n.includes('birth') || n === 'dob' || n.includes('anniversary') || n.includes('wedding');
+}
+
+export function getUpcomingAgeOrYears(dateString: string): number {
+  if (!dateString) return 0;
+  const birthDate = new Date(dateString);
+  if (isNaN(birthDate.getTime())) return 0;
+  const birthYear = birthDate.getFullYear();
+  const today = new Date();
+  let upcomingYear = today.getFullYear();
+  const nextOccurrence = new Date(upcomingYear, birthDate.getMonth(), birthDate.getDate());
+  if (nextOccurrence < today) {
+    upcomingYear += 1;
+  }
+  return upcomingYear - birthYear;
+}
+
+export function daysUntil(dateString: string, label?: string): number {
   if (!dateString) return Infinity;
   const target = new Date(dateString);
+  if (isNaN(target.getTime())) return Infinity;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  if (label && isRecurringDate(label)) {
+    const next = new Date(today.getFullYear(), target.getMonth(), target.getDate());
+    next.setHours(0, 0, 0, 0);
+    if (next < today) {
+      next.setFullYear(today.getFullYear() + 1);
+    }
+    return Math.ceil((next.getTime() - today.getTime()) / 86400000);
+  }
+
   target.setHours(0, 0, 0, 0);
   return Math.ceil((target.getTime() - today.getTime()) / 86400000);
 }
@@ -71,7 +102,7 @@ export function isExpiryOrDueDate(label?: string): boolean {
 }
 
 export function getDateStatus(dateString: string, label?: string): 'safe' | 'warning' | 'urgent' | 'overdue' {
-  const days = daysUntil(dateString);
+  const days = daysUntil(dateString, label);
   if (label && !isExpiryOrDueDate(label)) {
     return 'safe';
   }

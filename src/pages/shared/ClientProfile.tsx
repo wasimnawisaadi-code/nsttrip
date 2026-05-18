@@ -4,7 +4,7 @@ import { ArrowLeft, Edit, FileText, Trash2, Plus, Save, X, Upload, Download, Mes
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
-import { formatCurrency, formatDate, daysUntil, getDateStatus, generateDisplayId, auditLog, isExpiryOrDueDate } from '@/lib/supabase-service';
+import { formatCurrency, formatDate, daysUntil, getDateStatus, generateDisplayId, auditLog, isExpiryOrDueDate, isRecurringDate, getUpcomingAgeOrYears } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PasswordConfirmDialog from '@/components/PasswordConfirmDialog';
 import WhatsAppTemplateModal from '@/components/WhatsAppTemplateModal';
@@ -543,19 +543,34 @@ function ProfileDatesTab({ dates, dateStatusColors, onAdd, onDelete }: { dates: 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {Object.entries(dates).map(([type, val]) => {
             if (!val || type === 'passportNo') return null;
-            const days = daysUntil(val as string);
+            const days = daysUntil(val as string, type);
             const isExpiry = isExpiryOrDueDate(type);
+            const isRecurring = isRecurringDate(type);
             const status = getDateStatus(val as string, type);
             const boxStyle = !isExpiry
               ? 'text-slate-700 border-slate-200 bg-slate-50/50 dark:text-slate-300 dark:border-slate-800 dark:bg-slate-900/50'
               : dateStatusColors[status];
+
+            let recurringText = '';
+            if (isRecurring) {
+              const labelLower = type.toLowerCase();
+              const count = getUpcomingAgeOrYears(val as string);
+              if (labelLower.includes('birth') || labelLower === 'dob') {
+                recurringText = ` • Turns ${count}`;
+              } else if (labelLower.includes('anniversary') || labelLower.includes('wedding')) {
+                recurringText = ` • ${count} years`;
+              }
+            }
+
             return (
               <div key={type} className={`p-4 rounded-xl border ${boxStyle} relative group`}>
                 <button onClick={() => onDelete(type)} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-destructive hover:bg-destructive/10 p-1 rounded transition"><Trash2 className="w-3 h-3" /></button>
                 <p className="text-xs font-medium uppercase tracking-wider mb-1">{type.replace(/([A-Z])/g, ' $1').trim()}</p>
                 <p className="text-lg font-bold font-display">{formatDate(val as string)}</p>
                 <p className="text-sm font-medium mt-1">
-                  {isExpiry ? (
+                  {isRecurring ? (
+                    days === 0 ? `🔴 TODAY${recurringText}` : days === 1 ? `🟠 TOMORROW${recurringText}` : `in ${days} days${recurringText}`
+                  ) : isExpiry ? (
                     days < 0 ? `${Math.abs(days)} days overdue` : days === 0 ? 'Today' : `${days} days left`
                   ) : (
                     days < 0 ? `${Math.abs(days)} days ago` : days === 0 ? 'Today' : `in ${days} days`

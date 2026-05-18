@@ -10,7 +10,7 @@ const corsHeaders = {
 const RECURRING = new Set(["birthday", "anniversary"]);
 function detectCategory(name: string): string {
   const n = name.toLowerCase();
-  if (n.includes("birthday") || n.includes("birth")) return "birthday";
+  if (n.includes("birthday") || n.includes("birth") || n.includes("dob")) return "birthday";
   if (n.includes("anniversary") || n.includes("wedding")) return "anniversary";
   if (n.includes("passport")) return "passport";
   if (n.includes("visa")) return "visa";
