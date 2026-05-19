@@ -538,7 +538,7 @@ export default function SocialLeads() {
                         className="bg-transparent border border-border rounded text-[10px] px-2 py-1 max-w-[130px] focus:ring-1 focus:ring-primary"
                       >
                         <option value="">{isMine ? 'Transfer to...' : 'Reassign to...'}</option>
-                        {isAdmin && <option value="unassign">Return to Pool</option>}
+                        <option value="unassign">Return to Pool</option>
                         {Object.entries(employees).filter(([id]) => id !== lead.assigned_to).map(([id, emp]) => (
                           <option key={id} value={id}>{emp.name}</option>
                         ))}
@@ -737,8 +737,7 @@ function LeadModal({ lead, onClose, onSaved, canEdit, currentUserId, currentUser
                   {isAdmin ? 'Assign To Employee (Admin)' : 'Transfer to Another Employee'}
                 </label>
                 <select value={form.assigned_to || ''} onChange={e => setForm({ ...form, assigned_to: e.target.value })} className="input-nawi">
-                  {isAdmin && <option value="">Unassigned (Return to Open Pool)</option>}
-                  {!isAdmin && <option value={lead.assigned_to || ''} disabled>Select employee...</option>}
+                  <option value="">Unassigned (Return to Open Pool)</option>
                   {Object.entries(allEmployees).filter(([id]) => isAdmin || id !== currentUserId).map(([id, emp]) => (
                     <option key={id} value={id}>{emp.name}</option>
                   ))}
