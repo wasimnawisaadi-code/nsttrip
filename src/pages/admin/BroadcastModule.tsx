@@ -120,9 +120,9 @@ export default function BroadcastModule() {
         if (status !== 'all' && c.status !== status) return false;
         if (leadSource !== 'all' && c.lead_source !== leadSource) return false;
         if (!matchesDate(c.created_at?.split('T')[0])) return false;
-        return c.mobile;
+        return true;
       }).map(c => ({
-        id: c.id, name: c.name, phone: c.mobile, email: c.email,
+        id: c.id, name: c.name, phone: c.mobile || '', email: c.email,
         meta: { type: 'Client', display_id: c.display_id, nationality: c.nationality, service: c.service, status: c.status },
       }));
     }
@@ -132,9 +132,9 @@ export default function BroadcastModule() {
         if (leadSource !== 'all' && l.source !== leadSource) return false;
         if (status !== 'all' && l.status !== status) return false;
         if (!matchesDate(l.created_at?.split('T')[0])) return false;
-        return l.phone;
+        return true;
       }).map(l => ({
-        id: l.id, name: l.full_name || 'Lead', phone: l.phone, email: '',
+        id: l.id, name: l.full_name || 'Lead', phone: l.phone || '', email: '',
         meta: { type: 'Lead', display_id: l.display_id, source: l.source, status: l.status, need: l.client_need },
       }));
     }
@@ -151,13 +151,13 @@ export default function BroadcastModule() {
         id: d.id, name, phone, email: data.email || '',
         meta: { type: 'DSR', display_id: d.display_id, employee: d.employee_name, date: d.entry_date, sale: d.sale_amount, profit: d.profit_amount },
       };
-    }).filter(r => r.phone);
+    });
   }, [source, clients, leads, dsr, search, nationality, service, clientType, status, leadSource, month, year]);
 
   const exportCSV = () => {
     if (recipients.length === 0) { toast.error('No recipients to export'); return; }
     const rows = recipients.map(r => ({
-      Name: r.name, Phone: r.phone, Email: r.email || '',
+      Name: r.name, Phone: r.phone ? `\u200B${r.phone}` : '', Email: r.email || '',
       ...r.meta,
     }));
     exportToExcel(rows, `broadcast_${source}_${new Date().toISOString().split('T')[0]}`, source);
@@ -265,7 +265,7 @@ export default function BroadcastModule() {
 
           <Card>
             <CardContent className="pt-4">
-              {recipients.length === 0 ? <div className="text-center py-8 text-muted-foreground">No matching recipients with phone numbers</div>
+              {recipients.length === 0 ? <div className="text-center py-8 text-muted-foreground">No matching recipients found</div>
                 : (
                   <div className="overflow-x-auto max-h-[500px]">
                     <table className="w-full text-sm">
