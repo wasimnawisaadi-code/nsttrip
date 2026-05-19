@@ -11,7 +11,9 @@ export default function ReportsPage() {
   const [tab, setTab] = useState('overview');
   const now = new Date();
   const [yearMonth, setYearMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
-  const [viewType, setViewType] = useState<'monthly' | 'weekly' | 'annual'>('monthly');
+  const [viewType, setViewType] = useState<'monthly' | 'weekly' | 'annual' | 'custom'>('monthly');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [clients, setClients] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -46,9 +48,34 @@ export default function ReportsPage() {
     exportToExcel(data, filename.replace(/\.csv$/, ''), 'Sheet1');
   };
 
+  const [rYear, rMonth] = yearMonth.split('-').map(Number);
+
+  const matchesFilter = (dateStr: string | null) => {
+    if (!dateStr) return false;
+    if (viewType === 'custom') {
+      const d = dateStr.slice(0, 10);
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    }
+    if (viewType === 'monthly') return dateStr.startsWith(yearMonth);
+    if (viewType === 'annual') return dateStr.startsWith(String(rYear));
+    if (viewType === 'weekly') {
+      const d = new Date(dateStr);
+      const end = new Date(rYear, rMonth, 0);
+      const diff = (end.getTime() - d.getTime()) / 86400000;
+      return diff >= 0 && diff < 7;
+    }
+    return true;
+  };
+
+  const filteredClients = clients.filter(c => matchesFilter(c.created_at));
+  const filteredDsr = dsrEntries.filter(e => matchesFilter(e.entry_date));
+  const filteredTasks = tasks.filter(t => matchesFilter(t.created_at));
+
   const serviceCounts: Record<string, number> = {};
   const serviceRevenue: Record<string, number> = {};
-  clients.forEach((c: any) => {
+  filteredClients.forEach((c: any) => {
     if (c.service) {
       serviceCounts[c.service] = (serviceCounts[c.service] || 0) + 1;
       serviceRevenue[c.service] = (serviceRevenue[c.service] || 0) + (c.revenue || 0);
@@ -57,7 +84,7 @@ export default function ReportsPage() {
   const serviceData = Object.entries(serviceCounts).map(([name, count]) => ({ name, count, revenue: serviceRevenue[name] || 0 }));
 
   const leadRevenue: Record<string, number> = {};
-  clients.forEach((c: any) => { if (c.lead_source) leadRevenue[c.lead_source] = (leadRevenue[c.lead_source] || 0) + (c.revenue || 0); });
+  filteredClients.forEach((c: any) => { if (c.lead_source) leadRevenue[c.lead_source] = (leadRevenue[c.lead_source] || 0) + (c.revenue || 0); });
   const leadData = Object.entries(leadRevenue).map(([name, revenue]) => ({ name, revenue }));
 
   const monthlyTrend: any[] = [];
@@ -90,34 +117,28 @@ export default function ReportsPage() {
     };
   }).sort((a, b) => b.revenue - a.revenue);
 
-  const totalRevenue = dsrEntries.reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
-  const totalProfit = dsrEntries.reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
+  const totalRevenue = filteredDsr.reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
+  const totalProfit = filteredDsr.reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
 
   const tabs = ['overview', 'clients', 'services', 'employees', 'revenue'];
-
-  // Date-range filter for clients
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const filteredClients = clients.filter((c: any) => {
-    if (!c.created_at) return true;
-    const d = c.created_at.slice(0, 10);
-    if (dateFrom && d < dateFrom) return false;
-    if (dateTo && d > dateTo) return false;
-    return true;
-  });
 
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-xl font-bold font-display">Reports & Analytics</h2>
         <div className="flex items-center gap-2 flex-wrap">
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input-nawi w-auto text-sm" placeholder="From" />
-          <span className="text-xs text-muted-foreground">→</span>
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input-nawi w-auto text-sm" placeholder="To" />
           <select value={viewType} onChange={(e) => setViewType(e.target.value as any)} className="input-nawi w-auto text-sm">
-            <option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="annual">Annual</option>
+            <option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="annual">Annual</option><option value="custom">Custom Range</option>
           </select>
-          <input type="month" value={yearMonth} onChange={(e) => setYearMonth(e.target.value)} className="input-nawi w-auto text-sm" />
+          {viewType === 'custom' ? (
+            <div className="flex items-center gap-1">
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input-nawi w-auto text-sm" placeholder="From" />
+              <span className="text-xs text-muted-foreground">→</span>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input-nawi w-auto text-sm" placeholder="To" />
+            </div>
+          ) : (
+            <input type="month" value={yearMonth} onChange={(e) => setYearMonth(e.target.value)} className="input-nawi w-auto text-sm" />
+          )}
         </div>
       </div>
 
@@ -128,7 +149,7 @@ export default function ReportsPage() {
       {tab === 'overview' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div className="stat-card"><div className="stat-card-icon bg-primary"><Briefcase className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Clients</p><p className="text-xl font-bold font-display">{clients.length}</p></div></div>
+            <div className="stat-card"><div className="stat-card-icon bg-primary"><Briefcase className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Clients</p><p className="text-xl font-bold font-display">{filteredClients.length}</p></div></div>
             <div className="stat-card"><div className="stat-card-icon bg-success"><TrendingUp className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-xl font-bold font-display">{formatCurrency(totalRevenue)}</p></div></div>
             <div className="stat-card"><div className="stat-card-icon bg-secondary"><DollarSign className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-xl font-bold font-display">{formatCurrency(totalProfit)}</p></div></div>
             <div className="stat-card"><div className="stat-card-icon bg-warning"><Users className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Active Employees</p><p className="text-xl font-bold font-display">{employees.filter((e: any) => e.status === 'active').length}</p></div></div>

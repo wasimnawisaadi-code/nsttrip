@@ -42,7 +42,9 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState('dashboard');
   const [dataSource, setDataSource] = useState<'combined' | 'dsr' | 'clients'>('clients');
   const [reportMonth, setReportMonth] = useState(() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`; });
-  const [viewType, setViewType] = useState<'monthly' | 'weekly' | 'annual'>('monthly');
+  const [viewType, setViewType] = useState<'monthly' | 'weekly' | 'annual' | 'custom'>('monthly');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
   const [selectedService, setSelectedService] = useState<string | null>(null);
 
   useEffect(() => {
@@ -95,6 +97,12 @@ export default function AdminDashboard() {
 
       const matchesFilter = (dateStr: string | null) => {
         if (!dateStr) return false;
+        if (viewType === 'custom') {
+          const d = dateStr.slice(0, 10);
+          if (customStartDate && d < customStartDate) return false;
+          if (customEndDate && d > customEndDate) return false;
+          return true;
+        }
         if (viewType === 'monthly') return dateStr.startsWith(reportMonth);
         if (viewType === 'annual') return dateStr.startsWith(String(rYear));
         if (viewType === 'weekly') {
@@ -208,6 +216,31 @@ export default function AdminDashboard() {
           const label = String(year);
           const { rev, prof, clt } = getRevForDate(label, false);
           revenueData.push({ month: label, revenue: rev, profit: prof, clients: clt });
+        }
+      } else if (viewType === 'custom') {
+        if (customStartDate && customEndDate) {
+          const start = new Date(customStartDate);
+          const end = new Date(customEndDate);
+          const diffDays = Math.ceil((end.getTime() - start.getTime()) / 86400000);
+          if (diffDays <= 31) {
+            for (let i = 0; i <= diffDays; i++) {
+              const d = new Date(start); d.setDate(start.getDate() + i);
+              const key = d.toISOString().split('T')[0];
+              const label = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+              const { rev, prof, clt } = getRevForDate(key, true);
+              revenueData.push({ month: label, revenue: rev, profit: prof, clients: clt });
+            }
+          } else {
+            // Group by month if range is large
+            let current = new Date(start.getFullYear(), start.getMonth(), 1);
+            while (current <= end) {
+              const key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
+              const label = current.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+              const { rev, prof, clt } = getRevForDate(key, false);
+              revenueData.push({ month: label, revenue: rev, profit: prof, clients: clt });
+              current.setMonth(current.getMonth() + 1);
+            }
+          }
         }
       } else {
         for (let i = 11; i >= 0; i--) {
@@ -352,7 +385,7 @@ export default function AdminDashboard() {
       });
     };
     load();
-  }, [reportMonth, viewType, dataSource]);
+  }, [reportMonth, viewType, dataSource, customStartDate, customEndDate]);
 
   if (!data) return <div className="skeleton-nawi h-96 w-full" />;
 
@@ -384,9 +417,20 @@ export default function AdminDashboard() {
             <option value="clients">Data: Clients Only</option>
           </select>
           <select value={viewType} onChange={(e) => setViewType(e.target.value as any)} className="input-nawi w-auto text-sm">
-            <option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="annual">Annual</option>
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+            <option value="annual">Annual</option>
+            <option value="custom">Custom Range</option>
           </select>
-          <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="input-nawi w-auto text-sm" />
+          {viewType === 'custom' ? (
+            <div className="flex items-center gap-1">
+              <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="input-nawi w-auto text-sm" />
+              <span className="text-xs text-muted-foreground">to</span>
+              <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="input-nawi w-auto text-sm" />
+            </div>
+          ) : (
+            <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="input-nawi w-auto text-sm" />
+          )}
         </div>
       </div>
 
