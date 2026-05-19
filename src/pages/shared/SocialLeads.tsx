@@ -549,7 +549,7 @@ export default function SocialLeads() {
                         <UserPlus className="w-3 h-3" /> Take Lead
                       </button>
                     )}
-                    {isAdmin && isMine && lead.status !== 'CONVERTED' && (
+                    {isMine && lead.status !== 'CONVERTED' && (
                       <button onClick={() => untakeLead(lead)} className="btn-outline text-xs text-warning">
                         <UserMinus className="w-3 h-3" /> Untake
                       </button>
