@@ -515,36 +515,41 @@ export default function SocialLeads() {
                         Handled by <strong>{isMine ? 'you' : owner.name}</strong>
                       </span>
                     ) : <span className="text-warning font-medium">Unassigned</span>}
-
-                    {(isAdmin || isMine) && (
+                  </div>
+                  <div className="flex gap-2 items-center flex-wrap">
+                    {(isAdmin || isMine) && lead.status !== 'CONVERTED' && (
                       <select
-                        value={lead.assigned_to || ''}
+                        value=""
                         onChange={async (e) => {
-                          const newOwner = e.target.value || null;
+                          const val = e.target.value;
+                          if (!val) return;
+                          if (!confirm(val === 'unassign' ? 'Return lead to pool?' : 'Transfer this lead to another employee?')) return;
+                          
+                          const newOwner = val === 'unassign' ? null : val;
                           const { error } = await supabase.from('social_leads').update({
                             assigned_to: newOwner,
                             assigned_at: newOwner ? new Date().toISOString() : null,
                             status: newOwner && lead.status === 'NEW' ? 'IN_PROGRESS' : lead.status
                           }).eq('id', lead.id);
+                          
                           if (!error) { toast.success('Lead reassigned'); load(); }
                           else { toast.error(error.message); }
                         }}
-                        className="bg-transparent border border-border rounded text-[10px] px-1 py-0.5 max-w-[120px]"
+                        className="bg-transparent border border-border rounded text-[10px] px-2 py-1 max-w-[130px] focus:ring-1 focus:ring-primary"
                       >
-                        <option value="">Unassign (Return to Pool)</option>
-                        {Object.entries(employees).map(([id, emp]) => (
+                        <option value="">{isMine ? 'Transfer to...' : 'Reassign to...'}</option>
+                        {isAdmin && <option value="unassign">Return to Pool</option>}
+                        {Object.entries(employees).filter(([id]) => id !== lead.assigned_to).map(([id, emp]) => (
                           <option key={id} value={id}>{emp.name}</option>
                         ))}
                       </select>
                     )}
-                  </div>
-                  <div className="flex gap-2">
                     {!lead.assigned_to && (
                       <button onClick={() => takeLead(lead)} className="btn-outline text-xs">
                         <UserPlus className="w-3 h-3" /> Take Lead
                       </button>
                     )}
-                    {isMine && lead.status !== 'CONVERTED' && (
+                    {isAdmin && isMine && lead.status !== 'CONVERTED' && (
                       <button onClick={() => untakeLead(lead)} className="btn-outline text-xs text-warning">
                         <UserMinus className="w-3 h-3" /> Untake
                       </button>
@@ -731,9 +736,10 @@ function LeadModal({ lead, onClose, onSaved, canEdit, currentUserId, currentUser
                 <label className="block text-xs font-medium mb-1">
                   {isAdmin ? 'Assign To Employee (Admin)' : 'Transfer to Another Employee'}
                 </label>
-                <select value={form.assigned_to} onChange={e => setForm({ ...form, assigned_to: e.target.value })} className="input-nawi">
-                  <option value="">Unassigned (Return to Open Pool)</option>
-                  {Object.entries(allEmployees).map(([id, emp]) => (
+                <select value={form.assigned_to || ''} onChange={e => setForm({ ...form, assigned_to: e.target.value })} className="input-nawi">
+                  {isAdmin && <option value="">Unassigned (Return to Open Pool)</option>}
+                  {!isAdmin && <option value={lead.assigned_to || ''} disabled>Select employee...</option>}
+                  {Object.entries(allEmployees).filter(([id]) => isAdmin || id !== currentUserId).map(([id, emp]) => (
                     <option key={id} value={id}>{emp.name}</option>
                   ))}
                 </select>
