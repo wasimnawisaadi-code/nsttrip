@@ -218,12 +218,12 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
   const SkeletonRow = () => (
     <tr className="border-t animate-pulse">
       <td className="p-2"><div className="h-4 w-4 bg-muted rounded" /></td>
+      <td className="p-2"><div className="h-8 w-12 bg-muted rounded mx-auto" /></td>
       <td className="p-2"><div className="h-8 w-full bg-muted rounded" /></td>
       {isAdmin && <td className="p-2"><div className="h-4 w-24 bg-muted rounded" /></td>}
       {template.columns.map(c => (
         <td key={c.key} className="p-2"><div className="h-8 w-full bg-muted rounded" /></td>
       ))}
-      <td className="p-2"></td>
     </tr>
   );
 
@@ -276,6 +276,7 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
           <thead className="bg-muted/60 sticky top-0 z-10">
             <tr className="text-xs text-muted-foreground">
               <th className="text-left p-2 w-10">#</th>
+              <th className="p-2 w-16 text-center">Actions</th>
               <th className="text-left p-2 w-36 min-w-[140px]">Date</th>
               {isAdmin && <th className="text-left p-2 w-32 min-w-[120px]">Employee</th>}
               {template.columns.map(c => (
@@ -283,7 +284,6 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
                   {c.label}{c.required && <span className="text-destructive ml-0.5">*</span>}
                 </th>
               ))}
-              <th className="p-2 w-12"></th>
             </tr>
           </thead>
           <tbody>
@@ -313,6 +313,28 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
                     )}
                   </div>
                 </td>
+                <td className="p-1 text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    {onConvertWalkin && isWalkInRow(r) && r.id && (
+                      linkedClientIds[r.id] ? (
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:bg-green-50" asChild>
+                          <a href={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[r.id]}`} target="_blank" rel="noreferrer">
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-600 hover:bg-orange-50" onClick={() => onConvertWalkin(r)}>
+                          <UserPlus className="w-3.5 h-3.5" />
+                        </Button>
+                      )
+                    )}
+                    {ownsRow(r) && (
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeRow(idx)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </td>
                 <td className="p-1">
                   <Input type="date" value={r.entry_date} onChange={e => updateDate(idx, e.target.value)}
                     disabled={!ownsRow(r)} className="h-8 text-xs" />
@@ -337,28 +359,6 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
                     )}
                   </td>
                 ))}
-                <td className="p-1 text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    {onConvertWalkin && isWalkInRow(r) && r.id && (
-                      linkedClientIds[r.id] ? (
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:bg-green-50" asChild>
-                          <a href={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[r.id]}`} target="_blank" rel="noreferrer">
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </Button>
-                      ) : (
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-600 hover:bg-orange-50" onClick={() => onConvertWalkin(r)}>
-                          <UserPlus className="w-3.5 h-3.5" />
-                        </Button>
-                      )
-                    )}
-                    {ownsRow(r) && (
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeRow(idx)}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                </td>
               </tr>
             ))}
           </tbody>
