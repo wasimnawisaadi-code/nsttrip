@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { exportToExcel } from '@/lib/excel-export';
-import { Check, X, Upload, FileText, Calendar, Download, Wallet } from 'lucide-react';
+import { Check, X, Upload, FileText, Calendar, Download, Wallet, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { formatDate, auditLog, calculateWorkingDays, generateDisplayId } from '@/lib/supabase-service';
@@ -13,7 +13,7 @@ const LEAVE_TYPES = ['Annual', 'Sick', 'Maternity', 'Paternity', 'Hajj', 'Bereav
 const BALANCE_DEDUCTING = ['Annual'];
 
 export default function LeaveManagement({ isEmployee = false }: { isEmployee?: boolean }) {
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const [leave, setLeave] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ startDate: '', endDate: '', reason: '', leaveType: 'Annual', document: null as any });
@@ -66,6 +66,30 @@ export default function LeaveManagement({ isEmployee = false }: { isEmployee?: b
     await auditLog('leave_rejected', 'leave', row.id, {});
     toast.success(`Leave rejected for ${row.employee_name}`);
     load();
+  };
+  const handleDelete = async (row: any) => {
+    if (!confirm(`Are you sure you want to delete this leave request?`)) return;
+    
+    // Refund leave balance if it was approved and deducted
+    if (row.status === 'Approved' && BALANCE_DEDUCTING.includes(row.leave_type)) {
+      try {
+        const { data: emp } = await supabase.from('profiles').select('leave_balance').eq('user_id', row.employee_id).maybeSingle();
+        const current = emp?.leave_balance ?? 30;
+        const next = current + (row.days || 0);
+        await supabase.from('profiles').update({ leave_balance: next }).eq('user_id', row.employee_id);
+      } catch (err) {
+        console.error('Failed to refund leave balance', err);
+      }
+    }
+
+    const { error } = await supabase.from('leave_requests').delete().eq('id', row.id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      await auditLog('leave_deleted', 'leave', row.id, { employee: row.employee_name, type: row.leave_type });
+      toast.success('Leave request deleted successfully');
+      load();
+    }
   };
 
   const handleDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -207,7 +231,7 @@ export default function LeaveManagement({ isEmployee = false }: { isEmployee?: b
 
       <div className="card-nawi p-0 overflow-x-auto">
         <table className="table-nawi w-full">
-          <thead><tr><th>Employee</th><th>Type</th><th>Start</th><th>End</th><th>Days</th><th>Reason</th><th>Doc</th><th>Status</th><th>Reviewed By</th></tr></thead>
+          <thead><tr><th>Employee</th><th>Type</th><th>Start</th><th>End</th><th>Days</th><th>Reason</th><th>Doc</th><th>Status</th><th>Reviewed By</th><th></th></tr></thead>
           <tbody>
             {(isEmployee ? leave : [...pending, ...history]).map((l: any) => (
               <tr key={l.id}>
@@ -224,9 +248,16 @@ export default function LeaveManagement({ isEmployee = false }: { isEmployee?: b
                   ) : <FileText className="w-4 h-4 text-secondary" />;
                 })()}</td>
                 <td><StatusBadge status={l.status} /></td><td>{l.reviewed_by || '—'}</td>
+                <td>
+                  {(isAdmin || (isEmployee && l.status === 'Pending')) && (
+                    <button onClick={() => handleDelete(l)} className="text-destructive hover:bg-destructive/10 p-1.5 rounded-lg transition-colors" title="Delete Request">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
-            {(isEmployee ? leave : [...pending, ...history]).length === 0 && <tr><td colSpan={9} className="text-center text-muted-foreground py-8">No leave records</td></tr>}
+            {(isEmployee ? leave : [...pending, ...history]).length === 0 && <tr><td colSpan={10} className="text-center text-muted-foreground py-8">No leave records</td></tr>}
           </tbody>
         </table>
       </div>
