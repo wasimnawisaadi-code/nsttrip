@@ -516,7 +516,7 @@ export default function SocialLeads() {
                       </span>
                     ) : <span className="text-warning font-medium">Unassigned</span>}
 
-                    {isAdmin && (
+                    {(isAdmin || isMine) && (
                       <select
                         value={lead.assigned_to || ''}
                         onChange={async (e) => {
@@ -529,9 +529,9 @@ export default function SocialLeads() {
                           if (!error) { toast.success('Lead reassigned'); load(); }
                           else { toast.error(error.message); }
                         }}
-                        className="bg-transparent border border-border rounded text-[10px] px-1 py-0.5"
+                        className="bg-transparent border border-border rounded text-[10px] px-1 py-0.5 max-w-[120px]"
                       >
-                        <option value="">Unassign</option>
+                        <option value="">Unassign (Return to Pool)</option>
                         {Object.entries(employees).map(([id, emp]) => (
                           <option key={id} value={id}>{emp.name}</option>
                         ))}
@@ -645,8 +645,9 @@ function LeadModal({ lead, onClose, onSaved, canEdit, currentUserId, currentUser
       proof_url: finalProof,
     };
     
-    // Handle Admin assignment change
-    if (isAdmin && form.assigned_to !== (lead.assigned_to || '')) {
+    // Handle assignment transfer (Admin or Current Owner)
+    const isOwner = lead.assigned_to === currentUserId;
+    if ((isAdmin || isOwner) && form.assigned_to !== (lead.assigned_to || '')) {
       update.assigned_to = form.assigned_to || null;
       update.assigned_at = form.assigned_to ? new Date().toISOString() : null;
       if (form.assigned_to && update.status === 'NEW') update.status = 'IN_PROGRESS';
@@ -725,11 +726,13 @@ function LeadModal({ lead, onClose, onSaved, canEdit, currentUserId, currentUser
           </div>
 
           <div className="space-y-3 pt-2 border-t border-border">
-            {isAdmin && (
+            {(isAdmin || lead.assigned_to === currentUserId) && (
               <div>
-                <label className="block text-xs font-medium mb-1">Assign To Employee (Admin Only)</label>
+                <label className="block text-xs font-medium mb-1">
+                  {isAdmin ? 'Assign To Employee (Admin)' : 'Transfer to Another Employee'}
+                </label>
                 <select value={form.assigned_to} onChange={e => setForm({ ...form, assigned_to: e.target.value })} className="input-nawi">
-                  <option value="">Unassigned (Open Pool)</option>
+                  <option value="">Unassigned (Return to Open Pool)</option>
                   {Object.entries(allEmployees).map(([id, emp]) => (
                     <option key={id} value={id}>{emp.name}</option>
                   ))}
