@@ -88,7 +88,7 @@ export default function AppLayout() {
     return () => clearInterval(timer);
   }, []);
 
-  // Heartbeat: Update last_seen_at every 1 minute
+  // Heartbeat & Inactivity Watcher
   useEffect(() => {
     if (!user) return;
     
@@ -99,11 +99,25 @@ export default function AppLayout() {
     };
     performHandshake();
 
-    // 2. Inactivity Watcher (Auto-Logout)
+    let lastActivity = Date.now();
     let idleTimer: NodeJS.Timeout;
     let cachedLimit: number | null = null;
+    let currentDayStr = new Date().toISOString().split('T')[0];
+
+    const updateActivity = async () => {
+      lastActivity = Date.now();
+      const newDayStr = new Date().toISOString().split('T')[0];
+      
+      // If user starts working on a new day, run the handshake to clock them in
+      if (newDayStr !== currentDayStr) {
+        currentDayStr = newDayStr;
+        const { handleAttendanceHandshake } = await import('@/lib/supabase-service');
+        await handleAttendanceHandshake(user.id);
+      }
+    };
 
     const resetIdleTimer = async () => {
+      updateActivity();
       clearTimeout(idleTimer);
       
       if (cachedLimit === null) {
@@ -129,10 +143,11 @@ export default function AppLayout() {
 
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
     events.forEach(e => window.addEventListener(e, resetIdleTimer));
-    resetIdleTimer(); // Initial start
+    resetIdleTimer();
 
-    // 3. Heartbeat
+    // 3. Heartbeat - only update if active in the last 5 minutes
     const heartbeat = async () => {
+      if (Date.now() - lastActivity > 5 * 60 * 1000) return; // Skip heartbeat if idle for 5 mins
       await supabase
         .from('profiles')
         .update({ last_seen_at: new Date().toISOString() })
@@ -146,7 +161,7 @@ export default function AppLayout() {
       clearTimeout(idleTimer);
       clearInterval(interval);
     };
-  }, [user]);
+  }, [user?.id]);
 
   // Fetch counts for notifications and chat
   useEffect(() => {
