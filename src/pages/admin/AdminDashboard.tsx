@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { exportToExcel } from '@/lib/excel-export';
 import { Link } from 'react-router-dom';
-import { Users, TrendingUp, CheckSquare, UserCheck, AlertTriangle, ArrowUpRight, ArrowDownRight, DollarSign, Briefcase, Download, Calendar, Clock, Target, LayoutGrid, BarChart3, CheckCircle2 } from 'lucide-react';
+import { Users, TrendingUp, CheckSquare, UserCheck, AlertTriangle, ArrowUpRight, ArrowDownRight, Briefcase, Download, Calendar, Clock, Target, LayoutGrid, BarChart3, CheckCircle2 } from 'lucide-react';
 import { formatCurrency, formatDate, daysUntil, safeTime } from '@/lib/supabase-service';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
@@ -458,7 +458,7 @@ export default function AdminDashboard() {
             <div className="card-nawi-hover relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-bl-[40px] transition-all group-hover:w-20 group-hover:h-20" />
               <div className="relative">
-                <DollarSign className="w-5 h-5 text-primary mb-2" />
+                <span className="w-5 h-5 flex items-center justify-center text-primary font-bold text-xs mb-2 bg-primary/10 rounded-full">AED</span>
                 <p className="text-2xl font-black font-display text-success">{formatCurrency(data.profitThisMonth)}</p>
                 <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Total Profit</p>
               </div>
@@ -975,7 +975,7 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="stat-card"><div className="stat-card-icon bg-primary"><Briefcase className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Clients</p><p className="text-xl font-bold font-display">{data.totalClients}</p></div></div>
             <div className="stat-card"><div className="stat-card-icon bg-success"><TrendingUp className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-xl font-bold font-display">{formatCurrency(data.totalRevenue)}</p></div></div>
-            <div className="stat-card"><div className="stat-card-icon bg-secondary"><DollarSign className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-xl font-bold font-display">{formatCurrency(data.totalProfit)}</p></div></div>
+            <div className="stat-card"><div className="stat-card-icon bg-secondary"><span className="text-primary-foreground font-bold text-sm">AED</span></div><div><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-xl font-bold font-display">{formatCurrency(data.totalProfit)}</p></div></div>
             <div className="stat-card"><div className="stat-card-icon bg-warning"><Target className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Conversion Rate</p><p className="text-xl font-bold font-display">{data.totalClients > 0 ? Math.round((data.statusCounts.Success / data.totalClients) * 100) : 0}%</p></div></div>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

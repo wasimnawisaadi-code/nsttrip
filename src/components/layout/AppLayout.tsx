@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Briefcase, Calendar, FileText,
-  DollarSign, Shield, LogOut, Menu,
+  Coins, Shield, LogOut, Menu,
   Search, ChevronLeft, Clock, PlaneTakeoff, MessageCircle, CalendarDays, Bell, MapPin,
   ClipboardList, Sparkles, MessagesSquare, Trophy, Megaphone, User as UserIcon, LayoutGrid
 } from 'lucide-react';
@@ -26,7 +26,7 @@ const adminLinks = [
   { to: '/admin/monitoring', label: 'Project Monitoring', icon: LayoutGrid },
   { to: '/admin/attendance', label: 'Attendance', icon: Clock },
   { to: '/admin/leave', label: 'Leave & HR', icon: FileText },
-  { to: '/admin/payroll', label: 'Payroll', icon: DollarSign },
+  { to: '/admin/payroll', label: 'Payroll', icon: Coins },
   { to: '/admin/geofence', label: 'Geofence Zones', icon: MapPin },
   { to: '/admin/audit-log', label: 'Audit Log', icon: Shield },
   { to: '/admin/chat', label: 'Team Chat', icon: MessageCircle },

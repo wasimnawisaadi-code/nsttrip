@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import DSRGridEditor from '@/components/DSRGridEditor';
 import {
   ClipboardList, Plus, Upload, Download, FileSpreadsheet, Calendar, CalendarClock, Pencil, Trash2,
-  Settings as SettingsIcon, TrendingUp, DollarSign, Users, AlertCircle, CheckCircle2, ExternalLink, BarChart2, Star, LayoutDashboard,
+  Settings as SettingsIcon, TrendingUp, Users, AlertCircle, CheckCircle2, ExternalLink, BarChart2, Star, LayoutDashboard,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link, useNavigate } from 'react-router-dom';
@@ -394,7 +394,7 @@ export default function DailyStatusReport() {
           {/* KPI Stat Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="stat-card">
-              <div className="stat-card-icon bg-primary/10 text-primary"><DollarSign className="w-6 h-6" /></div>
+              <div className="stat-card-icon bg-primary/10 text-primary"><span className="font-bold text-sm">AED</span></div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Total Volume</p>
                 <p className="text-xl font-bold font-display">{formatCurrency(kpis.totalSale)}</p>

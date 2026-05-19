@@ -3,7 +3,7 @@ import { exportToExcel } from '@/lib/excel-export';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatDate } from '@/lib/supabase-service';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import { Download, TrendingUp, Users, Briefcase, DollarSign } from 'lucide-react';
+import { Download, TrendingUp, Users, Briefcase } from 'lucide-react';
 
 const COLORS = ['#052F59', '#1A5B96', '#0A7040', '#C45000', '#C0392B', '#64748B', '#7C3AED', '#0891B2'];
 
@@ -151,7 +151,7 @@ export default function ReportsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="stat-card"><div className="stat-card-icon bg-primary"><Briefcase className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Clients</p><p className="text-xl font-bold font-display">{filteredClients.length}</p></div></div>
             <div className="stat-card"><div className="stat-card-icon bg-success"><TrendingUp className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-xl font-bold font-display">{formatCurrency(totalRevenue)}</p></div></div>
-            <div className="stat-card"><div className="stat-card-icon bg-secondary"><DollarSign className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-xl font-bold font-display">{formatCurrency(totalProfit)}</p></div></div>
+            <div className="stat-card"><div className="stat-card-icon bg-secondary"><span className="text-primary-foreground font-bold text-sm">AED</span></div><div><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-xl font-bold font-display">{formatCurrency(totalProfit)}</p></div></div>
             <div className="stat-card"><div className="stat-card-icon bg-warning"><Users className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Active Employees</p><p className="text-xl font-bold font-display">{employees.filter((e: any) => e.status === 'active').length}</p></div></div>
           </div>
           <div className="card-nawi">
