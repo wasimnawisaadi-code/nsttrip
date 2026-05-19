@@ -138,7 +138,7 @@ export default function ImportantDates() {
       const seenByCategory = new Set<string>();
       // Sort entries so duplicates with empty values lose to ones with values
       const entries = Object.entries(dates)
-        .filter(([label, val]) => val && label !== 'passportNo');
+        .filter(([label, val]) => val && label !== 'passportNo' && !label.toLowerCase().includes('issue'));
       entries.forEach(([label, val]) => {
         const cat = detectCategory(label);
         // For categories that should be unique per client, only keep the first occurrence
