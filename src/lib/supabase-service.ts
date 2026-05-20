@@ -182,18 +182,32 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
 
     const lastSeen = profile?.last_seen_at ? new Date(profile.last_seen_at) : null;
 
-    // Fallback: If no last seen or last seen is before login, use settings.work_end or 7 PM
+    // Fallback: If no last seen or last seen is before login, use settings.work_end or 19:00
     const settings = await getAttendanceSettings(userId);
     const [h, m] = (settings.work_end || '19:00').split(':').map(Number);
     
     let autoLogoutTime = lastSeen;
     const forgottenLoginDate = parseDbDate(forgotten.login_time);
     
+    // The designated default logout time for that shift's day
+    const maxLogoutDate = new Date(forgotten.date);
+    maxLogoutDate.setHours(h, m, 0, 0);
+
+    // Midnight of the shift's day (end of that calendar day)
+    const midnightShiftDay = new Date(forgotten.date);
+    midnightShiftDay.setHours(23, 59, 59, 999);
+    
     if (!autoLogoutTime || (forgottenLoginDate && autoLogoutTime <= forgottenLoginDate)) {
       if (forgottenLoginDate) {
-        autoLogoutTime = new Date(forgottenLoginDate.setHours(h, m, 0, 0));
+        autoLogoutTime = maxLogoutDate;
       } else {
-        autoLogoutTime = new Date(); // Fallback if parsing fails completely
+        autoLogoutTime = new Date();
+      }
+    } else {
+      // User requested: If activity goes past 12 AM (midnight) of that shift's day, 
+      // cap the checkout time to the default setting logout time (work_end).
+      if (autoLogoutTime > midnightShiftDay) {
+        autoLogoutTime = maxLogoutDate;
       }
     }
 
@@ -207,7 +221,7 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
       hours_worked: hoursWorked,
       is_auto_logout: true,
       status: 'Without Checkout',
-      work_summary: 'WITHOUT CHECKOUT'
+      work_summary: 'WITHOUT CHECKOUT (Capped at shift end due to midnight rollover)'
     } as any).eq('id', forgotten.id);
 
     // Send Notification about the reset
