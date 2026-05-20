@@ -131,7 +131,7 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
         if (saleCol && costCol && profitCol) {
           const saleVal = parseFloat(rowData[saleCol.key]) || 0;
           const costVal = parseFloat(rowData[costCol.key]) || 0;
-          rowData[profitCol.key] = (saleVal - costVal).toString();
+          rowData[profitCol.key] = (saleVal - costVal).toFixed(2);
         }
       }
 

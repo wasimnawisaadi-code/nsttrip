@@ -143,8 +143,11 @@ export function calculateWorkingDays(start: string, end: string): number {
   return count;
 }
 
-export function formatCurrency(amount: number): string {
-  return `AED ${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
+export function formatCurrency(amount: number, fractions = 2): string {
+  return `AED ${amount.toLocaleString('en-AE', { 
+    minimumFractionDigits: fractions,
+    maximumFractionDigits: fractions 
+  })}`;
 }
 
 // =================== ATTENDANCE ON LOGIN ===================

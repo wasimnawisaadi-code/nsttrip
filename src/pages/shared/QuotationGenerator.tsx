@@ -54,7 +54,7 @@ export default function QuotationGenerator() {
     lineItems.forEach((li) => { if (!li.description) return; doc.text(li.description, 22, y); doc.text(li.amount.toLocaleString(), 188, y, { align: 'right' }); y += 7; });
     doc.setDrawColor(220); doc.line(18, y, 192, y); y += 8;
     doc.setFontSize(11); doc.setTextColor(5, 47, 89);
-    doc.text(`TOTAL QUOTED PRICE: AED ${quotedPrice.toLocaleString()}`, 18, y);
+    doc.text(`TOTAL QUOTED PRICE: ${formatCurrency(quotedPrice)}`, 18, y);
     if (notes) { y += 12; doc.setFontSize(9); doc.setTextColor(100); doc.text(`Notes: ${notes}`, 18, y); }
     await drawBrandFooter(doc, profile?.name);
     doc.save(`Quotation_${client?.name || 'draft'}.pdf`);
@@ -113,7 +113,7 @@ export default function QuotationGenerator() {
             <button onClick={generatePDF} className="btn-secondary flex-1"><Download className="w-4 h-4" /> PDF</button>
             <button onClick={() => {
               if (!client) return;
-              const text = `Dear ${client.name},%0A%0AThank you for your enquiry. Here is your quotation from *Nawi Saadi Travel & Tourism*:%0A%0A${lineItems.filter(li => li.description).map(li => `• ${li.description}: AED ${li.amount.toLocaleString()}`).join('%0A')}%0A%0A*Total: AED ${quotedPrice.toLocaleString()}*${validUntil ? `%0AValid Until: ${new Date(validUntil).toLocaleDateString('en-GB')}` : ''}${notes ? `%0A%0ANotes: ${notes}` : ''}%0A%0ARegards,%0ANawi Saadi Travel & Tourism`;
+              const text = `Dear ${client.name},%0A%0AThank you for your enquiry. Here is your quotation from *Nawi Saadi Travel & Tourism*:%0A%0A${lineItems.filter(li => li.description).map(li => `• ${li.description}: ${formatCurrency(li.amount)}`).join('%0A')}%0A%0A*Total: ${formatCurrency(quotedPrice)}*${validUntil ? `%0AValid Until: ${new Date(validUntil).toLocaleDateString('en-GB')}` : ''}${notes ? `%0A%0ANotes: ${notes}` : ''}%0A%0ARegards,%0ANawi Saadi Travel & Tourism`;
               const phone = client.mobile?.replace(/[^0-9]/g, '') || '';
               window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
             }} className="btn-outline flex-1 text-success border-success hover:bg-success/10"><MessageCircle className="w-4 h-4" /> WhatsApp</button>
@@ -137,10 +137,10 @@ export default function QuotationGenerator() {
             <div className="bg-primary text-primary-foreground text-xs px-3 py-1.5 rounded-t flex justify-between"><span>Description</span><span>Amount</span></div>
             <div className="border border-t-0 border-border rounded-b divide-y divide-border">
               {lineItems.filter(li => li.description).map((li, i) => (
-                <div key={i} className="flex justify-between px-3 py-1.5 text-xs"><span>{li.description}</span><span>AED {li.amount.toLocaleString()}</span></div>
+                <div key={i} className="flex justify-between px-3 py-1.5 text-xs"><span>{li.description}</span><span>{formatCurrency(li.amount)}</span></div>
               ))}
             </div>
-            <div className="mt-3 text-right font-bold text-primary">Total: AED {quotedPrice.toLocaleString()}</div>
+            <div className="mt-3 text-right font-bold text-primary">Total: {formatCurrency(quotedPrice)}</div>
           </div>
         </div>
       </div>

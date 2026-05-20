@@ -33,6 +33,7 @@ import PerformanceLeaderboard from "./pages/shared/PerformanceLeaderboard";
 import ProjectMonitoring from "./pages/admin/ProjectMonitoring";
 import BroadcastModule from "./pages/admin/BroadcastModule";
 import UserProfile from "./pages/shared/UserProfile";
+import HotelContracts from "./pages/shared/HotelContracts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -68,6 +69,7 @@ const App = () => (
               <Route path="/admin/chat" element={<TeamChat />} />
               <Route path="/admin/notifications" element={<NotificationsPage />} />
               <Route path="/admin/dsr" element={<DailyStatusReport />} />
+              <Route path="/admin/hotel-contracts" element={<HotelContracts />} />
               <Route path="/admin/dsr-assignments" element={<DSRTemplateAssignment />} />
               <Route path="/admin/leads" element={<SocialLeads />} />
               <Route path="/admin/performance" element={<PerformanceLeaderboard />} />
@@ -87,6 +89,7 @@ const App = () => (
               <Route path="/employee/chat" element={<TeamChat />} />
               <Route path="/employee/notifications" element={<NotificationsPage />} />
               <Route path="/employee/dsr" element={<DailyStatusReport />} />
+              <Route path="/employee/hotel-contracts" element={<HotelContracts />} />
               <Route path="/employee/leads" element={<SocialLeads />} />
               <Route path="/employee/performance" element={<PerformanceLeaderboard />} />
               <Route path="/employee/profile" element={<UserProfile />} />
