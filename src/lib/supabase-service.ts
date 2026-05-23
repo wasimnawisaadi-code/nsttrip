@@ -144,10 +144,18 @@ export function calculateWorkingDays(start: string, end: string): number {
 }
 
 export function formatCurrency(amount: number, fractions = 2): string {
-  return `AED ${amount.toLocaleString('en-AE', { 
+  return `AED ${amount.toLocaleString('en-AE', {
     minimumFractionDigits: fractions,
-    maximumFractionDigits: fractions 
+    maximumFractionDigits: fractions
   })}`;
+}
+
+export function getLocalTodayStr(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 // =================== ATTENDANCE ON LOGIN ===================
@@ -160,7 +168,7 @@ import { getAttendanceSettings, classifyLogin, isWeekend } from './settings';
  * 3. Ensures a new session is started for TODAY.
  */
 export async function handleAttendanceHandshake(userId: string, lat?: number | null, lng?: number | null, locStatus?: string) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalTodayStr();
   const now = new Date();
 
   // 1. Check for forgotten sessions from YESTERDAY or before
@@ -185,10 +193,10 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
     // Fallback: If no last seen or last seen is before login, use settings.work_end or 19:00
     const settings = await getAttendanceSettings(userId);
     const [h, m] = (settings.work_end || '19:00').split(':').map(Number);
-    
+
     let autoLogoutTime = lastSeen;
     const forgottenLoginDate = parseDbDate(forgotten.login_time);
-    
+
     // The designated default logout time for that shift's day
     const maxLogoutDate = new Date(forgotten.date);
     maxLogoutDate.setHours(h, m, 0, 0);
@@ -196,7 +204,7 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
     // Midnight of the shift's day (end of that calendar day)
     const midnightShiftDay = new Date(forgotten.date);
     midnightShiftDay.setHours(23, 59, 59, 999);
-    
+
     if (!autoLogoutTime || (forgottenLoginDate && autoLogoutTime <= forgottenLoginDate)) {
       if (forgottenLoginDate) {
         autoLogoutTime = maxLogoutDate;
@@ -260,7 +268,7 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
     // Re-login after logout on same day -> resume session
     const logoutDate = new Date(existingToday.logout_time);
     const offlineMin = Math.max(0, Math.round((now.getTime() - logoutDate.getTime()) / 60000));
-    
+
     const currentOffline = Number((existingToday as any).offline_minutes) || 0;
     const currentAutoCount = Number((existingToday as any).auto_logout_count) || 0;
     const isAuto = (existingToday as any).is_auto_logout === true;
@@ -281,7 +289,7 @@ export async function recordLoginAttendance(userId: string) {
 
 // =================== NOTIFICATIONS ===================
 export async function generateDailyNotifications(userId: string, isAdmin: boolean) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalTodayStr();
 
   let query = supabase.from('clients').select('id, name, important_dates, mobile');
   if (!isAdmin) {

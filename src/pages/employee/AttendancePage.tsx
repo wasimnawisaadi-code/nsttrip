@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
-import { formatDate, safeTime, parseDbDate } from '@/lib/supabase-service';
+import { formatDate, safeTime, parseDbDate, getLocalTodayStr } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { getAttendanceSettings } from '@/lib/settings';
 import { LogOut, Clock, Check } from 'lucide-react';
@@ -56,7 +56,7 @@ export default function AttendancePage() {
     return () => clearInterval(interval);
   }, [todayRecord?.break_start_time]);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalTodayStr();
 
   const load = async () => {
     if (!user) return;

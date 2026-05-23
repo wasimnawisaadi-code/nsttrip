@@ -6,13 +6,13 @@ import { ClipboardList, TrendingUp, Users, ChevronRight } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 /** Compact DSR analytics widget — last 7 days. */
-export default function DSRDashboardWidget({ 
-  basePath = '/admin', 
+export default function DSRDashboardWidget({
+  basePath = '/admin',
   employeeId,
   viewType = 'weekly',
   reportMonth
-}: { 
-  basePath?: string; 
+}: {
+  basePath?: string;
   employeeId?: string;
   viewType?: 'monthly' | 'weekly' | 'annual';
   reportMonth?: string;
@@ -46,7 +46,7 @@ export default function DSRDashboardWidget({
       let query = supabase.from('dsr_entries')
         .select('employee_id, employee_name, sale_amount, profit_amount, entry_date')
         .gte('entry_date', fromStr).lte('entry_date', toStr);
-        
+
       if (employeeId) {
         query = query.eq('employee_id', employeeId);
       }
@@ -57,7 +57,7 @@ export default function DSRDashboardWidget({
       ]);
 
       let entries = dsrRes.data || [];
-      
+
       if (!employeeId) {
         const activeEmpIds = new Set((profilesRes.data || []).map((p: any) => p.user_id));
         entries = entries.filter((e: any) => activeEmpIds.has(e.employee_id));
@@ -68,7 +68,7 @@ export default function DSRDashboardWidget({
       const employees = new Set(entries.map((e: any) => e.employee_id)).size;
 
       const dailyMap = new Map<string, { profit: number; sales: number }>();
-      
+
       // Fill dates for the chart based on viewType
       if (viewType === 'weekly') {
         for (let i = 6; i >= 0; i--) {
@@ -92,14 +92,14 @@ export default function DSRDashboardWidget({
       entries.forEach((e: any) => {
         let key = e.entry_date;
         if (viewType === 'annual') key = e.entry_date?.slice(0, 7);
-        
+
         const ex = dailyMap.get(key);
         if (ex) { ex.profit += Number(e.profit_amount || 0); ex.sales += Number(e.sale_amount || 0); }
       });
 
-      const daily = Array.from(dailyMap.entries()).map(([k, v]) => ({ 
-        day: viewType === 'annual' ? new Date(k + '-01').toLocaleDateString('en-US', { month: 'short' }) : k.slice(k.length - 2), 
-        ...v 
+      const daily = Array.from(dailyMap.entries()).map(([k, v]) => ({
+        day: viewType === 'annual' ? new Date(k + '-01').toLocaleDateString('en-US', { month: 'short' }) : k.slice(k.length - 2),
+        ...v
       }));
 
       const empMap = new Map<string, { name: string; profit: number }>();

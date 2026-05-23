@@ -12,6 +12,7 @@ const logo = "/favicon.png";
 import AIChatbot from '@/components/AIChatbot';
 import HeaderCalculator from '@/components/HeaderCalculator';
 import { openAIChatbot } from '@/lib/ai-chatbot-bus';
+import { getLocalTodayStr } from '@/lib/supabase-service';
 
 const adminLinks = [
   { to: '/admin/dashboard', label: 'Dashboard & Reports', icon: LayoutDashboard },
@@ -104,11 +105,11 @@ export default function AppLayout() {
     let lastActivity = Date.now();
     let idleTimer: NodeJS.Timeout;
     let cachedLimit: number | null = null;
-    let currentDayStr = new Date().toISOString().split('T')[0];
+    let currentDayStr = getLocalTodayStr();
 
     const updateActivity = async () => {
       lastActivity = Date.now();
-      const newDayStr = new Date().toISOString().split('T')[0];
+      const newDayStr = getLocalTodayStr();
       
       // If user starts working on a new day, run the handshake to clock them in
       if (newDayStr !== currentDayStr) {
@@ -131,11 +132,28 @@ export default function AppLayout() {
       if (cachedLimit > 0) {
         idleTimer = setTimeout(async () => {
           console.log('Inactivity limit reached. Auto-logging out...');
-          const today = new Date().toISOString().split('T')[0];
-          await supabase.from('attendance').update({ 
-            is_auto_logout: true,
-            logout_time: new Date().toISOString()
-          } as any).eq('employee_id', user.id).eq('date', today).is('logout_time', null);
+          
+          // Check if there is currently an open session for today (or yesterday) before auto-logging out
+          const { data: openSession } = await supabase
+            .from('attendance')
+            .select('id, date')
+            .eq('employee_id', user.id)
+            .is('logout_time', null)
+            .order('date', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (openSession) {
+            // The precise time the user stopped being active
+            // We use lastActivity instead of 'new Date()' because if the PC went to sleep,
+            // 'new Date()' might be 10 AM the next day or 4 AM randomly when it woke up.
+            const preciseLogoutTime = new Date(lastActivity).toISOString();
+
+            await supabase.from('attendance').update({ 
+              is_auto_logout: true,
+              logout_time: preciseLogoutTime
+            } as any).eq('id', openSession.id);
+          }
 
           await signOut();
           navigate('/login');
@@ -206,7 +224,7 @@ export default function AppLayout() {
   useEffect(() => {
     if (!user) return;
     const fetchTodayAttendance = async () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getLocalTodayStr();
       const { data } = await supabase
         .from('attendance')
         .select('login_time, logout_time, total_break_minutes')

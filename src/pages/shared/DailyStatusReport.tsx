@@ -52,11 +52,11 @@ export default function DailyStatusReport() {
     if (!user) return;
     const list = isAdmin ? await fetchAllTemplates() : await fetchAssignedTemplates(user.id);
     setTemplates(list);
-      if (list.length > 0 && !activeTemplate) {
-        // We don't force a template - we can start with "All Services" (Dashboard)
-        setActiveTemplate(null);
-      }
-    
+    if (list.length > 0 && !activeTemplate) {
+      // We don't force a template - we can start with "All Services" (Dashboard)
+      setActiveTemplate(null);
+    }
+
     // FETCH ASSIGNED TASKS (like UAE Visa)
     const { data: svcs } = await supabase
       .from('client_services')
@@ -107,8 +107,8 @@ export default function DailyStatusReport() {
   const todayWalkins = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     if (activeTemplate?.name !== 'Air Ticket') return [];
-    return entries.filter(e => 
-      e.entry_date === today && 
+    return entries.filter(e =>
+      e.entry_date === today &&
       Object.values(e.data || {}).some(v => WALKIN_REGEX.test(String(v || '')))
     );
   }, [entries, activeTemplate]);
@@ -362,8 +362,8 @@ export default function DailyStatusReport() {
         </div>
       </div>
 
-      <Tabs 
-        value={activeTemplate ? activeTemplate.id : 'dashboard'} 
+      <Tabs
+        value={activeTemplate ? activeTemplate.id : 'dashboard'}
         onValueChange={(v) => {
           if (v === 'dashboard') setActiveTemplate(null);
           else setActiveTemplate(templates.find(t => t.id === v) || null);
@@ -372,16 +372,16 @@ export default function DailyStatusReport() {
       >
         <div className="border-b border-border">
           <TabsList className="bg-transparent h-auto p-0 gap-6 overflow-x-auto no-scrollbar justify-start">
-              <TabsTrigger 
-                value="dashboard" 
-                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-2 h-auto text-sm font-semibold text-muted-foreground data-[state=active]:text-primary transition-all"
-              >
-                <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
-              </TabsTrigger>
+            <TabsTrigger
+              value="dashboard"
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-2 h-auto text-sm font-semibold text-muted-foreground data-[state=active]:text-primary transition-all"
+            >
+              <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
+            </TabsTrigger>
             {templates.map(t => (
-              <TabsTrigger 
-                key={t.id} 
-                value={t.id} 
+              <TabsTrigger
+                key={t.id}
+                value={t.id}
                 className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-2 h-auto text-sm font-semibold text-muted-foreground data-[state=active]:text-primary transition-all whitespace-nowrap"
               >
                 <span className="mr-2">{t.icon}</span> {t.name}
@@ -436,15 +436,15 @@ export default function DailyStatusReport() {
                   <AreaChart data={dailyTrend}>
                     <defs>
                       <linearGradient id="chartColor" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
                     <XAxis dataKey="label" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 10 }} tickFormatter={val => formatCurrency(val)} />
-                    <RTooltip 
-                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', boxShadow: 'var(--shadow-elevated)' }} 
+                    <RTooltip
+                      contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', boxShadow: 'var(--shadow-elevated)' }}
                       formatter={(val: any) => formatCurrency(val)}
                     />
                     <Area type="monotone" dataKey="profit" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#chartColor)" strokeWidth={3} />
@@ -468,8 +468,8 @@ export default function DailyStatusReport() {
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.1} />
                       <XAxis type="number" hide />
                       <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 11, fontWeight: 600 }} />
-                      <RTooltip 
-                        contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', boxShadow: 'var(--shadow-elevated)' }} 
+                      <RTooltip
+                        contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', boxShadow: 'var(--shadow-elevated)' }}
                         formatter={(val: any) => formatCurrency(val)}
                       />
                       <Bar dataKey={analysisSort === 'profit' ? 'profit' : 'sales'} radius={[0, 4, 4, 0]} barSize={20}>
@@ -486,34 +486,34 @@ export default function DailyStatusReport() {
             <div className="card-nawi overflow-hidden">
               <h3 className="text-sm font-bold font-display flex items-center gap-2 mb-4"><BarChart2 className="w-4 h-4 text-primary" /> Performance Audit</h3>
               <div className="overflow-x-auto -mx-5 px-5">
-              <table className="w-full table-nawi">
-                <thead>
-                  <tr>
-                    <th className="p-3">Employee Name</th>
-                    <th className="p-3 text-center">Orders</th>
-                    <th className="p-3 text-right">Revenue</th>
-                    <th className="p-3 text-right">Net Profit</th>
-                    <th className="p-3 text-center">Efficiency</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/50">
-                  {empBreakdown.map((e, i) => (
-                    <tr key={i}>
-                      <td className="p-3 font-medium">{e.name}</td>
-                      <td className="p-3 text-center">{e.count}</td>
-                      <td className="p-3 text-right font-semibold text-primary">{formatCurrency(e.sale)}</td>
-                      <td className="p-3 text-right font-bold text-success">{formatCurrency(e.profit)}</td>
-                      <td className="p-3 text-center">
-                        <span className="badge-new bg-primary/5 text-primary">
-                          {((e.profit / (e.sale || 1)) * 100).toFixed(1)}%
-                        </span>
-                      </td>
+                <table className="w-full table-nawi">
+                  <thead>
+                    <tr>
+                      <th className="p-3">Employee Name</th>
+                      <th className="p-3 text-center">Orders</th>
+                      <th className="p-3 text-right">Revenue</th>
+                      <th className="p-3 text-right">Net Profit</th>
+                      <th className="p-3 text-center">Efficiency</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {empBreakdown.map((e, i) => (
+                      <tr key={i}>
+                        <td className="p-3 font-medium">{e.name}</td>
+                        <td className="p-3 text-center">{e.count}</td>
+                        <td className="p-3 text-right font-semibold text-primary">{formatCurrency(e.sale)}</td>
+                        <td className="p-3 text-right font-bold text-success">{formatCurrency(e.profit)}</td>
+                        <td className="p-3 text-center">
+                          <span className="badge-new bg-primary/5 text-primary">
+                            {((e.profit / (e.sale || 1)) * 100).toFixed(1)}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
           )}
 
           <div className="card-nawi overflow-hidden">
@@ -594,12 +594,12 @@ export default function DailyStatusReport() {
                 </div>
               </div>
             )}
-            
+
             <div className="card-nawi overflow-hidden !p-0">
-              <DSRGridEditor 
-                template={t} 
-                fromDate={fromDate} 
-                toDate={toDate} 
+              <DSRGridEditor
+                template={t}
+                fromDate={fromDate}
+                toDate={toDate}
                 isAdmin={isAdmin}
                 employeeFilter={employeeFilter}
                 workingDate={workingDate}
@@ -698,7 +698,7 @@ function ExcelUploadButton({ template, userId, userName, entryDate, onDone }: { 
     try {
       const rows = result.parsedRows.map(pr => pr.data);
       const dates = result.parsedRows.map(() => null); // Always use entryDate fallback
-      
+
       const n = await bulkCreateEntries(template, userId, userName, entryDate || today, rows, dates);
       toast.success(`Imported ${n} rows`);
       setResult(null);

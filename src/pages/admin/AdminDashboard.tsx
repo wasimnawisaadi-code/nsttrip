@@ -23,12 +23,12 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
   if (percent < 0.05) return null;
 
   return (
-    <text 
-      x={x} 
-      y={y} 
-      fill="#ffffff" 
-      textAnchor="middle" 
-      dominantBaseline="central" 
+    <text
+      x={x}
+      y={y}
+      fill="#ffffff"
+      textAnchor="middle"
+      dominantBaseline="central"
       className="text-xs font-black select-none pointer-events-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
     >
       {`${(percent * 100).toFixed(0)}%`}
@@ -50,25 +50,25 @@ export default function AdminDashboard() {
   useEffect(() => {
     const load = async () => {
       const [
-        clientsRes, tasksRes, profilesRes, attendanceRes, quotationsRes, 
+        clientsRes, tasksRes, profilesRes, attendanceRes, quotationsRes,
         auditRes, leaveRes, dsrRes, leadsRes, projectsRes, monitoringTasksRes
       ] = await Promise.all([
-        supabase.from('clients').select('*'),
-        supabase.from('tasks').select('*'),
-        supabase.from('profiles').select('*'),
-        supabase.from('attendance').select('*'),
-        supabase.from('quotations').select('*'),
-        supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(15),
-        supabase.from('leave_requests').select('*'),
-        supabase.from('dsr_entries').select('*'),
-        supabase.from('social_leads').select('*'),
-        supabase.from('monitoring_projects').select('*'),
-        supabase.from('monitoring_tasks').select('*'),
+        supabase.from('clients').select('*').limit(100000),
+        supabase.from('tasks').select('*').limit(100000),
+        supabase.from('profiles').select('*').limit(100000),
+        supabase.from('attendance').select('*').limit(100000),
+        supabase.from('quotations').select('*').limit(100000),
+        supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('leave_requests').select('*').limit(100000),
+        supabase.from('dsr_entries').select('*').limit(100000),
+        supabase.from('social_leads').select('*').limit(100000),
+        supabase.from('monitoring_projects').select('*').limit(100000),
+        supabase.from('monitoring_tasks').select('*').limit(100000),
       ]);
- 
+
       const clients = clientsRes.data || [];
       const clientIds = new Set(clients.map(c => c.id));
-      
+
       const tasks = (tasksRes.data || []).filter((t: any) => t.client_id && clientIds.has(t.client_id));
       const employees = profilesRes.data || [];
       const attendance = attendanceRes.data || [];
@@ -81,7 +81,7 @@ export default function AdminDashboard() {
 
       const monitoringProjects = monProjects.map((p: any) => {
         const pTasks = monTasks.filter((t: any) => t.project_id === p.id);
-        const totalProgress = pTasks.length > 0 
+        const totalProgress = pTasks.length > 0
           ? Math.round(pTasks.reduce((acc: number, t: any) => acc + (t.progress_percentage || 0), 0) / pTasks.length)
           : 0;
         return { ...p, totalProgress };
@@ -90,7 +90,7 @@ export default function AdminDashboard() {
       const now = new Date();
       const today = now.toISOString().split('T')[0];
       const [rYear, rMonth] = reportMonth.split('-').map(Number);
-      
+
       // Previous month for comparison
       const prevDate = new Date(rYear, rMonth - 2, 1);
       const lastMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
@@ -122,28 +122,28 @@ export default function AdminDashboard() {
       const dsrLinkedClientIds = new Set(clients.filter((c: any) => c.dsr_entry_id).map((c: any) => c.id));
 
       if (dataSource === 'combined' || dataSource === 'dsr') {
-        revenueThisMonth += dsrEntries.filter(dsrMatches).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
-        revenueLastMonth += dsrEntries.filter((e: any) => e.entry_date?.startsWith(lastMonth)).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
-        profitThisMonth += dsrEntries.filter(dsrMatches).reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
-        totalRevenue += dsrEntries.reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
-        totalProfit += dsrEntries.reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
+        revenueThisMonth += dsrEntries.filter(dsrMatches).reduce((s: number, e: any) => s + Number(e.sale_amount || 0), 0);
+        revenueLastMonth += dsrEntries.filter((e: any) => e.entry_date?.startsWith(lastMonth)).reduce((s: number, e: any) => s + Number(e.sale_amount || 0), 0);
+        profitThisMonth += dsrEntries.filter(dsrMatches).reduce((s: number, e: any) => s + Number(e.profit_amount || 0), 0);
+        totalRevenue += dsrEntries.reduce((s: number, e: any) => s + Number(e.sale_amount || 0), 0);
+        totalProfit += dsrEntries.reduce((s: number, e: any) => s + Number(e.profit_amount || 0), 0);
       }
       if (dataSource === 'combined' || dataSource === 'clients') {
         const eligibleClients = clients.filter(c => {
           if (dataSource === 'combined' && c.dsr_entry_id) return false;
           return true;
         });
-        revenueThisMonth += eligibleClients.filter(clientMatches).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-        revenueLastMonth += eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)).reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-        profitThisMonth += eligibleClients.filter(clientMatches).reduce((s: number, c: any) => s + (c.profit || 0), 0);
-        totalRevenue += eligibleClients.reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-        totalProfit += eligibleClients.reduce((s: number, c: any) => s + (c.profit || 0), 0);
+        revenueThisMonth += eligibleClients.filter(clientMatches).reduce((s: number, c: any) => s + Number(c.revenue || 0), 0);
+        revenueLastMonth += eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)).reduce((s: number, c: any) => s + Number(c.revenue || 0), 0);
+        profitThisMonth += eligibleClients.filter(clientMatches).reduce((s: number, c: any) => s + Number(c.profit || 0), 0);
+        totalRevenue += eligibleClients.reduce((s: number, c: any) => s + Number(c.revenue || 0), 0);
+        totalProfit += eligibleClients.reduce((s: number, c: any) => s + Number(c.profit || 0), 0);
       }
 
       const activeTasks = tasks.filter((t: any) => t.status === 'New' || t.status === 'Processing').length;
       const overdueTasks = tasks.filter((t: any) => (t.status === 'New' || t.status === 'Processing') && t.due_date && new Date(t.due_date) < now).length;
       const completedTasks = tasks.filter((t: any) => t.status === 'Completed' && matchesFilter(t.completed_date)).length;
-      
+
       const activeEmployeeIds = new Set(employees.filter(e => e.status === 'active').map(e => e.user_id));
       const onlineEmployeesList = attendance
         .filter((a: any) => a.date === today && !a.logout_time && activeEmployeeIds.has(a.employee_id))
@@ -175,7 +175,7 @@ export default function AdminDashboard() {
         dsrEntries.filter(dsrMatches).forEach((d: any) => {
           const svc = d.template_key?.replace(/_/g, ' ') || 'DSR General';
           serviceCounts[svc] = (serviceCounts[svc] || 0) + 1;
-          serviceRevenue[svc] = (serviceRevenue[svc] || 0) + (d.sale_amount || 0);
+          serviceRevenue[svc] = (serviceRevenue[svc] || 0) + Number(d.sale_amount || 0);
         });
       }
       const serviceData = Object.entries(serviceCounts).map(([name, value]) => ({ name, value, revenue: serviceRevenue[name] || 0 }));
@@ -195,7 +195,7 @@ export default function AdminDashboard() {
           });
           rev += m.reduce((s: number, c: any) => s + (c.revenue || 0), 0);
           prof += m.reduce((s: number, c: any) => s + (c.profit || 0), 0);
-          clt += m.length; 
+          clt += m.length;
         }
         return { rev, prof, clt };
       };
@@ -278,12 +278,12 @@ export default function AdminDashboard() {
         let grossHours = empAttendance.reduce((s: number, a: any) => {
           if (!a.login_time) return s;
           const loginDate = new Date(a.login_time);
-          const logoutDate = a.logout_time ? new Date(a.logout_time) : (a.date < today ? new Date(new Date(a.date).setHours(19,0,0,0)) : new Date());
+          const logoutDate = a.logout_time ? new Date(a.logout_time) : (a.date < today ? new Date(new Date(a.date).setHours(19, 0, 0, 0)) : new Date());
           return s + Math.max(0, (logoutDate.getTime() - loginDate.getTime()) / 3600000);
         }, 0);
-        
+
         let totalBreakMinutes = empAttendance.reduce((s: number, a: any) => s + (a.total_break_minutes || 0), 0);
-        
+
         // Include live shift duration for currently logged-in employees
         const active = empAttendance.find((a: any) => a.login_time && !a.logout_time && a.date === today);
         if (active) {
@@ -291,23 +291,23 @@ export default function AdminDashboard() {
           const nowMs = new Date().getTime();
           const breakMs = (Number(active.total_break_minutes) || 0) * 60000;
           const offlineMs = (Number(active.offline_minutes) || 0) * 60000;
-          
+
           const liveGross = (nowMs - loginTime) / 3600000;
           const liveNet = (nowMs - loginTime - breakMs - offlineMs) / 3600000;
-          
+
           grossHours += Math.max(0, liveGross);
           netHours += Math.max(0, liveNet);
         }
 
         let empRev = 0, empProf = 0, empClientsCount = 0;
-        
+
         if (dataSource === 'combined' || dataSource === 'dsr') {
           const ec = dsrEntries.filter((e_dsr: any) => e_dsr.employee_id === e.user_id && dsrMatches(e_dsr));
           empClientsCount += ec.length;
           empRev += ec.reduce((s: number, d_e: any) => s + (d_e.sale_amount || 0), 0);
           empProf += ec.reduce((s: number, d_e: any) => s + (d_e.profit_amount || 0), 0);
         }
-        
+
         if (dataSource === 'combined' || dataSource === 'clients') {
           const cc = clients.filter((c_cl: any) => c_cl.created_by === e.user_id && clientMatches(c_cl));
           empClientsCount += cc.length;
@@ -537,12 +537,12 @@ export default function AdminDashboard() {
               <ResponsiveContainer width="100%" height={320}>
                 <AreaChart data={data.revenueData}>
                   <defs>
-                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#052F59" stopOpacity={0.1}/><stop offset="95%" stopColor="#052F59" stopOpacity={0}/></linearGradient>
-                    <linearGradient id="colorProf" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#0A7040" stopOpacity={0.1}/><stop offset="95%" stopColor="#0A7040" stopOpacity={0}/></linearGradient>
+                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#052F59" stopOpacity={0.1} /><stop offset="95%" stopColor="#052F59" stopOpacity={0} /></linearGradient>
+                    <linearGradient id="colorProf" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#0A7040" stopOpacity={0.1} /><stop offset="95%" stopColor="#0A7040" stopOpacity={0} /></linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 500 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 500 }} tickFormatter={v => `AED ${v/1000}k`} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 500 }} tickFormatter={v => `AED ${v / 1000}k`} />
                   <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }} formatter={(v: number) => formatCurrency(v)} />
                   <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '20px' }} />
                   <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#052F59" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
@@ -561,7 +561,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex gap-4">
                   {selectedService && (
-                    <button 
+                    <button
                       onClick={() => setSelectedService(null)}
                       className="px-5 py-2.5 bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-primary/30 active:scale-95"
                     >
@@ -586,14 +586,14 @@ export default function AdminDashboard() {
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
-                          <Pie 
-                            data={data.serviceData} 
-                            dataKey="value" 
-                            nameKey="name" 
-                            cx="50%" 
-                            cy="50%" 
-                            innerRadius={75} 
-                            outerRadius={105} 
+                          <Pie
+                            data={data.serviceData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={75}
+                            outerRadius={105}
                             paddingAngle={8}
                             stroke="none"
                             label={renderCustomizedLabel}
@@ -601,17 +601,17 @@ export default function AdminDashboard() {
                             onClick={(entry) => setSelectedService(entry.name)}
                           >
                             {data.serviceData.map((_: any, i: number) => (
-                              <Cell 
-                                key={i} 
-                                fill={COLORS[i % COLORS.length]} 
+                              <Cell
+                                key={i}
+                                fill={COLORS[i % COLORS.length]}
                                 opacity={selectedService === null || selectedService === data.serviceData[i].name ? 1 : 0.3}
                                 className="transition-all duration-300"
                               />
                             ))}
                           </Pie>
-                          <Tooltip 
+                          <Tooltip
                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
-                            formatter={(v: any, name: any) => [`${v} Clients`, name]} 
+                            formatter={(v: any, name: any) => [`${v} Clients`, name]}
                           />
                         </PieChart>
                       </ResponsiveContainer>
@@ -623,12 +623,11 @@ export default function AdminDashboard() {
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-8">Service Breakdown</p>
                   <div className="space-y-4 max-h-[300px] overflow-y-auto pr-4 scrollbar-thin">
                     {data.serviceData.sort((a: any, b: any) => b.value - a.value).map((s: any, i: number) => (
-                      <div 
-                        key={i} 
+                      <div
+                        key={i}
                         onClick={() => setSelectedService(s.name)}
-                        className={`flex items-center justify-between group p-4 rounded-2xl transition-all border shadow-sm cursor-pointer ${
-                          selectedService === s.name ? 'bg-primary text-white border-primary shadow-xl scale-[1.02]' : 'hover:bg-muted/40 border-transparent hover:border-border/50'
-                        }`}
+                        className={`flex items-center justify-between group p-4 rounded-2xl transition-all border shadow-sm cursor-pointer ${selectedService === s.name ? 'bg-primary text-white border-primary shadow-xl scale-[1.02]' : 'hover:bg-muted/40 border-transparent hover:border-border/50'
+                          }`}
                       >
                         <div className="flex items-center gap-4">
                           <div className={`w-4 h-4 rounded-full shadow-sm ${selectedService === s.name ? 'ring-2 ring-white' : ''}`} style={{ background: selectedService === s.name ? 'white' : COLORS[i % COLORS.length] }} />
@@ -659,8 +658,8 @@ export default function AdminDashboard() {
                       } else {
                         count = (data.statusCounts[st] as number) || 0;
                       }
-                      
-                      const total = selectedService 
+
+                      const total = selectedService
                         ? data.allClients.filter((c: any) => c.service === selectedService).length || 1
                         : data.totalClients || 1;
                       const pct = Math.round((count / total) * 100);
@@ -795,7 +794,7 @@ export default function AdminDashboard() {
                           <span className="font-black text-primary">{p.totalProgress}%</span>
                         </div>
                         <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                           <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: `${p.totalProgress}%` }} />
+                          <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: `${p.totalProgress}%` }} />
                         </div>
                       </div>
                     ))}
@@ -813,7 +812,7 @@ export default function AdminDashboard() {
                 </h3>
                 <span className="text-[10px] bg-warning/10 text-warning px-2 py-0.5 rounded-full font-bold uppercase">Real-Time</span>
               </div>
-                            <div className="space-y-3">
+              <div className="space-y-3">
                 {/* Currently Offline due to Auto-Logout */}
                 {data.todayAttendance.filter((a: any) => a.is_auto_logout && a.logout_time).length > 0 && (
                   <div className="p-2.5 rounded-lg bg-destructive/5 border border-destructive/10">
@@ -860,7 +859,7 @@ export default function AdminDashboard() {
                                   const loginPart = parts[1]?.split('(');
                                   const loginTime = loginPart ? loginPart[0]?.trim() : 'Active';
                                   const duration = loginPart && loginPart[1] ? `(${loginPart[1].split(')')[0]})` : '';
-                                  
+
                                   return (
                                     <div key={idx} className="flex items-center justify-between bg-warning/10 px-2 py-1 rounded text-[9px] border border-warning/5">
                                       <div className="flex items-center gap-1.5">
@@ -903,10 +902,10 @@ export default function AdminDashboard() {
                 )}
 
                 {data.todayAttendance.filter((a: any) => a.break_start_time || a.is_auto_logout || (a.auto_logout_count || 0) > 0).length === 0 && (
-                   <div className="text-center py-6 border border-dashed rounded-lg">
-                      <UserCheck className="w-6 h-6 mx-auto mb-2 opacity-20 text-success" />
-                      <p className="text-xs text-muted-foreground">No anomalies detected today</p>
-                   </div>
+                  <div className="text-center py-6 border border-dashed rounded-lg">
+                    <UserCheck className="w-6 h-6 mx-auto mb-2 opacity-20 text-success" />
+                    <p className="text-xs text-muted-foreground">No anomalies detected today</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -1054,39 +1053,39 @@ export default function AdminDashboard() {
           <div className="table-container border-none">
             <table className="table-nawi w-full text-sm">
               <thead><tr><th>Employee</th><th>Status</th><th>Revenue</th><th>Profit</th><th>Success %</th><th>Total Hours</th><th>Net Hours</th><th>Avg/Day</th></tr></thead>
-            <tbody>{data.topEmployees.map((e: any) => (
-              <tr key={e.id}>
-                <td className="font-medium">
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      {e.photo ? <img src={e.photo} alt="" className="w-7 h-7 rounded-full object-cover" /> :
-                        <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">{e.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>}
-                      {e.isOnline && (
-                        <span className="absolute -right-0.5 -bottom-0.5 w-2 h-2 rounded-full bg-success border border-card shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" title="Online now" />
-                      )}
+              <tbody>{data.topEmployees.map((e: any) => (
+                <tr key={e.id}>
+                  <td className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        {e.photo ? <img src={e.photo} alt="" className="w-7 h-7 rounded-full object-cover" /> :
+                          <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">{e.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}</div>}
+                        {e.isOnline && (
+                          <span className="absolute -right-0.5 -bottom-0.5 w-2 h-2 rounded-full bg-success border border-card shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" title="Online now" />
+                        )}
+                      </div>
+                      {e.name}
                     </div>
-                    {e.name}
-                  </div>
-                </td>
-                <td>
-                  {e.isClockedIn ? (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/10 text-success border border-success/20 flex items-center gap-1 w-fit">
-                      <div className="w-1 h-1 rounded-full bg-success animate-ping" /> CLOCKED IN
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border w-fit">
-                      OFFLINE
-                    </span>
-                  )}
-                </td>
-                <td>{formatCurrency(e.revenue)}</td>
-                <td className="text-success font-semibold">{formatCurrency(e.profit)}</td>
-                <td><div className="flex items-center gap-2"><div className="w-16 h-2 bg-muted rounded-full"><div className="h-full bg-primary rounded-full" style={{ width: `${e.successRate}%` }} /></div><span className="text-xs">{e.successRate}%</span></div></td>
-                <td className="font-semibold">{e.totalHours}h</td>
-                <td className="font-semibold text-primary">{e.netHours}h</td>
-                <td className="text-muted-foreground font-medium">{e.avgHours}h</td>
-              </tr>
-            ))}</tbody>
+                  </td>
+                  <td>
+                    {e.isClockedIn ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/10 text-success border border-success/20 flex items-center gap-1 w-fit">
+                        <div className="w-1 h-1 rounded-full bg-success animate-ping" /> CLOCKED IN
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border w-fit">
+                        OFFLINE
+                      </span>
+                    )}
+                  </td>
+                  <td>{formatCurrency(e.revenue)}</td>
+                  <td className="text-success font-semibold">{formatCurrency(e.profit)}</td>
+                  <td><div className="flex items-center gap-2"><div className="w-16 h-2 bg-muted rounded-full"><div className="h-full bg-primary rounded-full" style={{ width: `${e.successRate}%` }} /></div><span className="text-xs">{e.successRate}%</span></div></td>
+                  <td className="font-semibold">{e.totalHours}h</td>
+                  <td className="font-semibold text-primary">{e.netHours}h</td>
+                  <td className="text-muted-foreground font-medium">{e.avgHours}h</td>
+                </tr>
+              ))}</tbody>
             </table>
           </div>
         </div>
@@ -1100,14 +1099,14 @@ export default function AdminDashboard() {
               <div className="flex-1 flex flex-col justify-center">
                 <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
-                    <Pie 
-                      data={data.serviceData} 
-                      dataKey="value" 
-                      nameKey="name" 
-                      cx="50%" 
-                      cy="45%" 
-                      innerRadius={70} 
-                      outerRadius={110} 
+                    <Pie
+                      data={data.serviceData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="45%"
+                      innerRadius={70}
+                      outerRadius={110}
                       paddingAngle={5}
                       label={renderCustomizedLabel}
                       labelLine={false}
@@ -1115,19 +1114,19 @@ export default function AdminDashboard() {
                     >
                       {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                      formatter={(v: any, name: any) => [`${v} Clients`, name]} 
+                      formatter={(v: any, name: any) => [`${v} Clients`, name]}
                     />
-                    <Legend 
-                      layout="horizontal" 
-                      verticalAlign="bottom" 
-                      align="center" 
+                    <Legend
+                      layout="horizontal"
+                      verticalAlign="bottom"
+                      align="center"
                       formatter={(value) => {
                         const item = data.serviceData.find(d => d.name === value);
                         return <span className="text-[11px] font-bold text-primary px-2">{value}: {item?.value || 0}</span>;
                       }}
-                      wrapperStyle={{ paddingTop: '30px' }} 
+                      wrapperStyle={{ paddingTop: '30px' }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -1185,10 +1184,10 @@ export default function AdminDashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(213,45%,92%)" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fontWeight: 700 }} width={120} axisLine={false} tickLine={false} />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  formatter={(v: number) => [formatCurrency(v), 'Revenue']} 
-                  cursor={{ fill: 'hsl(var(--muted)/0.2)' }} 
+                  formatter={(v: number) => [formatCurrency(v), 'Revenue']}
+                  cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
                 />
                 <Bar dataKey="revenue" fill="#052F59" radius={[0, 6, 6, 0]} barSize={32} animationDuration={1500} />
               </BarChart>
