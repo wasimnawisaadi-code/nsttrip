@@ -45,7 +45,8 @@ export default function DSRDashboardWidget({
 
       let query = supabase.from('dsr_entries')
         .select('employee_id, employee_name, sale_amount, profit_amount, entry_date')
-        .gte('entry_date', fromStr).lte('entry_date', toStr);
+        .gte('entry_date', fromStr).lte('entry_date', toStr)
+        .limit(100000);
 
       if (employeeId) {
         query = query.eq('employee_id', employeeId);
@@ -58,10 +59,11 @@ export default function DSRDashboardWidget({
 
       let entries = dsrRes.data || [];
 
-      if (!employeeId) {
-        const activeEmpIds = new Set((profilesRes.data || []).map((p: any) => p.user_id));
-        entries = entries.filter((e: any) => activeEmpIds.has(e.employee_id));
-      }
+      // Removed inactive employee filter to ensure historical data is included in totals
+      // if (!employeeId) {
+      //   const activeEmpIds = new Set((profilesRes.data || []).map((p: any) => p.user_id));
+      //   entries = entries.filter((e: any) => activeEmpIds.has(e.employee_id));
+      // }
 
       const sales = entries.reduce((s, e: any) => s + Number(e.sale_amount || 0), 0);
       const profit = entries.reduce((s, e: any) => s + Number(e.profit_amount || 0), 0);

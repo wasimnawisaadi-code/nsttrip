@@ -14,20 +14,17 @@ export default function ReportsPage() {
   const [viewType, setViewType] = useState<'monthly' | 'weekly' | 'annual' | 'custom'>('monthly');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [clients, setClients] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [attendance, setAttendance] = useState<any[]>([]);
   const [dsrEntries, setDsrEntries] = useState<any[]>([]);
+  const [dataSource, setDataSource] = useState<'combined' | 'dsr' | 'clients'>('combined');
 
   useEffect(() => {
     const load = async () => {
       const [c, e, t, a, dsr] = await Promise.all([
-        supabase.from('clients').select('*'),
+        supabase.from('clients').select('*').limit(100000),
         supabase.from('profiles').select('*'),
-        supabase.from('tasks').select('*'),
-        supabase.from('attendance').select('*'),
-        supabase.from('dsr_entries').select('*'),
+        supabase.from('tasks').select('*').limit(100000),
+        supabase.from('attendance').select('*').limit(100000),
+        supabase.from('dsr_entries').select('*').limit(100000),
       ]);
       const clientsData = c.data || [];
       const employeesData = e.data || [];
@@ -101,15 +98,27 @@ export default function ReportsPage() {
   }
 
   const empPerformance = employees.filter((e: any) => e.status === 'active').map((e: any) => {
-    const empClients = clients.filter((c: any) => c.assigned_to === e.user_id);
+    const empClients = clients.filter((c: any) => c.assigned_to === e.user_id && c.created_at?.startsWith(yearMonth));
     const empDsr = dsrEntries.filter((dsr: any) => dsr.employee_id === e.user_id && dsr.entry_date?.startsWith(yearMonth));
     const empTasks = tasks.filter((t: any) => t.assigned_to === e.user_id);
     const empAttendance = attendance.filter((a: any) => a.employee_id === e.user_id && a.date?.startsWith(yearMonth));
+    
+    let rev = 0, prof = 0;
+    if (dataSource === 'combined' || dataSource === 'dsr') {
+      rev += empDsr.reduce((s: number, dsr: any) => s + (dsr.sale_amount || 0), 0);
+      prof += empDsr.reduce((s: number, dsr: any) => s + (dsr.profit_amount || 0), 0);
+    }
+    if (dataSource === 'combined' || dataSource === 'clients') {
+      const eligibleClients = empClients.filter(c => dataSource !== 'combined' || !c.dsr_entry_id);
+      rev += eligibleClients.reduce((s: number, c: any) => s + (c.revenue || 0), 0);
+      prof += eligibleClients.reduce((s: number, c: any) => s + (c.profit || 0), 0);
+    }
+
     return {
       name: e.name, id: e.user_id,
       totalClients: empClients.length,
-      revenue: empDsr.reduce((s: number, dsr: any) => s + (dsr.sale_amount || 0), 0),
-      profit: empDsr.reduce((s: number, dsr: any) => s + (dsr.profit_amount || 0), 0),
+      revenue: rev,
+      profit: prof,
       tasksTotal: empTasks.length,
       tasksCompleted: empTasks.filter((t: any) => t.status === 'Completed').length,
       successRate: empClients.length > 0 ? Math.round((empClients.filter((c: any) => c.status === 'Success').length / empClients.length) * 100) : 0,
@@ -117,8 +126,16 @@ export default function ReportsPage() {
     };
   }).sort((a, b) => b.revenue - a.revenue);
 
-  const totalRevenue = filteredDsr.reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
-  const totalProfit = filteredDsr.reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
+  let totalRevenue = 0, totalProfit = 0;
+  if (dataSource === 'combined' || dataSource === 'dsr') {
+    totalRevenue += filteredDsr.reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
+    totalProfit += filteredDsr.reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
+  }
+  if (dataSource === 'combined' || dataSource === 'clients') {
+    const eligibleClients = filteredClients.filter(c => dataSource !== 'combined' || !c.dsr_entry_id);
+    totalRevenue += eligibleClients.reduce((s: number, c: any) => s + (c.revenue || 0), 0);
+    totalProfit += eligibleClients.reduce((s: number, c: any) => s + (c.profit || 0), 0);
+  }
 
   const tabs = ['overview', 'clients', 'services', 'employees', 'revenue'];
 
@@ -127,6 +144,11 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-xl font-bold font-display">Reports & Analytics</h2>
         <div className="flex items-center gap-2 flex-wrap">
+          <select value={dataSource} onChange={(e) => setDataSource(e.target.value as any)} className="input-nawi w-auto text-sm bg-primary/5 font-bold border-primary/20">
+            <option value="combined">Combined Data</option>
+            <option value="dsr">DSR Only</option>
+            <option value="clients">Clients Only</option>
+          </select>
           <select value={viewType} onChange={(e) => setViewType(e.target.value as any)} className="input-nawi w-auto text-sm">
             <option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="annual">Annual</option><option value="custom">Custom Range</option>
           </select>

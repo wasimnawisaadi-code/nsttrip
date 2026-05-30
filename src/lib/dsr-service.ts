@@ -187,7 +187,7 @@ export async function fetchEntries(filters: {
   if (filters.fromDate) q = q.gte('entry_date', filters.fromDate);
   if (filters.toDate) q = q.lte('entry_date', filters.toDate);
   if (!filters.isAdmin && filters.currentUserId) q = q.eq('employee_id', filters.currentUserId);
-  const { data, error } = await q.limit(1000);
+  const { data, error } = await q.limit(100000);
   if (error) throw error;
   return (data || []) as any;
 }
