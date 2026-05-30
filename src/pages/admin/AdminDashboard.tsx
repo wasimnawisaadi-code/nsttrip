@@ -49,18 +49,22 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const load = async () => {
+      const [y, m] = reportMonth.split('-').map(Number);
+      const startOfM = `${reportMonth}-01`;
+      const endOfM = new Date(y, m, 0).toISOString().split('T')[0];
+
       const [
         clientsRes, tasksRes, profilesRes, attendanceRes, quotationsRes,
         auditRes, leaveRes, dsrRes, leadsRes, projectsRes, monitoringTasksRes
       ] = await Promise.all([
-        supabase.from('clients').select('*').limit(100000),
+        supabase.from('clients').select('*').gte('created_at', startOfM).lte('created_at', endOfM + 'T23:59:59').limit(100000),
         supabase.from('tasks').select('*').limit(100000),
         supabase.from('profiles').select('*').limit(100000),
         supabase.from('attendance').select('*').limit(100000),
         supabase.from('quotations').select('*').limit(100000),
         supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(100),
         supabase.from('leave_requests').select('*').limit(100000),
-        supabase.from('dsr_entries').select('*').limit(100000),
+        supabase.from('dsr_entries').select('*').gte('entry_date', startOfM).lte('entry_date', endOfM).limit(100000),
         supabase.from('social_leads').select('*').limit(100000),
         supabase.from('monitoring_projects').select('*').limit(100000),
         supabase.from('monitoring_tasks').select('*').limit(100000),

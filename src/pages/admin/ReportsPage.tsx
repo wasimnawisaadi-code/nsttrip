@@ -23,12 +23,16 @@ export default function ReportsPage() {
 
   useEffect(() => {
     const load = async () => {
+      const [y, m] = yearMonth.split('-').map(Number);
+      const startOfM = `${yearMonth}-01`;
+      const endOfM = new Date(y, m, 0).toISOString().split('T')[0];
+
       const [c, e, t, a, dsr] = await Promise.all([
-        supabase.from('clients').select('*').limit(100000),
+        supabase.from('clients').select('*').gte('created_at', startOfM).lte('created_at', endOfM + 'T23:59:59').limit(100000),
         supabase.from('profiles').select('*'),
         supabase.from('tasks').select('*').limit(100000),
         supabase.from('attendance').select('*').limit(100000),
-        supabase.from('dsr_entries').select('*').limit(100000),
+        supabase.from('dsr_entries').select('*').gte('entry_date', startOfM).lte('entry_date', endOfM).limit(100000),
       ]);
       const clientsData = c.data || [];
       const employeesData = e.data || [];
@@ -43,7 +47,7 @@ export default function ReportsPage() {
       setDsrEntries(dsrEntries);
     };
     load();
-  }, []);
+  }, [yearMonth]);
 
   const exportCSV = (data: any[], filename: string) => {
     exportToExcel(data, filename.replace(/\.csv$/, ''), 'Sheet1');
