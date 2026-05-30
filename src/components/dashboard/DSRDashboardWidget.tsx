@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/supabase-service';
 import { ClipboardList, TrendingUp, Users, ChevronRight } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { calculateFinancials } from '@/lib/accounting-logic';
 
 /** Compact DSR analytics widget — last 7 days. */
 export default function DSRDashboardWidget({
@@ -65,8 +66,9 @@ export default function DSRDashboardWidget({
       //   entries = entries.filter((e: any) => activeEmpIds.has(e.employee_id));
       // }
 
-      const sales = entries.reduce((s, e: any) => s + Number(e.sale_amount || 0), 0);
-      const profit = entries.reduce((s, e: any) => s + Number(e.profit_amount || 0), 0);
+      const financials = calculateFinancials(entries);
+      const sales = financials.revenue;
+      const profit = financials.profit;
       const employees = new Set(entries.map((e: any) => e.employee_id)).size;
 
       const dailyMap = new Map<string, { profit: number; sales: number }>();

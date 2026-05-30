@@ -122,26 +122,34 @@ export default function AdminDashboard() {
       const dsrMatches = (e: any) => matchesFilter(e.entry_date);
       const clientMatches = (c: any) => matchesFilter(c.created_at);
 
-      let revenueThisMonth = 0, revenueLastMonth = 0, profitThisMonth = 0, totalRevenue = 0, totalProfit = 0;
-      const dsrLinkedClientIds = new Set(clients.filter((c: any) => c.dsr_entry_id).map((c: any) => c.id));
+      const dsrThisMonth = dsrEntries.filter(dsrMatches);
+      const dsrLastMonth = dsrEntries.filter((e: any) => e.entry_date?.startsWith(lastMonth));
+      const eligibleClients = clients.filter(c => dataSource !== 'combined' || !c.dsr_entry_id);
+      const clientsThisMonth = eligibleClients.filter(clientMatches);
+      const clientsLastMonth = eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth));
 
+      const dsrStats = calculateFinancials(dsrThisMonth);
+      const dsrLastStats = calculateFinancials(dsrLastMonth);
+      const clientStats = calculateFinancials(clientsThisMonth);
+      const clientLastStats = calculateFinancials(clientsLastMonth);
+
+      let revenueThisMonth = 0, revenueLastMonth = 0, profitThisMonth = 0, totalRevenue = 0, totalProfit = 0;
+      
       if (dataSource === 'combined' || dataSource === 'dsr') {
-        revenueThisMonth += dsrEntries.filter(dsrMatches).reduce((s: number, e: any) => s + Number(e.sale_amount || 0), 0);
-        revenueLastMonth += dsrEntries.filter((e: any) => e.entry_date?.startsWith(lastMonth)).reduce((s: number, e: any) => s + Number(e.sale_amount || 0), 0);
-        profitThisMonth += dsrEntries.filter(dsrMatches).reduce((s: number, e: any) => s + Number(e.profit_amount || 0), 0);
-        totalRevenue += dsrEntries.reduce((s: number, e: any) => s + Number(e.sale_amount || 0), 0);
-        totalProfit += dsrEntries.reduce((s: number, e: any) => s + Number(e.profit_amount || 0), 0);
+        revenueThisMonth += dsrStats.revenue;
+        revenueLastMonth += dsrLastStats.revenue;
+        profitThisMonth += dsrStats.profit;
+        const allDsrStats = calculateFinancials(dsrEntries);
+        totalRevenue += allDsrStats.revenue;
+        totalProfit += allDsrStats.profit;
       }
       if (dataSource === 'combined' || dataSource === 'clients') {
-        const eligibleClients = clients.filter(c => {
-          if (dataSource === 'combined' && c.dsr_entry_id) return false;
-          return true;
-        });
-        revenueThisMonth += eligibleClients.filter(clientMatches).reduce((s: number, c: any) => s + Number(c.revenue || 0), 0);
-        revenueLastMonth += eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)).reduce((s: number, c: any) => s + Number(c.revenue || 0), 0);
-        profitThisMonth += eligibleClients.filter(clientMatches).reduce((s: number, c: any) => s + Number(c.profit || 0), 0);
-        totalRevenue += eligibleClients.reduce((s: number, c: any) => s + Number(c.revenue || 0), 0);
-        totalProfit += eligibleClients.reduce((s: number, c: any) => s + Number(c.profit || 0), 0);
+        revenueThisMonth += clientStats.revenue;
+        revenueLastMonth += clientLastStats.revenue;
+        profitThisMonth += clientStats.profit;
+        const allClientStats = calculateFinancials(eligibleClients);
+        totalRevenue += allClientStats.revenue;
+        totalProfit += allClientStats.profit;
       }
 
       const activeTasks = tasks.filter((t: any) => t.status === 'New' || t.status === 'Processing').length;

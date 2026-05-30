@@ -157,8 +157,9 @@ export default function DailyStatusReport() {
     } else if (preset === '7d') {
       start.setDate(now.getDate() - 7);
     } else if (preset === 'month') {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const range = getMonthRange(now.toISOString().split('T')[0].slice(0, 7));
+      start = new Date(range.start);
+      end = new Date(range.end);
     } else if (preset === 'lastMonth') {
       start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       end = new Date(now.getFullYear(), now.getMonth(), 0);
@@ -177,11 +178,14 @@ export default function DailyStatusReport() {
 
   // Aggregate KPIs for current view
   const kpis = useMemo(() => {
-    const totalSale = entries.reduce((s, e) => s + Number(e.sale_amount || 0), 0);
-    const totalCost = entries.reduce((s, e) => s + Number(e.cost_amount || 0), 0);
-    const totalProfit = entries.reduce((s, e) => s + Number(e.profit_amount || 0), 0);
-    const uniqueEmployees = new Set(entries.map(e => e.employee_id)).size;
-    return { totalSale, totalCost, totalProfit, count: entries.length, uniqueEmployees };
+    const stats = calculateFinancials(entries);
+    return { 
+      totalSale: stats.revenue, 
+      totalCost: stats.cost, 
+      totalProfit: stats.profit, 
+      count: entries.length, 
+      uniqueEmployees: new Set(entries.map(e => e.employee_id)).size 
+    };
   }, [entries]);
 
   // Per-employee breakdown for admin dashboard

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { exportToExcel } from '@/lib/excel-export';
+import { calculateFinancials } from '@/lib/accounting-logic';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatDate } from '@/lib/supabase-service';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
@@ -113,13 +114,13 @@ export default function ReportsPage() {
     
     let rev = 0, prof = 0;
     if (dataSource === 'combined' || dataSource === 'dsr') {
-      rev += empDsr.reduce((s: number, dsr: any) => s + Number(dsr.sale_amount || 0), 0);
-      prof += empDsr.reduce((s: number, dsr: any) => s + Number(dsr.profit_amount || 0), 0);
+      const stats = calculateFinancials(empDsr);
+      rev += stats.revenue; prof += stats.profit;
     }
     if (dataSource === 'combined' || dataSource === 'clients') {
       const eligibleClients = empClients.filter(c => dataSource !== 'combined' || !c.dsr_entry_id);
-      rev += eligibleClients.reduce((s: number, c: any) => s + Number(c.revenue || 0), 0);
-      prof += eligibleClients.reduce((s: number, c: any) => s + Number(c.profit || 0), 0);
+      const stats = calculateFinancials(eligibleClients);
+      rev += stats.revenue; prof += stats.profit;
     }
 
     return {
@@ -136,13 +137,13 @@ export default function ReportsPage() {
 
   let totalRevenue = 0, totalProfit = 0;
   if (dataSource === 'combined' || dataSource === 'dsr') {
-    totalRevenue += filteredDsr.reduce((s: number, e: any) => s + Number(e.sale_amount || 0), 0);
-    totalProfit += filteredDsr.reduce((s: number, e: any) => s + Number(e.profit_amount || 0), 0);
+    const stats = calculateFinancials(filteredDsr);
+    totalRevenue += stats.revenue; totalProfit += stats.profit;
   }
   if (dataSource === 'combined' || dataSource === 'clients') {
     const eligibleClients = filteredClients.filter(c => dataSource !== 'combined' || !c.dsr_entry_id);
-    totalRevenue += eligibleClients.reduce((s: number, c: any) => s + Number(c.revenue || 0), 0);
-    totalProfit += eligibleClients.reduce((s: number, c: any) => s + Number(c.profit || 0), 0);
+    const stats = calculateFinancials(eligibleClients);
+    totalRevenue += stats.revenue; totalProfit += stats.profit;
   }
 
   const tabs = ['overview', 'clients', 'services', 'employees', 'revenue'];
