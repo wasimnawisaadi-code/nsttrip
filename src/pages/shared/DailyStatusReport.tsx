@@ -411,20 +411,14 @@ export default function DailyStatusReport() {
             </div>
 
             <div className="stat-card">
-              <div className="stat-card-icon bg-warning/10 text-warning"><FileSpreadsheet className="w-6 h-6" /></div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">Operating Cost</p>
-                <p className="text-xl font-bold font-display">{formatCurrency(kpis.totalCost)}</p>
-              </div>
-            </div>
-
-            <div className="stat-card">
               <div className="stat-card-icon bg-secondary/10 text-secondary"><Users className="w-6 h-6" /></div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Active Agents</p>
                 <p className="text-xl font-bold font-display">{kpis.uniqueEmployees}</p>
               </div>
             </div>
+
+            <div className="stat-card sm:hidden md:block empty-placeholder opacity-0"></div>
           </div>
 
           <div className={`grid grid-cols-1 ${isAdmin ? 'lg:grid-cols-2' : ''} gap-6`}>

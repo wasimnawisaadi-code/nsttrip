@@ -100,8 +100,8 @@ export default function ReportsPage() {
     monthlyTrend.push({
       month: label,
       clients: clients.filter((c: any) => c.created_at?.startsWith(key)).length,
-      revenue: dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).reduce((s: number, e: any) => s + (e.sale_amount || 0), 0),
-      profit: dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).reduce((s: number, e: any) => s + (e.profit_amount || 0), 0),
+      revenue: dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).reduce((s: number, e: any) => s + Number(e.sale_amount || 0), 0),
+      profit: dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).reduce((s: number, e: any) => s + Number(e.profit_amount || 0), 0),
     });
   }
 
