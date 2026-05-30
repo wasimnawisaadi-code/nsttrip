@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { calculateFinancials, getMonthRange } from '@/lib/accounting-logic';
 import { useAuth } from '@/lib/auth-context';
 import {
   DSRTemplate, DSREntry, fetchAllTemplates, fetchAssignedTemplates,

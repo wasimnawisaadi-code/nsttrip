@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { calculateFinancials, getMonthRange } from '@/lib/accounting-logic';
 import { exportToExcel } from '@/lib/excel-export';
 import { Link } from 'react-router-dom';
 import { Users, TrendingUp, CheckSquare, UserCheck, AlertTriangle, ArrowUpRight, ArrowDownRight, Briefcase, Download, Calendar, Clock, Target, LayoutGrid, BarChart3, CheckCircle2 } from 'lucide-react';
