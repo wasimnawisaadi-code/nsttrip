@@ -125,13 +125,13 @@ export default function AdminDashboard() {
       const dsrThisMonth = dsrEntries.filter(dsrMatches);
       const dsrLastMonth = dsrEntries.filter((e: any) => e.entry_date?.startsWith(lastMonth));
       const eligibleClients = clients.filter(c => dataSource !== 'combined' || !c.dsr_entry_id);
-      const clientsThisMonth = eligibleClients.filter(clientMatches);
-      const clientsLastMonth = eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth));
+      const clientsThisMonth = eligibleClients.filter(clientMatches).length;
+      const clientsLastMonth = eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)).length;
 
       const dsrStats = calculateFinancials(dsrThisMonth);
       const dsrLastStats = calculateFinancials(dsrLastMonth);
-      const clientStats = calculateFinancials(clientsThisMonth);
-      const clientLastStats = calculateFinancials(clientsLastMonth);
+      const clientStats = calculateFinancials(eligibleClients.filter(clientMatches));
+      const clientLastStats = calculateFinancials(eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)));
 
       let revenueThisMonth = 0, revenueLastMonth = 0, profitThisMonth = 0, totalRevenue = 0, totalProfit = 0;
       
@@ -166,9 +166,6 @@ export default function AdminDashboard() {
       const employeesOnline = onlineEmployeesList.length;
       const totalActiveEmp = employees.filter((e: any) => e.status === 'active').length;
       const pendingLeave = leave.filter((l: any) => l.status === 'Pending').length;
-
-      const clientsThisMonth = clients.filter((c: any) => matchesFilter(c.created_at)).length;
-      const clientsLastMonth = clients.filter((c: any) => c.created_at?.startsWith(lastMonth)).length;
 
       const serviceCounts: Record<string, number> = {};
       const serviceRevenue: Record<string, number> = {};
