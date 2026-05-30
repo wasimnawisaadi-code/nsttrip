@@ -14,6 +14,10 @@ export default function ReportsPage() {
   const [viewType, setViewType] = useState<'monthly' | 'weekly' | 'annual' | 'custom'>('monthly');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [clients, setClients] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [attendance, setAttendance] = useState<any[]>([]);
   const [dsrEntries, setDsrEntries] = useState<any[]>([]);
   const [dataSource, setDataSource] = useState<'combined' | 'dsr' | 'clients'>('combined');
 
