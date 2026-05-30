@@ -105,7 +105,7 @@ export default function ReportsPage() {
     });
   }
 
-  const empPerformance = employees.filter((e: any) => e.status === 'active').map((e: any) => {
+  const empPerformance = employees.map((e: any) => {
     const empClients = clients.filter((c: any) => c.assigned_to === e.user_id && c.created_at?.startsWith(yearMonth));
     const empDsr = dsrEntries.filter((dsr: any) => dsr.employee_id === e.user_id && dsr.entry_date?.startsWith(yearMonth));
     const empTasks = tasks.filter((t: any) => t.assigned_to === e.user_id);
@@ -182,7 +182,7 @@ export default function ReportsPage() {
             <div className="stat-card"><div className="stat-card-icon bg-primary"><Briefcase className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Clients</p><p className="text-xl font-bold font-display">{filteredClients.length}</p></div></div>
             <div className="stat-card"><div className="stat-card-icon bg-success"><TrendingUp className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-xl font-bold font-display">{formatCurrency(totalRevenue)}</p></div></div>
             <div className="stat-card"><div className="stat-card-icon bg-secondary"><span className="text-primary-foreground font-bold text-sm">AED</span></div><div><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-xl font-bold font-display">{formatCurrency(totalProfit)}</p></div></div>
-            <div className="stat-card"><div className="stat-card-icon bg-warning"><Users className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Active Employees</p><p className="text-xl font-bold font-display">{employees.filter((e: any) => e.status === 'active').length}</p></div></div>
+            <div className="stat-card"><div className="stat-card-icon bg-warning"><Users className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Staff (History)</p><p className="text-xl font-bold font-display">{employees.length}</p></div></div>
           </div>
           <div className="card-nawi">
             <h3 className="text-base font-semibold font-display mb-4">Revenue & Profit Trend</h3>

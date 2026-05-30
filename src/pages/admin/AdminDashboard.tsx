@@ -341,7 +341,7 @@ export default function AdminDashboard() {
       }).filter(e => e.revenue > 0 || e.clients > 0 || e.tasks > 0)
         .sort((a, b) => b.revenue - a.revenue);
 
-      const topSocialLeadsEmployees = employees.filter((e: any) => e.status === 'active').map((e: any) => {
+      const topSocialLeadsEmployees = employees.map((e: any) => {
         const empLeads = dsrEntries.filter((l: any) => l.employee_id === e.user_id && dsrMatches(l)); // Note: social leads matches don't have entry_date, they have created_at. So we'll use clientMatches logic but for social_leads.
         // Actually, let's use the fetched social_leads.
         const allEmpLeads = (leadsRes.data || []).filter((l: any) => l.assigned_to === e.user_id && clientMatches(l));
