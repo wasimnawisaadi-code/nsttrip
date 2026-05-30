@@ -158,6 +158,7 @@ export default function DailyStatusReport() {
       start.setDate(now.getDate() - 7);
     } else if (preset === 'month') {
       start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     } else if (preset === 'lastMonth') {
       start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       end = new Date(now.getFullYear(), now.getMonth(), 0);
