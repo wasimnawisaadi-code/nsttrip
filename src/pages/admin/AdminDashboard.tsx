@@ -126,8 +126,8 @@ export default function AdminDashboard() {
       const dsrThisMonth = dsrEntries.filter(dsrMatches);
       const dsrLastMonth = dsrEntries.filter((e: any) => e.entry_date?.startsWith(lastMonth));
       const eligibleClients = clients.filter(c => dataSource !== 'combined' || !c.dsr_entry_id);
-      const clientsThisMonth = eligibleClients.filter(clientMatches).length;
-      const clientsLastMonth = eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)).length;
+      const clientsThisMonthCount = eligibleClients.filter(clientMatches).length;
+      const clientsLastMonthCount = eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)).length;
 
       const dsrStats = calculateFinancials(dsrThisMonth);
       const dsrLastStats = calculateFinancials(dsrLastMonth);
@@ -140,17 +140,15 @@ export default function AdminDashboard() {
         revenueThisMonth += dsrStats.revenue;
         revenueLastMonth += dsrLastStats.revenue;
         profitThisMonth += dsrStats.profit;
-        const allDsrStats = calculateFinancials(dsrEntries);
-        totalRevenue += allDsrStats.revenue;
-        totalProfit += allDsrStats.profit;
+        totalRevenue += calculateFinancials(dsrEntries).revenue;
+        totalProfit += calculateFinancials(dsrEntries).profit;
       }
       if (dataSource === 'combined' || dataSource === 'clients') {
         revenueThisMonth += clientStats.revenue;
         revenueLastMonth += clientLastStats.revenue;
         profitThisMonth += clientStats.profit;
-        const allClientStats = calculateFinancials(eligibleClients);
-        totalRevenue += allClientStats.revenue;
-        totalProfit += allClientStats.profit;
+        totalRevenue += calculateFinancials(eligibleClients).revenue;
+        totalProfit += calculateFinancials(eligibleClients).profit;
       }
 
       const activeTasks = tasks.filter((t: any) => t.status === 'New' || t.status === 'Processing').length;
@@ -380,7 +378,7 @@ export default function AdminDashboard() {
       const nationalityData = Object.entries(nationalityCounts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10);
 
       setData({
-        totalClients: clients.length, clientsThisMonth, clientsLastMonth,
+        totalClients: clients.length, clientsThisMonth: clientsThisMonthCount, clientsLastMonth: clientsLastMonthCount,
         revenueThisMonth, revenueLastMonth, profitThisMonth, totalRevenue, totalProfit,
         activeTasks, overdueTasks, completedTasks, pendingLeave,
         employeesOnline, totalActiveEmp,
