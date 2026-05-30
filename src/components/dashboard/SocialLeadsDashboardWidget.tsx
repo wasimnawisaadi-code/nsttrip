@@ -57,7 +57,7 @@ export default function SocialLeadsDashboardWidget({
       if (toStr) query = query.lte('created_at', toStr);
       if (employeeId) query = query.eq('assigned_to', employeeId);
       
-      const { data } = await query;
+      const { data } = await query.limit(100000);
       const leads = data || [];
       const sourceMap: Record<string, number> = {};
       const statusMap: Record<string, number> = {};

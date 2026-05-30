@@ -67,7 +67,8 @@ export default function SocialLeads() {
   const load = async () => {
     const { data } = await supabase
       .from('social_leads').select('*')
-      .order('last_interaction', { ascending: false, nullsFirst: false });
+      .order('last_interaction', { ascending: false, nullsFirst: false })
+      .limit(100000);
     setLeads((data as Lead[]) || []);
     setLoading(false);
   };
@@ -220,12 +221,15 @@ export default function SocialLeads() {
     });
   }, [leads, filterSource, filterStatus, search, quickFilter, dateRange, activeTab, user]);
 
-  const counts = useMemo(() => ({
-    total: leads.length,
-    new: leads.filter(l => l.status === 'NEW').length,
-    inProgress: leads.filter(l => l.status === 'IN_PROGRESS').length,
-    converted: leads.filter(l => l.status === 'CONVERTED').length,
-  }), [leads]);
+  const counts = useMemo(() => {
+    const total = filtered.length;
+    const unassigned = filtered.filter(l => !l.assigned_to).length;
+    const newLeads = filtered.filter(l => l.status === 'NEW').length;
+    const inProgress = filtered.filter(l => l.status === 'IN_PROGRESS').length;
+    const converted = filtered.filter(l => l.status === 'CONVERTED').length;
+    const rate = total > 0 ? Math.round((converted / total) * 100) : 0;
+    return { total, unassigned, new: newLeads, inProgress, converted, rate };
+  }, [filtered]);
 
   // Conversion analytics — by source × period (week / month)
   const analytics = useMemo(() => {
@@ -290,11 +294,13 @@ export default function SocialLeads() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatCard label="Total" value={counts.total} color="text-foreground" />
+        <StatCard label="Unassigned" value={counts.unassigned} color="text-warning" />
         <StatCard label="New" value={counts.new} color="text-primary" />
         <StatCard label="In Progress" value={counts.inProgress} color="text-warning" />
         <StatCard label="Converted" value={counts.converted} color="text-success" />
+        <StatCard label="Conv. Rate" value={`${counts.rate}%`} color="text-success" />
       </div>
 
       {/* Conversion Analytics — by source × period */}
