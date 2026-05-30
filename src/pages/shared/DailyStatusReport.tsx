@@ -86,8 +86,11 @@ export default function DailyStatusReport() {
 
   const loadEmployees = async () => {
     if (!isAdmin) return;
-    const { data } = await supabase.from('profiles').select('user_id, name').eq('status', 'active').order('name');
-    setEmployees((data || []) as any);
+    const { data } = await supabase.from('profiles').select('user_id, name, status').order('name');
+    setEmployees((data || []).map((e: any) => ({
+      user_id: e.user_id,
+      name: e.status === 'inactive' ? `${e.name} (Inactive)` : e.name
+    })));
   };
 
   useEffect(() => { loadTemplates(); loadEmployees(); }, [user, isAdmin]);

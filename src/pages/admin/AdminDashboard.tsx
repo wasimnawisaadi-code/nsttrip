@@ -50,28 +50,53 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const [y, m] = reportMonth.split('-').map(Number);
-      const startOfM = `${reportMonth}-01`;
-      const endOfM = new Date(y, m, 0).toISOString().split('T')[0];
+      const [rYear, rMonth] = reportMonth.split('-').map(Number);
+      const now = new Date();
+      const prevDate = new Date(rYear, rMonth - 2, 1);
+      const lastMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+      
+      const startOfYear = `${rYear}-01-01`;
+      const fetchStart = `${lastMonth}-01`; // Usually for comparative but we need year for total
+      const comparisonStart = startOfYear < fetchStart ? startOfYear : fetchStart;
+      const fetchEnd = `${rYear}-${String(rMonth).padStart(2, '0')}-31`;
 
       const [
         clientsRes, tasksRes, profilesRes, attendanceRes, quotationsRes,
         auditRes, leaveRes, dsrRes, leadsRes, projectsRes, monitoringTasksRes
       ] = await Promise.all([
-        supabase.from('clients').select('*').gte('created_at', startOfM).lte('created_at', endOfM + 'T23:59:59').limit(100000),
-        supabase.from('tasks').select('*').limit(100000),
+        supabase.from('clients')
+          .select('*')
+          .or(`created_at.gte.${comparisonStart},updated_at.gte.${comparisonStart}`)
+          .limit(100000),
+        supabase.from('tasks')
+          .select('*')
+          .gte('created_at', comparisonStart)
+          .limit(100000),
         supabase.from('profiles').select('*').limit(100000),
-        supabase.from('attendance').select('*').limit(100000),
-        supabase.from('quotations').select('*').limit(100000),
+        supabase.from('attendance')
+          .select('*')
+          .gte('date', comparisonStart)
+          .limit(100000),
+        supabase.from('quotations')
+          .select('*')
+          .gte('created_at', comparisonStart)
+          .limit(100000),
         supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(100),
         supabase.from('leave_requests').select('*').limit(100000),
-        supabase.from('dsr_entries').select('*').gte('entry_date', startOfM).lte('entry_date', endOfM).limit(100000),
-        supabase.from('social_leads').select('*').limit(100000),
-        supabase.from('monitoring_projects').select('*').limit(100000),
-        supabase.from('monitoring_tasks').select('*').limit(100000),
+        supabase.from('dsr_entries')
+          .select('*')
+          .gte('entry_date', comparisonStart)
+          .lte('entry_date', fetchEnd)
+          .limit(100000),
+        supabase.from('social_leads')
+          .select('*')
+          .gte('created_at', comparisonStart)
+          .limit(100000),
+        supabase.from('monitoring_projects' as any).select('*').limit(100000),
+        supabase.from('monitoring_tasks' as any).select('*').limit(100000),
       ]);
 
-      const clients = clientsRes.data || [];
+      const clients = (clientsRes.data || []) as any[];
       const clientIds = new Set(clients.map(c => c.id));
 
       const tasks = (tasksRes.data || []).filter((t: any) => t.client_id && clientIds.has(t.client_id));
@@ -92,13 +117,7 @@ export default function AdminDashboard() {
         return { ...p, totalProgress };
       }).sort((a: any, b: any) => b.totalProgress - a.totalProgress);
 
-      const now = new Date();
       const today = now.toISOString().split('T')[0];
-      const [rYear, rMonth] = reportMonth.split('-').map(Number);
-
-      // Previous month for comparison
-      const prevDate = new Date(rYear, rMonth - 2, 1);
-      const lastMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
 
       const matchesFilter = (dateStr: string | null) => {
         if (!dateStr) return false;
@@ -111,9 +130,8 @@ export default function AdminDashboard() {
         if (viewType === 'monthly') return dateStr.startsWith(reportMonth);
         if (viewType === 'annual') return dateStr.startsWith(String(rYear));
         if (viewType === 'weekly') {
-          // Show 7 days including the selected month end or current day
           const d = new Date(dateStr);
-          const end = new Date(rYear, rMonth, 0); // End of selected month
+          const end = new Date(rYear, rMonth, 0); 
           const diff = (end.getTime() - d.getTime()) / 86400000;
           return diff >= 0 && diff < 7;
         }
@@ -134,21 +152,24 @@ export default function AdminDashboard() {
       const clientStats = calculateFinancials(eligibleClients.filter(clientMatches));
       const clientLastStats = calculateFinancials(eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)));
 
+      const dsrAnnual = dsrEntries.filter(e => e.entry_date?.startsWith(String(rYear)));
+      const clientAnnual = eligibleClients.filter(c => c.created_at?.startsWith(String(rYear)));
+
       let revenueThisMonth = 0, revenueLastMonth = 0, profitThisMonth = 0, totalRevenue = 0, totalProfit = 0;
       
       if (dataSource === 'combined' || dataSource === 'dsr') {
         revenueThisMonth += dsrStats.revenue;
         revenueLastMonth += dsrLastStats.revenue;
         profitThisMonth += dsrStats.profit;
-        totalRevenue += calculateFinancials(dsrEntries).revenue;
-        totalProfit += calculateFinancials(dsrEntries).profit;
+        totalRevenue += calculateFinancials(dsrAnnual).revenue;
+        totalProfit += calculateFinancials(dsrAnnual).profit;
       }
       if (dataSource === 'combined' || dataSource === 'clients') {
         revenueThisMonth += clientStats.revenue;
         revenueLastMonth += clientLastStats.revenue;
         profitThisMonth += clientStats.profit;
-        totalRevenue += calculateFinancials(eligibleClients).revenue;
-        totalProfit += calculateFinancials(eligibleClients).profit;
+        totalRevenue += calculateFinancials(clientAnnual).revenue;
+        totalProfit += calculateFinancials(clientAnnual).profit;
       }
 
       const activeTasks = tasks.filter((t: any) => t.status === 'New' || t.status === 'Processing').length;
@@ -192,18 +213,16 @@ export default function AdminDashboard() {
         let rev = 0, prof = 0, clt = 0;
         if (dataSource === 'combined' || dataSource === 'dsr') {
           const m = dsrEntries.filter((e: any) => exactMatch ? e.entry_date === datePrefix : e.entry_date?.startsWith(datePrefix));
-          rev += m.reduce((s: number, e: any) => s + (e.sale_amount || 0), 0);
-          prof += m.reduce((s: number, e: any) => s + (e.profit_amount || 0), 0);
-          clt += m.length;
+          const stats = calculateFinancials(m);
+          rev += stats.revenue; prof += stats.profit; clt += m.length;
         }
         if (dataSource === 'combined' || dataSource === 'clients') {
           const m = clients.filter((c: any) => {
             if (dataSource === 'combined' && c.dsr_entry_id) return false;
             return exactMatch ? c.created_at?.startsWith(datePrefix) : c.created_at?.startsWith(datePrefix);
           });
-          rev += m.reduce((s: number, c: any) => s + (c.revenue || 0), 0);
-          prof += m.reduce((s: number, c: any) => s + (c.profit || 0), 0);
-          clt += m.length;
+          const stats = calculateFinancials(m);
+          rev += stats.revenue; prof += stats.profit; clt += m.length;
         }
         return { rev, prof, clt };
       };
