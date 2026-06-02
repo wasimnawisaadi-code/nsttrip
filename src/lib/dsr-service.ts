@@ -181,15 +181,62 @@ export async function fetchEntries(filters: {
   isAdmin?: boolean;
   currentUserId?: string;
 }): Promise<DSREntry[]> {
-  let q = supabase.from('dsr_entries').select('*').order('entry_date', { ascending: false }).order('created_at', { ascending: false });
-  if (filters.templateId) q = q.eq('template_id', filters.templateId);
-  if (filters.employeeId) q = q.eq('employee_id', filters.employeeId);
-  if (filters.fromDate) q = q.gte('entry_date', filters.fromDate);
-  if (filters.toDate) q = q.lte('entry_date', filters.toDate);
-  if (!filters.isAdmin && filters.currentUserId) q = q.eq('employee_id', filters.currentUserId);
-  const { data, error } = await q.limit(100000);
-  if (error) throw error;
-  return (data || []) as any;
+  let all: any[] = [];
+  let p = 0;
+  let hasMore = true;
+  const pageSize = 1000;
+
+  while (hasMore && p < 30) { // Limit to 30k entries for safety
+    let q = supabase.from('dsr_entries')
+      .select('*')
+      .order('entry_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(p * pageSize, (p + 1) * pageSize - 1);
+
+    if (filters.templateId) q = q.eq('template_id', filters.templateId);
+    if (filters.employeeId) q = q.eq('employee_id', filters.employeeId);
+    if (filters.fromDate) q = q.gte('entry_date', filters.fromDate);
+    if (filters.toDate) q = q.lte('entry_date', filters.toDate);
+    if (!filters.isAdmin && filters.currentUserId) q = q.eq('employee_id', filters.currentUserId);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      hasMore = false;
+    } else {
+      all = [...all, ...data];
+      if (data.length < pageSize) hasMore = false;
+      p++;
+    }
+  }
+  return all as any;
+}
+
+export async function fetchPaginated(
+  tableName: string, 
+  queryModifier: (q: any) => any = (q) => q, 
+  maxRows = 50000
+): Promise<any[]> {
+  let all: any[] = [];
+  let p = 0;
+  let hasMore = true;
+  const pageSize = 1000;
+
+  while (hasMore && (all.length < maxRows)) {
+    let q = supabase.from(tableName as any).select('*').range(p * pageSize, (p + 1) * pageSize - 1);
+    q = queryModifier(q);
+
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      hasMore = false;
+    } else {
+      all = [...all, ...data];
+      if (data.length < pageSize) hasMore = false;
+      p++;
+    }
+  }
+  return all;
 }
 
 // =================== EXCEL PARSING & COLUMN DETECTION ===================

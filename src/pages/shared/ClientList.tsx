@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, Eye, LayoutGrid, LayoutList, Briefcase, Filter, Download, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
+import { fetchPaginated } from '@/lib/dsr-service';
 import { formatCurrency, formatDate } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import EmptyState from '@/components/ui/EmptyState';
@@ -24,10 +25,13 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
-      setClients(data || []);
-      const { data: profs } = await supabase.from('profiles').select('user_id, name');
-      setProfiles(profs || []);
+      const qMod = (q: any) => q.order('created_at', { ascending: false });
+      const [cData, pData] = await Promise.all([
+        fetchPaginated('clients', qMod, 100000),
+        fetchPaginated('profiles')
+      ]);
+      setClients(cData || []);
+      setProfiles(pData || []);
     };
     fetchData();
   }, []);

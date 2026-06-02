@@ -5,6 +5,7 @@ import { Calendar as CalendarIcon, AlertTriangle, Bell, Download, Search, Messag
 import { formatDate, daysUntil, isExpiryOrDueDate, isRecurringDate, getUpcomingAgeOrYears } from '@/lib/supabase-service';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchPaginated } from '@/lib/dsr-service';
 import WhatsAppTemplateModal from '@/components/WhatsAppTemplateModal';
 import { toast } from 'sonner';
 
@@ -98,9 +99,11 @@ export default function ImportantDates() {
 
   useEffect(() => {
     const load = async () => {
-      let q = supabase.from('clients').select('*');
-      if (!isAdmin && user) q = q.or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`);
-      const { data } = await q;
+      const qMod = (q: any) => {
+        if (!isAdmin && user) return q.or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`);
+        return q;
+      };
+      const data = await fetchPaginated('clients', qMod, 100000);
       setClients(data || []);
     };
     load();

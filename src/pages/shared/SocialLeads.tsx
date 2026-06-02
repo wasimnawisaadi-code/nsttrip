@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
+import { fetchPaginated } from '@/lib/dsr-service';
 import { MessageCircle, Instagram, Facebook, RefreshCw, UserPlus, UserMinus, CheckCircle2, XCircle, Clock, Loader2, Send, StickyNote, Search, Filter, Upload, FileImage, Download, Trash2, PieChart as PieChartIcon, CalendarRange } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
 import { exportToExcel } from '@/lib/excel-export';
@@ -65,10 +66,8 @@ export default function SocialLeads() {
   const [activeTab, setActiveTab] = useState<'pool' | 'mine' | 'all' | 'analytics'>('pool');
 
   const load = async () => {
-    const { data } = await supabase
-      .from('social_leads').select('*')
-      .order('last_interaction', { ascending: false, nullsFirst: false })
-      .limit(100000);
+    const qMod = (q: any) => q.order('last_interaction', { ascending: false, nullsFirst: false });
+    const data = await fetchPaginated('social_leads', qMod, 100000);
     setLeads((data as Lead[]) || []);
     setLoading(false);
   };

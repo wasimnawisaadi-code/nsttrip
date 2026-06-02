@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Trash2, Download, Save, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchPaginated } from '@/lib/dsr-service';
 import { generateDisplayId, auditLog, formatCurrency } from '@/lib/supabase-service';
 import jsPDF from 'jspdf';
 
@@ -16,7 +17,7 @@ export default function QuotationGenerator() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    supabase.from('clients').select('*').then(({ data }) => setClients(data || []));
+    fetchPaginated('clients').then(setClients);
   }, []);
 
   const client = clients.find((c: any) => c.id === clientId);

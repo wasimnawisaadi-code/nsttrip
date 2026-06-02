@@ -6,6 +6,7 @@ import { Users, TrendingUp, CheckSquare, UserCheck, AlertTriangle, ArrowUpRight,
 import { formatCurrency, formatDate, daysUntil, safeTime } from '@/lib/supabase-service';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchEntries } from '@/lib/dsr-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend, LineChart, Line } from 'recharts';
 import DSRDashboardWidget from '@/components/dashboard/DSRDashboardWidget';
@@ -79,8 +80,9 @@ export default function AdminDashboard() {
         periodFrom = `${rYear}-01-01`;
         periodTo   = `${rYear}-12-31`;
       } else { // monthly (default)
+        const lastDay = new Date(rYear, rMonth, 0).getDate();
         periodFrom = `${rYear}-${String(rMonth).padStart(2, '0')}-01`;
-        periodTo   = new Date(rYear, rMonth, 0).toISOString().split('T')[0];
+        periodTo   = `${rYear}-${String(rMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
       }
 
       // Previous month for comparison
@@ -88,22 +90,22 @@ export default function AdminDashboard() {
       const lastFromStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-01`;
       const lastToStr   = new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 0).toISOString().split('T')[0];
 
-      const [cur, lastRes, annual] = await Promise.all([
-        supabase.from('dsr_entries').select('*').gte('entry_date', periodFrom).lte('entry_date', periodTo).limit(100000),
-        supabase.from('dsr_entries').select('sale_amount').gte('entry_date', lastFromStr).lte('entry_date', lastToStr).limit(100000),
-        supabase.from('dsr_entries').select('*').gte('entry_date', `${rYear}-01-01`).lte('entry_date', periodTo).limit(100000),
+      const [curEntries, lastEntries, annualEntries] = await Promise.all([
+        fetchEntries({ fromDate: periodFrom, toDate: periodTo, isAdmin: true }),
+        fetchEntries({ fromDate: lastFromStr, toDate: lastToStr, isAdmin: true }),
+        fetchEntries({ fromDate: `${rYear}-01-01`, toDate: periodTo, isAdmin: true }),
       ]);
 
-      const sum = (arr: any[], field: string) => (arr || []).reduce((s: number, e: any) => s + Number(e[field] || 0), 0);
-      const curEntries    = cur.data    || [];
-      const annualEntries = annual.data || [];
+      const curStats    = calculateFinancials(curEntries);
+      const annualStats = calculateFinancials(annualEntries);
+      const lastStats   = calculateFinancials(lastEntries);
 
       setDsrData({
-        revenue:       sum(curEntries,    'sale_amount'),
-        profit:        sum(curEntries,    'profit_amount'),
-        lastRevenue:   sum(lastRes.data || [], 'sale_amount'),
-        annualRevenue: sum(annualEntries, 'sale_amount'),
-        annualProfit:  sum(annualEntries, 'profit_amount'),
+        revenue:       curStats.revenue,
+        profit:        curStats.profit,
+        lastRevenue:   lastStats.revenue,
+        annualRevenue: annualStats.revenue,
+        annualProfit:  annualStats.profit,
         entries:       curEntries,
         annualEntries,
       });
@@ -129,56 +131,52 @@ export default function AdminDashboard() {
         if (customEndDate > fetchEnd) fetchEnd = customEndDate;
       }
 
+      const fetchC = (q: any) => q.or(`created_at.gte.${comparisonStart},updated_at.gte.${comparisonStart}`);
+      const fetchT = (q: any) => q.gte('created_at', comparisonStart);
+      const fetchA = (q: any) => q.gte('date', comparisonStart);
+      const fetchQ = (q: any) => q.gte('created_at', comparisonStart);
+      const fetchD = (q: any) => {
+        if (viewType === 'annual') {
+          return q.gte('entry_date', `${rYear}-01-01`).lte('entry_date', `${rYear}-12-31`);
+        } else if (viewType === 'custom' && customStartDate && customEndDate) {
+          return q.gte('entry_date', customStartDate).lte('entry_date', customEndDate);
+        } else {
+          const lastDay = new Date(rYear, rMonth, 0).getDate();
+          return q.gte('entry_date', `${rYear}-${String(rMonth).padStart(2, '0')}-01`)
+                  .lte('entry_date', `${rYear}-${String(rMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`);
+        }
+      };
+      const fetchL = (q: any) => q.gte('created_at', comparisonStart);
+
       const [
-        clientsRes, tasksRes, profilesRes, attendanceRes, quotationsRes,
-        auditRes, leaveRes, dsrRes, leadsRes, projectsRes, monitoringTasksRes
+        clients, tasks, profiles, attendance, quotations,
+        auditRes, leave, dsr, leads, projects, monitoringTasks
       ] = await Promise.all([
-        supabase.from('clients')
-          .select('*')
-          .or(`created_at.gte.${comparisonStart},updated_at.gte.${comparisonStart}`)
-          .limit(100000),
-        supabase.from('tasks')
-          .select('*')
-          .gte('created_at', comparisonStart)
-          .limit(100000),
-        supabase.from('profiles').select('*').limit(100000),
-        supabase.from('attendance')
-          .select('*')
-          .gte('date', comparisonStart)
-          .limit(100000),
-        supabase.from('quotations')
-          .select('*')
-          .gte('created_at', comparisonStart)
-          .limit(100000),
+        fetchPaginated('clients', fetchC),
+        fetchPaginated('tasks', fetchT),
+        fetchPaginated('profiles'),
+        fetchPaginated('attendance', fetchA),
+        fetchPaginated('quotations', fetchQ),
         supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('leave_requests').select('*').limit(100000),
-        supabase.from('dsr_entries')
-          .select('*')
-          .gte('entry_date', `${rYear}-01-01`)
-          .lte('entry_date', `${rYear}-12-31`)
-          .limit(100000),
-        supabase.from('social_leads')
-          .select('*')
-          .gte('created_at', comparisonStart)
-          .limit(100000),
-        supabase.from('monitoring_projects' as any).select('*').limit(100000),
-        supabase.from('monitoring_tasks' as any).select('*').limit(100000),
+        fetchPaginated('leave_requests'),
+        fetchPaginated('dsr_entries', fetchD),
+        fetchPaginated('social_leads', fetchL),
+        fetchPaginated('monitoring_projects' as any),
+        fetchPaginated('monitoring_tasks' as any),
       ]);
 
-      const clients = (clientsRes.data || []) as any[];
       const clientIds = new Set(clients.map(c => c.id));
-
-      const tasks = (tasksRes.data || []).filter((t: any) => t.client_id && clientIds.has(t.client_id));
-      const employees = profilesRes.data || [];
-      const attendance = attendanceRes.data || [];
-      const quotations = (quotationsRes.data || []).filter((q: any) => q.client_id && clientIds.has(q.client_id));
+      const tasksFiltered = tasks.filter((t: any) => t.client_id && clientIds.has(t.client_id));
+      const employees = profiles;
+      const quotationsFiltered = quotations.filter((q: any) => q.client_id && clientIds.has(q.client_id));
       const auditLog = auditRes.data || [];
-      const leave = leaveRes.data || [];
-      if (dsrRes.error) console.error('[AdminDashboard] DSR fetch error:', dsrRes.error);
-      if (clientsRes.error) console.error('[AdminDashboard] Clients fetch error:', clientsRes.error);
-      const dsrEntries = dsrRes.data || [];
-      const monProjects = projectsRes.data || [];
-      const monTasks = monitoringTasksRes.data || [];
+      const dsrEntries = dsr;
+      const monProjects = projects;
+      const monTasks = monitoringTasks;
+
+      // Use filtered data as the main collections
+      const finalTasks = tasksFiltered;
+      const finalQuotations = quotationsFiltered;
 
       const monitoringProjects = monProjects.map((p: any) => {
         const pTasks = monTasks.filter((t: any) => t.project_id === p.id);
@@ -483,8 +481,8 @@ export default function AdminDashboard() {
         onlineEmployeesList,
         allClients: clients.filter(clientMatches),
         allEmployees: employees,
-        allTasks: tasks,
-        allQuotations: quotations,
+        allTasks: tasksFiltered,
+        allQuotations: quotationsFiltered,
         monitoringProjects: monitoringProjects,
       });
     };
@@ -740,8 +738,20 @@ export default function AdminDashboard() {
             ))}
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <DSRDashboardWidget basePath="/admin" viewType={viewType as any} reportMonth={reportMonth} />
-            <SocialLeadsDashboardWidget basePath="/admin" viewType={viewType as any} reportMonth={reportMonth} />
+            <DSRDashboardWidget 
+              basePath="/admin" 
+              viewType={viewType as any} 
+              reportMonth={reportMonth} 
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+            />
+            <SocialLeadsDashboardWidget 
+              basePath="/admin" 
+              viewType={viewType as any} 
+              reportMonth={reportMonth} 
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+            />
           </div>
 
           <div className="space-y-8">

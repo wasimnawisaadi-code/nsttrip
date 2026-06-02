@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { formatCurrency } from '@/lib/supabase-service';
+import { fetchPaginated } from '@/lib/dsr-service';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trophy, TrendingUp, Briefcase, MessagesSquare, ClipboardList, Crown, Medal, Award, Layers, Info } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -53,20 +54,22 @@ export default function PerformanceLeaderboard() {
       setLoading(true);
       const { from, to } = rangeBounds(range);
 
-      const [profRes, dsrRes, clientsRes, leadsRes, attRes, rolesRes] = await Promise.all([
-        supabase.from('profiles').select('user_id, name, photo_url, status').eq('status', 'active'),
-        supabase.from('dsr_entries').select('employee_id, sale_amount, profit_amount').gte('entry_date', from).lte('entry_date', to),
-        supabase.from('clients').select('created_by, status, created_at, revenue, profit').gte('created_at', `${from}T00:00:00`).lte('created_at', `${to}T23:59:59`),
-        supabase.from('social_leads').select('assigned_to, status, assigned_at, converted_at'),
-        supabase.from('attendance').select('employee_id, status').gte('date', from).lte('date', to),
-        supabase.from('user_roles').select('user_id, role'),
+      const fetchD = (q: any) => q.select('employee_id, sale_amount, profit_amount').gte('entry_date', from).lte('entry_date', to);
+      const fetchC = (q: any) => q.select('created_by, status, created_at, revenue, profit').gte('created_at', `${from}T00:00:00`).lte('created_at', `${to}T23:59:59`);
+      const fetchA = (q: any) => q.select('employee_id, status').gte('date', from).lte('date', to);
+
+      const [profiles, dsr, clients, leadsRaw, att, roles] = await Promise.all([
+        fetchPaginated('profiles', (q: any) => q.eq('status', 'active')),
+        fetchPaginated('dsr_entries', fetchD),
+        fetchPaginated('clients', fetchC),
+        fetchPaginated('social_leads', (q: any) => q.select('assigned_to, status, assigned_at, converted_at')),
+        fetchPaginated('attendance', fetchA),
+        fetchPaginated('user_roles', (q: any) => q.select('user_id, role')),
       ]);
 
-      const adminIds = new Set((rolesRes.data || []).filter((r: any) => r.role === 'admin').map((r: any) => r.user_id));
-      const employees = (profRes.data || []).filter((p: any) => !adminIds.has(p.user_id));
-      const dsr = dsrRes.data || [];
-      const clients = clientsRes.data || [];
-      const leads = (leadsRes.data || []).filter((l: any) => {
+      const adminIds = new Set((roles || []).filter((r: any) => r.role === 'admin').map((r: any) => r.user_id));
+      const employees = (profiles || []).filter((p: any) => !adminIds.has(p.user_id));
+      const leads = (leadsRaw || []).filter((l: any) => {
         if (!l.assigned_at) return true; // include conversions even if assigned outside range
         const d = l.assigned_at.split('T')[0];
         return d >= from && d <= to;

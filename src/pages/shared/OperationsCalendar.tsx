@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Plus, X, Target, Trash2 } from 'lucide-react
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDate, generateDisplayId, auditLog } from '@/lib/supabase-service';
+import { fetchPaginated } from '@/lib/dsr-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 
 export default function OperationsCalendar() {
@@ -23,15 +24,15 @@ export default function OperationsCalendar() {
 
   const reload = async () => {
     const [t, g, e, c] = await Promise.all([
-      isAdmin ? supabase.from('tasks').select('*') : supabase.from('tasks').select('*').or(`assigned_to.eq.${user?.id},created_by.eq.${user?.id}`),
-      supabase.from('goals').select('*'),
-      supabase.from('profiles').select('*').eq('status', 'active'),
-      supabase.from('clients').select('id, name, service, display_id'),
+      fetchPaginated('tasks', (q: any) => isAdmin ? q : q.or(`assigned_to.eq.${user?.id},created_by.eq.${user?.id}`), 100000),
+      fetchPaginated('goals'),
+      fetchPaginated('profiles', (q: any) => q.eq('status', 'active')),
+      fetchPaginated('clients', (q: any) => q.select('id, name, service, display_id')),
     ]);
-    setTasks(t.data || []);
-    setGoals(g.data || []);
-    setEmployees(e.data || []);
-    setClients(c.data || []);
+    setTasks(t || []);
+    setGoals(g || []);
+    setEmployees(e || []);
+    setClients(c || []);
   };
 
   useEffect(() => { reload(); }, [isAdmin, user]);

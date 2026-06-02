@@ -3,6 +3,7 @@ import { exportToExcel } from '@/lib/excel-export';
 import { Check, X, Upload, FileText, Calendar, Download, Wallet, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
+import { fetchPaginated } from '@/lib/dsr-service';
 import { formatDate, auditLog, calculateWorkingDays, generateDisplayId } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import PasswordConfirmDialog from '@/components/PasswordConfirmDialog';
@@ -25,9 +26,12 @@ export default function LeaveManagement({ isEmployee = false }: { isEmployee?: b
 
   const load = async () => {
     if (!user) return;
-    let query = supabase.from('leave_requests').select('*').order('created_at', { ascending: false });
-    if (isEmployee) query = query.eq('employee_id', user.id);
-    const { data } = await query;
+    const qMod = (q: any) => {
+      let mod = q.order('created_at', { ascending: false });
+      if (isEmployee) mod = mod.eq('employee_id', user.id);
+      return mod;
+    };
+    const data = await fetchPaginated('leave_requests', qMod, 100000);
     setLeave(data || []);
   };
 

@@ -3,6 +3,7 @@ import { exportToExcel } from '@/lib/excel-export';
 import { calculateFinancials } from '@/lib/accounting-logic';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatDate } from '@/lib/supabase-service';
+import { fetchPaginated } from '@/lib/dsr-service';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { Download, TrendingUp, Users, Briefcase } from 'lucide-react';
 
@@ -48,18 +49,22 @@ export default function ReportsPage() {
         end = new Date(y, m, 0).toISOString().split('T')[0];
       }
 
+      const fetchC = (q: any) => q.gte('created_at', start).lte('created_at', end + 'T23:59:59');
+      const fetchA = (q: any) => q.gte('date', start).lte('date', end);
+      const fetchD = (q: any) => q.gte('entry_date', start).lte('entry_date', end);
+
       const [c, e, t, a, dsr] = await Promise.all([
-        supabase.from('clients').select('*').gte('created_at', start).lte('created_at', end + 'T23:59:59').limit(100000),
-        supabase.from('profiles').select('*'),
-        supabase.from('tasks').select('*').limit(100000),
-        supabase.from('attendance').select('*').gte('date', start).lte('date', end).limit(100000),
-        supabase.from('dsr_entries').select('*').gte('entry_date', start).lte('entry_date', end).limit(100000),
+        fetchPaginated('clients', fetchC),
+        fetchPaginated('profiles'),
+        fetchPaginated('tasks'),
+        fetchPaginated('attendance', fetchA),
+        fetchPaginated('dsr_entries', fetchD),
       ]);
-      setClients(c.data || []);
-      setEmployees(e.data || []);
-      setTasks(t.data || []);
-      setAttendance(a.data || []);
-      setDsrEntries(dsr.data || []);
+      setClients(c);
+      setEmployees(e);
+      setTasks(t);
+      setAttendance(a);
+      setDsrEntries(dsr);
     };
     load();
   }, [yearMonth, viewType, dateFrom, dateTo]);
@@ -280,9 +285,9 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
-    )}
+      )}
 
-    {tab === 'services' && (
+      {tab === 'services' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="card-nawi">
             <h3 className="text-base font-semibold font-display mb-4">Service Distribution</h3>

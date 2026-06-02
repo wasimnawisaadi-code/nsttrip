@@ -19,12 +19,16 @@ export default function SocialLeadsDashboardWidget({
   basePath = '/admin', 
   employeeId,
   viewType = 'weekly',
-  reportMonth
+  reportMonth,
+  customStartDate,
+  customEndDate
 }: { 
   basePath?: string; 
   employeeId?: string;
-  viewType?: 'monthly' | 'weekly' | 'annual';
+  viewType?: 'monthly' | 'weekly' | 'annual' | 'custom';
   reportMonth?: string;
+  customStartDate?: string;
+  customEndDate?: string;
 }) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<{ total: number; unassigned: number; converted: number; bySource: { name: string; value: number }[]; byStatus: { name: string; value: number }[] }>({
@@ -38,18 +42,27 @@ export default function SocialLeadsDashboardWidget({
       let fromStr = '';
       let toStr = '';
 
-      if (viewType === 'weekly') {
+      const [rYear, rMonth] = reportMonth ? reportMonth.split('-').map(Number) : [now.getFullYear(), now.getMonth() + 1];
+
+      if (viewType === 'custom' && customStartDate && customEndDate) {
+        fromStr = customStartDate + (customStartDate.includes('T') ? '' : 'T00:00:00');
+        toStr = customEndDate + (customEndDate.includes('T') ? '' : 'T23:59:59');
+      } else if (viewType === 'weekly' && reportMonth) {
+        const endOfMonth = new Date(rYear, rMonth, 0);
+        const weekStart  = new Date(endOfMonth);
+        weekStart.setDate(endOfMonth.getDate() - 6);
+        fromStr = weekStart.toISOString().split('T')[0] + 'T00:00:00';
+        toStr   = endOfMonth.toISOString().split('T')[0] + 'T23:59:59';
+      } else if (viewType === 'weekly') {
         const start = new Date(); start.setDate(now.getDate() - 6);
-        fromStr = start.toISOString().split('T')[0];
-        toStr = now.toISOString(); // Use full ISO for upper bound
+        fromStr = start.toISOString().split('T')[0] + 'T00:00:00';
+        toStr = now.toISOString();
       } else if (viewType === 'monthly' && reportMonth) {
-        const [y, m] = reportMonth.split('-').map(Number);
-        fromStr = `${y}-${String(m).padStart(2, '0')}-01T00:00:00`;
-        toStr = new Date(y, m, 0).toISOString().split('T')[0] + 'T23:59:59';
+        fromStr = `${rYear}-${String(rMonth).padStart(2, '0')}-01T00:00:00`;
+        toStr = new Date(rYear, rMonth, 0).toISOString().split('T')[0] + 'T23:59:59';
       } else if (viewType === 'annual' && reportMonth) {
-        const y = reportMonth.split('-')[0];
-        fromStr = `${y}-01-01T00:00:00`;
-        toStr = `${y}-12-31T23:59:59`;
+        fromStr = `${rYear}-01-01T00:00:00`;
+        toStr = `${rYear}-12-31T23:59:59`;
       }
 
       let query = supabase.from('social_leads').select('source, status, assigned_to, created_at');
@@ -75,7 +88,7 @@ export default function SocialLeadsDashboardWidget({
       });
       setLoading(false);
     })();
-  }, [employeeId, viewType, reportMonth]);
+  }, [employeeId, viewType, reportMonth, customStartDate, customEndDate]);
 
   const conversionRate = stats.total > 0 ? Math.round((stats.converted / stats.total) * 100) : 0;
 
@@ -85,7 +98,7 @@ export default function SocialLeadsDashboardWidget({
         <div className="flex items-center gap-2">
           <MessagesSquare className="w-5 h-5 text-secondary" />
           <h3 className="text-base font-semibold font-display">
-            Social Leads — {viewType === 'weekly' ? 'Last 7 Days' : viewType === 'monthly' ? 'Monthly Overview' : 'Annual Performance'}
+            Social Leads — {viewType === 'weekly' ? 'Last 7 Days' : viewType === 'monthly' ? 'Monthly Overview' : viewType === 'annual' ? 'Annual Performance' : 'Custom Range'}
           </h3>
         </div>
         <Link to={`${basePath}/leads`} className="text-xs text-primary hover:underline flex items-center gap-1">View all <ChevronRight className="w-3 h-3" /></Link>
