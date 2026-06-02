@@ -279,9 +279,10 @@ export default function ReportsPage() {
             </table>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
-      {tab === 'services' && (
+    {tab === 'services' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="card-nawi">
             <h3 className="text-base font-semibold font-display mb-4">Service Distribution</h3>
