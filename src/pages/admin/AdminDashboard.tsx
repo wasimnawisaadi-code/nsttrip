@@ -86,7 +86,6 @@ export default function AdminDashboard() {
         supabase.from('dsr_entries')
           .select('*')
           .gte('entry_date', comparisonStart)
-          .lte('entry_date', fetchEnd)
           .limit(100000),
         supabase.from('social_leads')
           .select('*')
@@ -105,6 +104,8 @@ export default function AdminDashboard() {
       const quotations = (quotationsRes.data || []).filter((q: any) => q.client_id && clientIds.has(q.client_id));
       const auditLog = auditRes.data || [];
       const leave = leaveRes.data || [];
+      if (dsrRes.error) console.error('[AdminDashboard] DSR fetch error:', dsrRes.error);
+      if (clientsRes.error) console.error('[AdminDashboard] Clients fetch error:', clientsRes.error);
       const dsrEntries = dsrRes.data || [];
       const monProjects = projectsRes.data || [];
       const monTasks = monitoringTasksRes.data || [];
