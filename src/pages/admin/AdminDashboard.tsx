@@ -48,6 +48,36 @@ export default function AdminDashboard() {
   const [customEndDate, setCustomEndDate] = useState('');
   const [selectedService, setSelectedService] = useState<string | null>(null);
 
+  // Independent DSR summary — mirrors DSRDashboardWidget query exactly
+  const [dsrSummary, setDsrSummary] = useState({ revenue: 0, profit: 0, lastRevenue: 0, annualRevenue: 0, annualProfit: 0 });
+  useEffect(() => {
+    (async () => {
+      const [rYear, rMonth] = reportMonth.split('-').map(Number);
+      const fromStr = `${rYear}-${String(rMonth).padStart(2, '0')}-01`;
+      const toStr = new Date(rYear, rMonth, 0).toISOString().split('T')[0];
+      const prevDate = new Date(rYear, rMonth - 2, 1);
+      const lastFromStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-01`;
+      const lastToStr = new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 0).toISOString().split('T')[0];
+
+      const [cur, last, annual] = await Promise.all([
+        supabase.from('dsr_entries').select('sale_amount, profit_amount').gte('entry_date', fromStr).lte('entry_date', toStr).limit(100000),
+        supabase.from('dsr_entries').select('sale_amount').gte('entry_date', lastFromStr).lte('entry_date', lastToStr).limit(100000),
+        supabase.from('dsr_entries').select('sale_amount, profit_amount').gte('entry_date', `${rYear}-01-01`).lte('entry_date', `${rYear}-12-31`).limit(100000),
+      ]);
+
+      console.log('[DSR DIRECT]', { fromStr, toStr, count: cur.data?.length, error: cur.error, first: cur.data?.[0] });
+
+      const sum = (arr: any[], field: string) => (arr || []).reduce((s, e) => s + Number(e[field] || 0), 0);
+      setDsrSummary({
+        revenue: sum(cur.data || [], 'sale_amount'),
+        profit: sum(cur.data || [], 'profit_amount'),
+        lastRevenue: sum(last.data || [], 'sale_amount'),
+        annualRevenue: sum(annual.data || [], 'sale_amount'),
+        annualProfit: sum(annual.data || [], 'profit_amount'),
+      });
+    })();
+  }, [reportMonth]);
+
   useEffect(() => {
     const load = async () => {
       const [rYear, rMonth] = reportMonth.split('-').map(Number);
@@ -438,7 +468,17 @@ export default function AdminDashboard() {
 
   if (!data) return <div className="skeleton-nawi h-96 w-full" />;
 
-  const revenueChange = data.revenueLastMonth > 0 ? Math.round(((data.revenueThisMonth - data.revenueLastMonth) / data.revenueLastMonth) * 100) : 0;
+  // Pick the right revenue/profit based on selected data source
+  const displayRevenue = dataSource === 'dsr' ? dsrSummary.revenue
+    : dataSource === 'clients' ? data.revenueThisMonth
+    : dsrSummary.revenue + data.revenueThisMonth; // combined
+  const displayProfit = dataSource === 'dsr' ? dsrSummary.profit
+    : dataSource === 'clients' ? data.profitThisMonth
+    : dsrSummary.profit + data.profitThisMonth; // combined
+  const displayLastRevenue = dataSource === 'dsr' ? dsrSummary.lastRevenue
+    : dataSource === 'clients' ? data.revenueLastMonth
+    : dsrSummary.lastRevenue + data.revenueLastMonth;
+  const revenueChange = displayLastRevenue > 0 ? Math.round(((displayRevenue - displayLastRevenue) / displayLastRevenue) * 100) : 0;
   const clientChange = data.clientsLastMonth > 0 ? Math.round(((data.clientsThisMonth - data.clientsLastMonth) / data.clientsLastMonth) * 100) : 0;
 
   const exportCSV = (rows: any[], filename: string) => {
@@ -499,7 +539,7 @@ export default function AdminDashboard() {
               <div className="absolute top-0 right-0 w-16 h-16 bg-success/5 rounded-bl-[40px] transition-all group-hover:w-20 group-hover:h-20" />
               <div className="relative">
                 <TrendingUp className="w-5 h-5 text-success mb-2" />
-                <p className="text-2xl font-black font-display">{formatCurrency(data.revenueThisMonth)}</p>
+                <p className="text-2xl font-black font-display">{formatCurrency(displayRevenue)}</p>
                 <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Net Revenue</p>
                 {revenueChange !== 0 && <span className={`text-xs font-bold ${revenueChange > 0 ? 'text-success' : 'text-destructive'}`}>{revenueChange > 0 ? '↑' : '↓'} {Math.abs(revenueChange)}%</span>}
               </div>
@@ -508,7 +548,7 @@ export default function AdminDashboard() {
               <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-bl-[40px] transition-all group-hover:w-20 group-hover:h-20" />
               <div className="relative">
                 <span className="w-5 h-5 flex items-center justify-center text-primary font-bold text-xs mb-2 bg-primary/10 rounded-full">AED</span>
-                <p className="text-2xl font-black font-display text-success">{formatCurrency(data.profitThisMonth)}</p>
+                <p className="text-2xl font-black font-display text-success">{formatCurrency(displayProfit)}</p>
                 <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Total Profit</p>
               </div>
             </div>
