@@ -47,6 +47,9 @@ export default function AdminDashboard() {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('');
 
   // ── Single source of truth for ALL DSR data ──────────────────────────────
   // Uses server-side date filtering (proven reliable) instead of main loader.
@@ -60,16 +63,35 @@ export default function AdminDashboard() {
   useEffect(() => {
     (async () => {
       const [rYear, rMonth] = reportMonth.split('-').map(Number);
-      const fromStr = `${rYear}-${String(rMonth).padStart(2, '0')}-01`;
-      const toStr   = new Date(rYear, rMonth, 0).toISOString().split('T')[0];
+
+      // ── Determine period dates based on viewType ──
+      let periodFrom: string, periodTo: string;
+      if (viewType === 'custom' && customStartDate && customEndDate) {
+        periodFrom = customStartDate;
+        periodTo   = customEndDate;
+      } else if (viewType === 'weekly') {
+        const endOfMonth = new Date(rYear, rMonth, 0);
+        const weekStart  = new Date(endOfMonth);
+        weekStart.setDate(endOfMonth.getDate() - 6);
+        periodFrom = weekStart.toISOString().split('T')[0];
+        periodTo   = endOfMonth.toISOString().split('T')[0];
+      } else if (viewType === 'annual') {
+        periodFrom = `${rYear}-01-01`;
+        periodTo   = `${rYear}-12-31`;
+      } else { // monthly (default)
+        periodFrom = `${rYear}-${String(rMonth).padStart(2, '0')}-01`;
+        periodTo   = new Date(rYear, rMonth, 0).toISOString().split('T')[0];
+      }
+
+      // Previous month for comparison
       const prevDate    = new Date(rYear, rMonth - 2, 1);
       const lastFromStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-01`;
       const lastToStr   = new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 0).toISOString().split('T')[0];
 
       const [cur, lastRes, annual] = await Promise.all([
-        supabase.from('dsr_entries').select('*').gte('entry_date', fromStr).lte('entry_date', toStr).limit(100000),
+        supabase.from('dsr_entries').select('*').gte('entry_date', periodFrom).lte('entry_date', periodTo).limit(100000),
         supabase.from('dsr_entries').select('sale_amount').gte('entry_date', lastFromStr).lte('entry_date', lastToStr).limit(100000),
-        supabase.from('dsr_entries').select('*').gte('entry_date', `${rYear}-01-01`).lte('entry_date', toStr).limit(100000),
+        supabase.from('dsr_entries').select('*').gte('entry_date', `${rYear}-01-01`).lte('entry_date', periodTo).limit(100000),
       ]);
 
       const sum = (arr: any[], field: string) => (arr || []).reduce((s: number, e: any) => s + Number(e[field] || 0), 0);
@@ -86,7 +108,7 @@ export default function AdminDashboard() {
         annualEntries,
       });
     })();
-  }, [reportMonth]);
+  }, [reportMonth, viewType, customStartDate, customEndDate]);
 
   useEffect(() => {
     const load = async () => {
@@ -96,9 +118,16 @@ export default function AdminDashboard() {
       const lastMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
       
       const startOfYear = `${rYear}-01-01`;
-      const fetchStart = `${lastMonth}-01`; // Usually for comparative but we need year for total
-      const comparisonStart = startOfYear < fetchStart ? startOfYear : fetchStart;
-      const fetchEnd = new Date(rYear, rMonth, 0).toISOString().split('T')[0]; // Correct last day of the month
+      const fetchStart = `${lastMonth}-01`; 
+      let comparisonStart = startOfYear < fetchStart ? startOfYear : fetchStart;
+      if (viewType === 'custom' && customStartDate) {
+        if (customStartDate < comparisonStart) comparisonStart = customStartDate;
+      }
+      
+      let fetchEnd = new Date(rYear, rMonth, 0).toISOString().split('T')[0];
+      if (viewType === 'custom' && customEndDate) {
+        if (customEndDate > fetchEnd) fetchEnd = customEndDate;
+      }
 
       const [
         clientsRes, tasksRes, profilesRes, attendanceRes, quotationsRes,
@@ -183,57 +212,21 @@ export default function AdminDashboard() {
       const dsrMatches = (e: any) => matchesFilter(e.entry_date);
       const clientMatches = (c: any) => matchesFilter(c.created_at);
 
-      const dsrThisMonth = dsrEntries.filter(dsrMatches);
-      const dsrLastMonth = dsrEntries.filter((e: any) => e.entry_date?.startsWith(lastMonth));
-      const eligibleClients = clients.filter(c => dataSource !== 'combined' || !c.dsr_entry_id);
+      const eligibleClients = clients.filter(c => !c.dsr_entry_id); // Exclude DSR-linked clients to avoid double-counting
       const clientsThisMonthCount = eligibleClients.filter(clientMatches).length;
       const clientsLastMonthCount = eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)).length;
 
-      // DSR financials — use sale_amount & profit_amount directly (same as DSRDashboardWidget)
-      const sumDSR = (entries: any[]) => entries.reduce(
-        (acc, e) => ({
-          revenue: acc.revenue + Number(e.sale_amount || 0),
-          profit: acc.profit + Number(e.profit_amount || 0),
-        }),
-        { revenue: 0, profit: 0 }
-      );
-
-      const dsrStats = sumDSR(dsrThisMonth);
-      const dsrLastStats = sumDSR(dsrLastMonth);
-      const dsrAnnualStats = sumDSR(dsrEntries.filter((e: any) => e.entry_date?.startsWith(String(rYear))));
-
+      // DSR financials are NOT computed here — they come from dsrData (reliable independent fetch)
+      // Loader only computes CLIENT financials
       const clientStats = calculateFinancials(eligibleClients.filter(clientMatches));
       const clientLastStats = calculateFinancials(eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)));
-      const dsrAnnual = dsrEntries.filter(e => e.entry_date?.startsWith(String(rYear)));
       const clientAnnual = eligibleClients.filter(c => c.created_at?.startsWith(String(rYear)));
 
-      // DEBUG — open browser console (F12) to see these values
-      console.log('[DSR DEBUG]', {
-        dataSource,
-        reportMonth,
-        totalFetchedDSR: dsrEntries.length,
-        dsrThisMonthCount: dsrThisMonth.length,
-        firstEntry: dsrEntries[0],
-        dsrStats,
-        dsrAnnualCount: dsrAnnual.length,
-      });
-
-      let revenueThisMonth = 0, revenueLastMonth = 0, profitThisMonth = 0, totalRevenue = 0, totalProfit = 0;
-
-      if (dataSource === 'combined' || dataSource === 'dsr') {
-        revenueThisMonth += dsrStats.revenue;
-        revenueLastMonth += dsrLastStats.revenue;
-        profitThisMonth += dsrStats.profit;
-        totalRevenue += dsrAnnualStats.revenue;
-        totalProfit += dsrAnnualStats.profit;
-      }
-      if (dataSource === 'combined' || dataSource === 'clients') {
-        revenueThisMonth += clientStats.revenue;
-        revenueLastMonth += clientLastStats.revenue;
-        profitThisMonth += clientStats.profit;
-        totalRevenue += calculateFinancials(clientAnnual).revenue;
-        totalProfit += calculateFinancials(clientAnnual).profit;
-      }
+      const revenueThisMonth = clientStats.revenue;
+      const revenueLastMonth = clientLastStats.revenue;
+      const profitThisMonth  = clientStats.profit;
+      const totalRevenue     = calculateFinancials(clientAnnual).revenue;
+      const totalProfit      = calculateFinancials(clientAnnual).profit;
 
       const activeTasks = tasks.filter((t: any) => t.status === 'New' || t.status === 'Processing').length;
       const overdueTasks = tasks.filter((t: any) => (t.status === 'New' || t.status === 'Processing') && t.due_date && new Date(t.due_date) < now).length;
@@ -250,44 +243,26 @@ export default function AdminDashboard() {
       const totalActiveEmp = employees.filter((e: any) => e.status === 'active').length;
       const pendingLeave = leave.filter((l: any) => l.status === 'Pending').length;
 
+      // Service counts — CLIENT-ONLY (DSR services added at render time from dsrData)
       const serviceCounts: Record<string, number> = {};
       const serviceRevenue: Record<string, number> = {};
-      if (dataSource === 'combined' || dataSource === 'clients') {
-        clients.filter(c => {
-          if (dataSource === 'combined' && c.dsr_entry_id) return false;
-          return clientMatches(c);
-        }).forEach((c: any) => {
-          if (c.service) {
-            serviceCounts[c.service] = (serviceCounts[c.service] || 0) + 1;
-            serviceRevenue[c.service] = (serviceRevenue[c.service] || 0) + (c.revenue || 0);
-          }
-        });
-      }
-      if (dataSource === 'combined' || dataSource === 'dsr') {
-        dsrEntries.filter(dsrMatches).forEach((d: any) => {
-          const svc = d.service_type || d.service || (d.template_key ? d.template_key.replace(/_/g, ' ') : null) || 'DSR Entry';
-          serviceCounts[svc] = (serviceCounts[svc] || 0) + 1;
-          serviceRevenue[svc] = (serviceRevenue[svc] || 0) + Number(d.sale_amount || 0);
-        });
-      }
+      clients.filter(c => !c.dsr_entry_id && clientMatches(c)).forEach((c: any) => {
+        if (c.service) {
+          serviceCounts[c.service] = (serviceCounts[c.service] || 0) + 1;
+          serviceRevenue[c.service] = (serviceRevenue[c.service] || 0) + (c.revenue || 0);
+        }
+      });
       const serviceData = Object.entries(serviceCounts).map(([name, value]) => ({ name, value, revenue: serviceRevenue[name] || 0 }));
 
+      // Chart data — CLIENT-ONLY (DSR merged at render time from dsrData)
       const getRevForDate = (datePrefix: string, exactMatch = false) => {
         let rev = 0, prof = 0, clt = 0;
-        if (dataSource === 'combined' || dataSource === 'dsr') {
-          const m = dsrEntries.filter((e: any) => exactMatch ? e.entry_date === datePrefix : e.entry_date?.startsWith(datePrefix));
-          rev += m.reduce((s: number, e: any) => s + Number(e.sale_amount || 0), 0);
-          prof += m.reduce((s: number, e: any) => s + Number(e.profit_amount || 0), 0);
-          clt += m.length;
-        }
-        if (dataSource === 'combined' || dataSource === 'clients') {
-          const m = clients.filter((c: any) => {
-            if (dataSource === 'combined' && c.dsr_entry_id) return false;
-            return exactMatch ? c.created_at?.startsWith(datePrefix) : c.created_at?.startsWith(datePrefix);
-          });
-          const stats = calculateFinancials(m);
-          rev += stats.revenue; prof += stats.profit; clt += m.length;
-        }
+        const m = clients.filter((c: any) => {
+          if (c.dsr_entry_id) return false;
+          return exactMatch ? c.created_at?.startsWith(datePrefix) : c.created_at?.startsWith(datePrefix);
+        });
+        const stats = calculateFinancials(m);
+        rev += stats.revenue; prof += stats.profit; clt += m.length;
         return { rev, prof, clt };
       };
 
@@ -364,7 +339,7 @@ export default function AdminDashboard() {
         });
 
       const topEmployees = employees.filter((e: any) => e.status === 'active').map((e: any) => {
-        const empAttendance = attendance.filter((a: any) => a.employee_id === e.user_id && a.date?.startsWith(reportMonth));
+        const empAttendance = attendance.filter((a: any) => a.employee_id === e.user_id && matchesFilter(a.date));
         let netHours = empAttendance.reduce((s: number, a: any) => s + (a.hours_worked || 0), 0);
         let grossHours = empAttendance.reduce((s: number, a: any) => {
           if (!a.login_time) return s;
@@ -390,21 +365,13 @@ export default function AdminDashboard() {
           netHours += Math.max(0, liveNet);
         }
 
+        // Employee stats — CLIENT-ONLY (DSR stats added at render time from dsrData)
         let empRev = 0, empProf = 0, empClientsCount = 0;
 
-        if (dataSource === 'combined' || dataSource === 'dsr') {
-          const ec = dsrEntries.filter((e_dsr: any) => e_dsr.employee_id === e.user_id && dsrMatches(e_dsr));
-          empClientsCount += ec.length;
-          empRev += ec.reduce((s: number, d_e: any) => s + (d_e.sale_amount || 0), 0);
-          empProf += ec.reduce((s: number, d_e: any) => s + (d_e.profit_amount || 0), 0);
-        }
-
-        if (dataSource === 'combined' || dataSource === 'clients') {
-          const cc = clients.filter((c_cl: any) => c_cl.created_by === e.user_id && clientMatches(c_cl));
-          empClientsCount += cc.length;
-          empRev += cc.reduce((s: number, c_cl: any) => s + (c_cl.revenue || 0), 0);
-          empProf += cc.reduce((s: number, c_cl: any) => s + (c_cl.profit || 0), 0);
-        }
+        const cc = clients.filter((c_cl: any) => !c_cl.dsr_entry_id && c_cl.created_by === e.user_id && clientMatches(c_cl));
+        empClientsCount = cc.length;
+        empRev = cc.reduce((s: number, c_cl: any) => s + (c_cl.revenue || 0), 0);
+        empProf = cc.reduce((s: number, c_cl: any) => s + (c_cl.profit || 0), 0);
 
         const successRate = empClientsCount > 0 ? 100 : 0;
         const isClockedIn = !!empAttendance.find(a => a.login_time && !a.logout_time && a.date === today);
@@ -425,8 +392,7 @@ export default function AdminDashboard() {
           isClockedIn,
           isOnline
         };
-      }).filter(e => e.revenue > 0 || e.profit > 0 || e.clients > 0 || e.tasks > 0)
-        .sort((a, b) => b.revenue - a.revenue);
+      }).sort((a, b) => b.revenue - a.revenue);
 
       const topSocialLeadsEmployees = employees.map((e: any) => {
         const empLeads = dsrEntries.filter((l: any) => l.employee_id === e.user_id && dsrMatches(l)); // Note: social leads matches don't have entry_date, they have created_at. So we'll use clientMatches logic but for social_leads.
@@ -460,23 +426,70 @@ export default function AdminDashboard() {
       });
       const nationalityData = Object.entries(nationalityCounts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10);
 
+      // ----- Total Clients based on selected filter -----
+      let totalClientsFiltered = 0;
+      const countClientsInRange = (start: string, end: string) =>
+        clients.filter((c: any) => {
+          const created = c.created_at;
+          const endEod = end.includes('T') ? end : end + 'T23:59:59';
+          return created && created >= start && created <= endEod;
+        }).length;
+
+      if (viewType === 'weekly') {
+        const end = new Date(rYear, rMonth, 0);
+        const weekStart = new Date(end);
+        weekStart.setDate(end.getDate() - 6);
+        const startStr = weekStart.toISOString().split('T')[0];
+        const endStr = end.toISOString().split('T')[0];
+        totalClientsFiltered = countClientsInRange(startStr, endStr);
+      } else if (viewType === 'annual') {
+        const startStr = `${rYear}-01-01`;
+        const endStr = `${rYear}-12-31`;
+        totalClientsFiltered = countClientsInRange(startStr, endStr);
+      } else if (viewType === 'custom' && customStartDate && customEndDate) {
+        totalClientsFiltered = countClientsInRange(customStartDate, customEndDate);
+      } else {
+        // monthly (default)
+        const startStr = `${rYear}-${String(rMonth).padStart(2, '0')}-01`;
+        const endStr = new Date(rYear, rMonth, 0).toISOString().split('T')[0];
+        totalClientsFiltered = countClientsInRange(startStr, endStr);
+      }
+
       setData({
-        totalClients: clients.length, clientsThisMonth: clientsThisMonthCount, clientsLastMonth: clientsLastMonthCount,
-        revenueThisMonth, revenueLastMonth, profitThisMonth, totalRevenue, totalProfit,
-        activeTasks, overdueTasks, completedTasks, pendingLeave,
-        employeesOnline, totalActiveEmp,
-        serviceData, revenueData, statusCounts,
+        totalClients: totalClientsFiltered,
+        clientsThisMonth: clientsThisMonthCount,
+        clientsLastMonth: clientsLastMonthCount,
+        revenueThisMonth,
+        revenueLastMonth,
+        profitThisMonth,
+        totalRevenue,
+        totalProfit,
+        activeTasks,
+        overdueTasks,
+        completedTasks,
+        pendingLeave,
+        employeesOnline,
+        totalActiveEmp,
+        serviceData,
+        revenueData,
+        statusCounts,
         upcomingDates,
         todayAttendance,
         recentAudit: auditLog,
-        topEmployees, topSocialLeadsEmployees, leadData, nationalityData,
+        topEmployees,
+        topSocialLeadsEmployees,
+        leadData,
+        nationalityData,
         onlineEmployeesList,
-        allClients: clients, allEmployees: employees, allTasks: tasks, allQuotations: quotations,
-        monitoringProjects,
+        allClients: clients.filter(clientMatches),
+        allEmployees: employees,
+        allTasks: tasks,
+        allQuotations: quotations,
+        monitoringProjects: monitoringProjects,
       });
     };
     load();
-  }, [reportMonth, viewType, dataSource, customStartDate, customEndDate]);
+  }, [reportMonth, viewType, customStartDate, customEndDate]);
 
   if (!data) return <div className="skeleton-nawi h-96 w-full" />;
 
@@ -495,12 +508,24 @@ export default function AdminDashboard() {
   const clientChange  = data.clientsLastMonth > 0 ? Math.round(((data.clientsThisMonth - data.clientsLastMonth) / data.clientsLastMonth) * 100) : 0;
 
   // ── Annual totals (Reports & Revenue tabs) ───────────────────────────────
-  const displayAnnualRevenue = dataSource === 'dsr' ? dsrData.annualRevenue
+  // reports tab = always Client Only; revenue tab = always Combined
+  const reportsAnnualRevenue = data.totalRevenue;
+  const reportsAnnualProfit  = data.totalProfit;
+  const revenueAnnualRevenue = dsrData.annualRevenue + data.totalRevenue;
+  const revenueAnnualProfit  = dsrData.annualProfit  + data.totalProfit;
+
+  const displayAnnualRevenue = tab === 'reports' ? reportsAnnualRevenue
+    : tab === 'revenue' ? revenueAnnualRevenue
+    : dataSource === 'dsr' ? dsrData.annualRevenue
     : dataSource === 'clients' ? data.totalRevenue
     : dsrData.annualRevenue + data.totalRevenue;
-  const displayAnnualProfit = dataSource === 'dsr' ? dsrData.annualProfit
+
+  const displayAnnualProfit = tab === 'reports' ? reportsAnnualProfit
+    : tab === 'revenue' ? revenueAnnualProfit
+    : dataSource === 'dsr' ? dsrData.annualProfit
     : dataSource === 'clients' ? data.totalProfit
     : dsrData.annualProfit + data.totalProfit;
+
   const profitMargin = displayAnnualRevenue > 0 ? Math.round((displayAnnualProfit / displayAnnualRevenue) * 100) : 0;
 
   // ── Employees tab: enrich with DSR revenue from reliable dsrData ─────────
@@ -533,9 +558,11 @@ export default function AdminDashboard() {
   });
 
   let enrichedServiceData: any[];
-  if (dataSource === 'dsr') {
+  const useDataSourceSvc = (tab === 'reports' ? 'clients' : (tab === 'revenue' ? 'combined' : dataSource));
+
+  if (useDataSourceSvc === 'dsr') {
     enrichedServiceData = Object.entries(dsrSvcCounts).map(([name, value]) => ({ name, value, revenue: dsrSvcRevenue[name] || 0 }));
-  } else if (dataSource === 'clients') {
+  } else if (useDataSourceSvc === 'clients') {
     enrichedServiceData = data.serviceData || [];
   } else {
     const merged: Record<string, { value: number; revenue: number }> = {};
@@ -567,8 +594,11 @@ export default function AdminDashboard() {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     const dsr = dsrMonthlyMap[key] || { revenue: 0, profit: 0 };
 
-    if (dataSource === 'dsr')      return { ...item, revenue: dsr.revenue,              profit: dsr.profit,              clients: dsrData.annualEntries.filter((e: any) => e.entry_date?.startsWith(key)).length };
-    if (dataSource === 'combined') return { ...item, revenue: item.revenue + dsr.revenue, profit: item.profit + dsr.profit };
+    // revenue tab always uses combined logic for the chart
+    const useDataSource = tab === 'revenue' ? 'combined' : dataSource;
+
+    if (useDataSource === 'dsr')      return { ...item, revenue: dsr.revenue,              profit: dsr.profit,              clients: dsrData.annualEntries.filter((e: any) => e.entry_date?.startsWith(key)).length };
+    if (useDataSource === 'combined') return { ...item, revenue: item.revenue + dsr.revenue, profit: item.profit + dsr.profit };
     return item; // clients-only
   });
 
@@ -592,11 +622,13 @@ export default function AdminDashboard() {
           ))}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <select value={dataSource} onChange={(e) => setDataSource(e.target.value as any)} className="input-nawi w-auto text-sm bg-primary/5 border-primary/20 font-semibold">
-            <option value="combined">Data: Combined (All)</option>
-            <option value="dsr">Data: DSR Only</option>
-            <option value="clients">Data: Clients Only</option>
-          </select>
+          {(tab !== 'reports' && tab !== 'revenue') && (
+            <select value={dataSource} onChange={(e) => setDataSource(e.target.value as any)} className="input-nawi w-auto text-sm bg-primary/5 border-primary/20 font-semibold">
+              <option value="combined">Data: Combined (All)</option>
+              <option value="dsr">Data: DSR Only</option>
+              <option value="clients">Data: Clients Only</option>
+            </select>
+          )}
           <select value={viewType} onChange={(e) => setViewType(e.target.value as any)} className="input-nawi w-auto text-sm">
             <option value="monthly">Monthly</option>
             <option value="weekly">Weekly</option>
@@ -1154,8 +1186,8 @@ export default function AdminDashboard() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="stat-card"><div className="stat-card-icon bg-primary"><Briefcase className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Clients</p><p className="text-xl font-bold font-display">{data.totalClients}</p></div></div>
-            <div className="stat-card"><div className="stat-card-icon bg-success"><TrendingUp className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-xl font-bold font-display">{formatCurrency(displayAnnualRevenue)}</p></div></div>
-            <div className="stat-card"><div className="stat-card-icon bg-secondary"><span className="text-primary-foreground font-bold text-sm">AED</span></div><div><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-xl font-bold font-display">{formatCurrency(displayAnnualProfit)}</p></div></div>
+            <div className="stat-card"><div className="stat-card-icon bg-success"><TrendingUp className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-xl font-bold font-display">{formatCurrency(data.revenueThisMonth)}</p></div></div>
+            <div className="stat-card"><div className="stat-card-icon bg-secondary"><span className="text-primary-foreground font-bold text-sm">AED</span></div><div><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-xl font-bold font-display">{formatCurrency(data.profitThisMonth)}</p></div></div>
             <div className="stat-card"><div className="stat-card-icon bg-warning"><Target className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Conversion Rate</p><p className="text-xl font-bold font-display">{data.totalClients > 0 ? Math.round((data.statusCounts.Success / data.totalClients) * 100) : 0}%</p></div></div>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1216,14 +1248,38 @@ export default function AdminDashboard() {
       )}
 
       {tab === 'clients' && (
-        <div className="card-nawi p-0">
-          <div className="p-4 flex justify-end">
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input 
+              type="text" 
+              placeholder="Search clients..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              className="input-nawi text-sm"
+            />
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-nawi text-sm">
+              <option value="">All Statuses</option>
+              {['New', 'Processing', 'Success', 'Failed'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} className="input-nawi text-sm">
+              <option value="">All Services</option>
+              {Array.from(new Set(data.allClients.map((c: any) => c.service).filter(Boolean))).map((s: any) => <option key={s} value={s}>{s}</option>)}
+            </select>
             <button onClick={() => exportCSV(data.allClients.map((c: any) => ({ ID: c.display_id, Name: c.name, Service: c.service, Status: c.status, Revenue: c.revenue, Profit: c.profit, LeadSource: c.lead_source, Nationality: c.nationality || '', Created: formatDate(c.created_at) })), 'clients_report.csv')} className="btn-outline text-sm"><Download className="w-4 h-4" /> Export</button>
           </div>
-          <div className="table-container border-none">
-            <table className="table-nawi w-full"><thead><tr><th>ID</th><th>Name</th><th>Service</th><th>Status</th><th>Lead Source</th><th>Revenue</th><th>Profit</th><th>Created</th></tr></thead>
-              <tbody>{data.allClients.slice(0, 50).map((c: any) => <tr key={c.id}><td className="font-mono text-xs">{c.display_id}</td><td>{c.name}</td><td>{c.service}</td><td><StatusBadge status={c.status} /></td><td>{c.lead_source}</td><td>{formatCurrency(c.revenue || 0)}</td><td className="text-success">{formatCurrency(c.profit || 0)}</td><td>{formatDate(c.created_at)}</td></tr>)}</tbody>
-            </table>
+          <div className="card-nawi p-0 overflow-hidden">
+            <div className="table-container border-none">
+              <table className="table-nawi w-full"><thead><tr><th>ID</th><th>Name</th><th>Service</th><th>Status</th><th>Lead Source</th><th>Revenue</th><th>Profit</th><th>Created</th></tr></thead>
+                <tbody>{data.allClients
+                  .filter((c: any) => {
+                    if (searchTerm && !c.name?.toLowerCase().includes(searchTerm.toLowerCase()) && !c.display_id?.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+                    if (statusFilter && c.status !== statusFilter) return false;
+                    if (serviceFilter && c.service !== serviceFilter) return false;
+                    return true;
+                  })
+                  .slice(0, 100).map((c: any) => <tr key={c.id}><td className="font-mono text-xs">{c.display_id}</td><td>{c.name}</td><td>{c.service}</td><td><StatusBadge status={c.status} /></td><td>{c.lead_source}</td><td>{formatCurrency(c.revenue || 0)}</td><td className="text-success">{formatCurrency(c.profit || 0)}</td><td>{formatDate(c.created_at)}</td></tr>)}</tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -1380,9 +1436,9 @@ export default function AdminDashboard() {
       {tab === 'revenue' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="card-nawi text-center"><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold font-display">{formatCurrency(displayAnnualRevenue)}</p></div>
-            <div className="card-nawi text-center"><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-2xl font-bold font-display text-success">{formatCurrency(displayAnnualProfit)}</p></div>
-            <div className="card-nawi text-center"><p className="text-xs text-muted-foreground">Profit Margin</p><p className="text-2xl font-bold font-display">{profitMargin}%</p></div>
+            <div className="card-nawi text-center"><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold font-display">{formatCurrency(displayRevenue)}</p></div>
+            <div className="card-nawi text-center"><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-2xl font-bold font-display text-success">{formatCurrency(displayProfit)}</p></div>
+            <div className="card-nawi text-center"><p className="text-xs text-muted-foreground">Profit Margin</p><p className="text-2xl font-bold font-display">{displayRevenue > 0 ? Math.round((displayProfit / displayRevenue) * 100) : 0}%</p></div>
           </div>
           <div className="card-nawi">
             <h3 className="text-base font-semibold font-display mb-4">Revenue vs Profit by Month</h3>

@@ -21,34 +21,48 @@ export default function ReportsPage() {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [dsrEntries, setDsrEntries] = useState<any[]>([]);
   const [dataSource, setDataSource] = useState<'combined' | 'dsr' | 'clients'>('combined');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('');
 
   useEffect(() => {
     const load = async () => {
-      const [y, m] = yearMonth.split('-').map(Number);
-      const startOfM = `${yearMonth}-01`;
-      const endOfM = new Date(y, m, 0).toISOString().split('T')[0];
+      let start, end;
+      if (viewType === 'custom') {
+        start = dateFrom || '2000-01-01';
+        end = dateTo || '2100-12-31';
+      } else if (viewType === 'annual') {
+        const y = yearMonth.split('-')[0];
+        start = `${y}-01-01`;
+        end = `${y}-12-31`;
+      } else if (viewType === 'weekly') {
+        const [y, m] = yearMonth.split('-').map(Number);
+        const lastDay = new Date(y, m, 0);
+        const firstDay = new Date(lastDay);
+        firstDay.setDate(lastDay.getDate() - 6);
+        start = firstDay.toISOString().split('T')[0];
+        end = lastDay.toISOString().split('T')[0];
+      } else {
+        const [y, m] = yearMonth.split('-').map(Number);
+        start = `${yearMonth}-01`;
+        end = new Date(y, m, 0).toISOString().split('T')[0];
+      }
 
       const [c, e, t, a, dsr] = await Promise.all([
-        supabase.from('clients').select('*').gte('created_at', startOfM).lte('created_at', endOfM + 'T23:59:59').limit(100000),
+        supabase.from('clients').select('*').gte('created_at', start).lte('created_at', end + 'T23:59:59').limit(100000),
         supabase.from('profiles').select('*'),
         supabase.from('tasks').select('*').limit(100000),
-        supabase.from('attendance').select('*').limit(100000),
-        supabase.from('dsr_entries').select('*').gte('entry_date', startOfM).lte('entry_date', endOfM).limit(100000),
+        supabase.from('attendance').select('*').gte('date', start).lte('date', end).limit(100000),
+        supabase.from('dsr_entries').select('*').gte('entry_date', start).lte('entry_date', end).limit(100000),
       ]);
-      const clientsData = c.data || [];
-      const employeesData = e.data || [];
-      const tasksData = t.data || [];
-      const attendanceData = a.data || [];
-      const dsrEntries = dsr.data || [];
-
-      setClients(clientsData);
-      setEmployees(employeesData);
-      setTasks(tasksData);
-      setAttendance(attendanceData);
-      setDsrEntries(dsrEntries);
+      setClients(c.data || []);
+      setEmployees(e.data || []);
+      setTasks(t.data || []);
+      setAttendance(a.data || []);
+      setDsrEntries(dsr.data || []);
     };
     load();
-  }, [yearMonth]);
+  }, [yearMonth, viewType, dateFrom, dateTo]);
 
   const exportCSV = (data: any[], filename: string) => {
     exportToExcel(data, filename.replace(/\.csv$/, ''), 'Sheet1');
@@ -75,7 +89,13 @@ export default function ReportsPage() {
     return true;
   };
 
-  const filteredClients = clients.filter(c => matchesFilter(c.created_at));
+  const filteredClients = clients.filter(c => {
+    if (!matchesFilter(c.created_at)) return false;
+    if (searchTerm && !c.name?.toLowerCase().includes(searchTerm.toLowerCase()) && !c.display_id?.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    if (statusFilter && c.status !== statusFilter) return false;
+    if (serviceFilter && c.service !== serviceFilter) return false;
+    return true;
+  });
   const filteredDsr = dsrEntries.filter(e => matchesFilter(e.entry_date));
   const filteredTasks = tasks.filter(t => matchesFilter(t.created_at));
 
@@ -107,10 +127,10 @@ export default function ReportsPage() {
   }
 
   const empPerformance = employees.map((e: any) => {
-    const empClients = clients.filter((c: any) => c.assigned_to === e.user_id && c.created_at?.startsWith(yearMonth));
-    const empDsr = dsrEntries.filter((dsr: any) => dsr.employee_id === e.user_id && dsr.entry_date?.startsWith(yearMonth));
+    const empClients = clients.filter((c: any) => c.assigned_to === e.user_id && matchesFilter(c.created_at));
+    const empDsr = dsrEntries.filter((dsr: any) => dsr.employee_id === e.user_id && matchesFilter(dsr.entry_date));
     const empTasks = tasks.filter((t: any) => t.assigned_to === e.user_id);
-    const empAttendance = attendance.filter((a: any) => a.employee_id === e.user_id && a.date?.startsWith(yearMonth));
+    const empAttendance = attendance.filter((a: any) => a.employee_id === e.user_id && matchesFilter(a.date));
     
     let rev = 0, prof = 0;
     if (dataSource === 'combined' || dataSource === 'dsr') {
@@ -146,6 +166,29 @@ export default function ReportsPage() {
     totalRevenue += stats.revenue; totalProfit += stats.profit;
   }
 
+  // Force client-only view when on the Clients tab
+  useEffect(() => {
+    if (tab === 'clients') {
+      setDataSource('clients');
+    }
+  }, [tab]);
+
+  // UI: show dataSource selector only for tabs other than Clients
+  const renderDataSourceSelect = () => {
+    if (tab === 'clients') return null;
+    return (
+      <select
+        value={dataSource}
+        onChange={(e) => setDataSource(e.target.value as any)}
+        className="input-nawi w-auto text-sm bg-primary/5 font-bold border-primary/20"
+      >
+        <option value="combined">Combined Data</option>
+        <option value="dsr">DSR Only</option>
+        <option value="clients">Clients Only</option>
+      </select>
+    );
+  };
+
   const tabs = ['overview', 'clients', 'services', 'employees', 'revenue'];
 
   return (
@@ -153,13 +196,12 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-xl font-bold font-display">Reports & Analytics</h2>
         <div className="flex items-center gap-2 flex-wrap">
-          <select value={dataSource} onChange={(e) => setDataSource(e.target.value as any)} className="input-nawi w-auto text-sm bg-primary/5 font-bold border-primary/20">
-            <option value="combined">Combined Data</option>
-            <option value="dsr">DSR Only</option>
-            <option value="clients">Clients Only</option>
-          </select>
+          {renderDataSourceSelect()}
           <select value={viewType} onChange={(e) => setViewType(e.target.value as any)} className="input-nawi w-auto text-sm">
-            <option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="annual">Annual</option><option value="custom">Custom Range</option>
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+            <option value="annual">Annual</option>
+            <option value="custom">Custom Range</option>
           </select>
           {viewType === 'custom' ? (
             <div className="flex items-center gap-1">
@@ -172,7 +214,6 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
-
       <div className="flex gap-1 border-b border-border overflow-x-auto">
         {tabs.map((t) => <button key={t} onClick={() => setTab(t)} className={`px-4 py-2.5 text-sm font-medium capitalize whitespace-nowrap ${tab === t ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}>{t}</button>)}
       </div>
@@ -204,11 +245,34 @@ export default function ReportsPage() {
       )}
 
       {tab === 'clients' && (
-        <div className="card-nawi">
-          <div className="flex justify-between items-center mb-3">
-            <p className="text-xs text-muted-foreground">{filteredClients.length} of {clients.length} clients{(dateFrom || dateTo) && ' (filtered)'}</p>
-            <button onClick={() => exportCSV(filteredClients.map((c: any) => ({ ID: c.display_id, Name: c.name, Service: c.service, Status: c.status, Revenue: c.revenue, Profit: c.profit, LeadSource: c.lead_source, Created: formatDate(c.created_at) })), 'clients_report.csv')} className="btn-outline text-sm"><Download className="w-4 h-4" /> Export</button>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input 
+              type="text" 
+              placeholder="Search by name or ID..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              className="input-nawi text-sm"
+            />
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-nawi text-sm">
+              <option value="">All Statuses</option>
+              <option value="New">New</option>
+              <option value="Processing">Processing</option>
+              <option value="Success">Success</option>
+              <option value="Failed">Failed</option>
+            </select>
+            <select value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} className="input-nawi text-sm">
+              <option value="">All Services</option>
+              {Array.from(new Set(clients.map(c => c.service).filter(Boolean))).map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <div className="flex justify-end">
+              <button onClick={() => exportCSV(filteredClients.map((c: any) => ({ ID: c.display_id, Name: c.name, Service: c.service, Status: c.status, Revenue: c.revenue, Profit: c.profit, LeadSource: c.lead_source, Created: formatDate(c.created_at) })), 'clients_report.csv')} className="btn-outline w-full md:w-auto text-sm"><Download className="w-4 h-4" /> Export</button>
+            </div>
           </div>
+          <div className="card-nawi">
+            <div className="flex justify-between items-center mb-3">
+              <p className="text-xs text-muted-foreground">{filteredClients.length} of {clients.length} clients showing</p>
+            </div>
           <div className="overflow-x-auto">
             <table className="table-nawi w-full"><thead><tr><th>ID</th><th>Name</th><th>Service</th><th>Status</th><th>Lead Source</th><th>Revenue</th><th>Profit</th><th>Created</th></tr></thead>
               <tbody>{filteredClients.map((c: any) => <tr key={c.id}><td className="font-mono text-xs">{c.display_id}</td><td>{c.name}</td><td>{c.service}</td><td>{c.status}</td><td>{c.lead_source}</td><td>{formatCurrency(c.revenue || 0)}</td><td className="text-success">{formatCurrency(c.profit || 0)}</td><td>{formatDate(c.created_at)}</td></tr>)}</tbody>
