@@ -74,7 +74,7 @@ export default function PerformanceLeaderboard() {
         const d = l.assigned_at.split('T')[0];
         return d >= from && d <= to;
       });
-      const att = attRes.data || [];
+
 
       const rows: EmpStat[] = employees.map((e: any) => {
         const myDsr = dsr.filter((d: any) => d.employee_id === e.user_id);

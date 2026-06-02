@@ -6,7 +6,7 @@ import { Users, TrendingUp, CheckSquare, UserCheck, AlertTriangle, ArrowUpRight,
 import { formatCurrency, formatDate, daysUntil, safeTime } from '@/lib/supabase-service';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchEntries } from '@/lib/dsr-service';
+import { fetchEntries, fetchPaginated } from '@/lib/dsr-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend, LineChart, Line } from 'recharts';
 import DSRDashboardWidget from '@/components/dashboard/DSRDashboardWidget';
@@ -114,6 +114,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const load = async () => {
+      try {
       const [rYear, rMonth] = reportMonth.split('-').map(Number);
       const now = new Date();
       const prevDate = new Date(rYear, rMonth - 2, 1);
@@ -173,21 +174,6 @@ export default function AdminDashboard() {
       const dsrEntries = dsr || [];
       const monProjects = projects || [];
       const monTasks = monitoringTasks || [];
-
-      // Ensure data exists before processing
-      const curEntries = Array.isArray(dsr) ? dsr : [];
-      const curStats = calculateFinancials(curEntries);
-      
-      // DSR stats calculation
-      setDsrData({
-        revenue:       curStats.revenue || 0,
-        profit:        curStats.profit || 0,
-        lastRevenue:   0, 
-        salesCount:    curStats.count || 0,
-        annualRevenue: curStats.revenue || 0,
-        annualProfit:  curStats.profit || 0,
-        annualSales:   curStats.count || 0
-      });
 
       // Use filtered data as the main collections
       const finalTasks = tasksFiltered;
@@ -500,6 +486,7 @@ export default function AdminDashboard() {
         allQuotations: quotationsFiltered,
         monitoringProjects: monitoringProjects,
       });
+      } catch (err) { console.error('Dashboard load error:', err); }
     };
     load();
   }, [reportMonth, viewType, customStartDate, customEndDate]);
