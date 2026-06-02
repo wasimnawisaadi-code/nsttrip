@@ -58,7 +58,7 @@ export default function AdminDashboard() {
       const startOfYear = `${rYear}-01-01`;
       const fetchStart = `${lastMonth}-01`; // Usually for comparative but we need year for total
       const comparisonStart = startOfYear < fetchStart ? startOfYear : fetchStart;
-      const fetchEnd = `${rYear}-${String(rMonth).padStart(2, '0')}-31`;
+      const fetchEnd = new Date(rYear, rMonth, 0).toISOString().split('T')[0]; // Correct last day of the month
 
       const [
         clientsRes, tasksRes, profilesRes, attendanceRes, quotationsRes,
