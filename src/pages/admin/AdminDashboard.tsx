@@ -48,32 +48,42 @@ export default function AdminDashboard() {
   const [customEndDate, setCustomEndDate] = useState('');
   const [selectedService, setSelectedService] = useState<string | null>(null);
 
-  // Independent DSR summary — mirrors DSRDashboardWidget query exactly
-  const [dsrSummary, setDsrSummary] = useState({ revenue: 0, profit: 0, lastRevenue: 0, annualRevenue: 0, annualProfit: 0 });
+  // ── Single source of truth for ALL DSR data ──────────────────────────────
+  // Uses server-side date filtering (proven reliable) instead of main loader.
+  // `entries` = current period full rows; `annualEntries` = YTD full rows.
+  const [dsrData, setDsrData] = useState<{
+    revenue: number; profit: number; lastRevenue: number;
+    annualRevenue: number; annualProfit: number;
+    entries: any[]; annualEntries: any[];
+  }>({ revenue: 0, profit: 0, lastRevenue: 0, annualRevenue: 0, annualProfit: 0, entries: [], annualEntries: [] });
+
   useEffect(() => {
     (async () => {
       const [rYear, rMonth] = reportMonth.split('-').map(Number);
       const fromStr = `${rYear}-${String(rMonth).padStart(2, '0')}-01`;
-      const toStr = new Date(rYear, rMonth, 0).toISOString().split('T')[0];
-      const prevDate = new Date(rYear, rMonth - 2, 1);
+      const toStr   = new Date(rYear, rMonth, 0).toISOString().split('T')[0];
+      const prevDate    = new Date(rYear, rMonth - 2, 1);
       const lastFromStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-01`;
-      const lastToStr = new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 0).toISOString().split('T')[0];
+      const lastToStr   = new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 0).toISOString().split('T')[0];
 
-      const [cur, last, annual] = await Promise.all([
-        supabase.from('dsr_entries').select('sale_amount, profit_amount').gte('entry_date', fromStr).lte('entry_date', toStr).limit(100000),
+      const [cur, lastRes, annual] = await Promise.all([
+        supabase.from('dsr_entries').select('*').gte('entry_date', fromStr).lte('entry_date', toStr).limit(100000),
         supabase.from('dsr_entries').select('sale_amount').gte('entry_date', lastFromStr).lte('entry_date', lastToStr).limit(100000),
-        supabase.from('dsr_entries').select('sale_amount, profit_amount').gte('entry_date', `${rYear}-01-01`).lte('entry_date', `${rYear}-12-31`).limit(100000),
+        supabase.from('dsr_entries').select('*').gte('entry_date', `${rYear}-01-01`).lte('entry_date', toStr).limit(100000),
       ]);
 
-      console.log('[DSR DIRECT]', { fromStr, toStr, count: cur.data?.length, error: cur.error, first: cur.data?.[0] });
+      const sum = (arr: any[], field: string) => (arr || []).reduce((s: number, e: any) => s + Number(e[field] || 0), 0);
+      const curEntries    = cur.data    || [];
+      const annualEntries = annual.data || [];
 
-      const sum = (arr: any[], field: string) => (arr || []).reduce((s, e) => s + Number(e[field] || 0), 0);
-      setDsrSummary({
-        revenue: sum(cur.data || [], 'sale_amount'),
-        profit: sum(cur.data || [], 'profit_amount'),
-        lastRevenue: sum(last.data || [], 'sale_amount'),
-        annualRevenue: sum(annual.data || [], 'sale_amount'),
-        annualProfit: sum(annual.data || [], 'profit_amount'),
+      setDsrData({
+        revenue:       sum(curEntries,    'sale_amount'),
+        profit:        sum(curEntries,    'profit_amount'),
+        lastRevenue:   sum(lastRes.data || [], 'sale_amount'),
+        annualRevenue: sum(annualEntries, 'sale_amount'),
+        annualProfit:  sum(annualEntries, 'profit_amount'),
+        entries:       curEntries,
+        annualEntries,
       });
     })();
   }, [reportMonth]);
@@ -115,7 +125,8 @@ export default function AdminDashboard() {
         supabase.from('leave_requests').select('*').limit(100000),
         supabase.from('dsr_entries')
           .select('*')
-          .gte('entry_date', comparisonStart)
+          .gte('entry_date', `${rYear}-01-01`)
+          .lte('entry_date', `${rYear}-12-31`)
           .limit(100000),
         supabase.from('social_leads')
           .select('*')
@@ -254,7 +265,7 @@ export default function AdminDashboard() {
       }
       if (dataSource === 'combined' || dataSource === 'dsr') {
         dsrEntries.filter(dsrMatches).forEach((d: any) => {
-          const svc = d.template_key?.replace(/_/g, ' ') || 'DSR General';
+          const svc = d.service_type || d.service || (d.template_key ? d.template_key.replace(/_/g, ' ') : null) || 'DSR Entry';
           serviceCounts[svc] = (serviceCounts[svc] || 0) + 1;
           serviceRevenue[svc] = (serviceRevenue[svc] || 0) + Number(d.sale_amount || 0);
         });
@@ -265,8 +276,9 @@ export default function AdminDashboard() {
         let rev = 0, prof = 0, clt = 0;
         if (dataSource === 'combined' || dataSource === 'dsr') {
           const m = dsrEntries.filter((e: any) => exactMatch ? e.entry_date === datePrefix : e.entry_date?.startsWith(datePrefix));
-          const stats = calculateFinancials(m);
-          rev += stats.revenue; prof += stats.profit; clt += m.length;
+          rev += m.reduce((s: number, e: any) => s + Number(e.sale_amount || 0), 0);
+          prof += m.reduce((s: number, e: any) => s + Number(e.profit_amount || 0), 0);
+          clt += m.length;
         }
         if (dataSource === 'combined' || dataSource === 'clients') {
           const m = clients.filter((c: any) => {
@@ -413,7 +425,7 @@ export default function AdminDashboard() {
           isClockedIn,
           isOnline
         };
-      }).filter(e => e.revenue > 0 || e.clients > 0 || e.tasks > 0)
+      }).filter(e => e.revenue > 0 || e.profit > 0 || e.clients > 0 || e.tasks > 0)
         .sort((a, b) => b.revenue - a.revenue);
 
       const topSocialLeadsEmployees = employees.map((e: any) => {
@@ -468,18 +480,98 @@ export default function AdminDashboard() {
 
   if (!data) return <div className="skeleton-nawi h-96 w-full" />;
 
-  // Pick the right revenue/profit based on selected data source
-  const displayRevenue = dataSource === 'dsr' ? dsrSummary.revenue
+
+  // ── Summary card values (period-specific) ───────────────────────────────
+  const displayRevenue = dataSource === 'dsr' ? dsrData.revenue
     : dataSource === 'clients' ? data.revenueThisMonth
-    : dsrSummary.revenue + data.revenueThisMonth; // combined
-  const displayProfit = dataSource === 'dsr' ? dsrSummary.profit
+    : dsrData.revenue + data.revenueThisMonth;
+  const displayProfit = dataSource === 'dsr' ? dsrData.profit
     : dataSource === 'clients' ? data.profitThisMonth
-    : dsrSummary.profit + data.profitThisMonth; // combined
-  const displayLastRevenue = dataSource === 'dsr' ? dsrSummary.lastRevenue
+    : dsrData.profit + data.profitThisMonth;
+  const displayLastRevenue = dataSource === 'dsr' ? dsrData.lastRevenue
     : dataSource === 'clients' ? data.revenueLastMonth
-    : dsrSummary.lastRevenue + data.revenueLastMonth;
+    : dsrData.lastRevenue + data.revenueLastMonth;
   const revenueChange = displayLastRevenue > 0 ? Math.round(((displayRevenue - displayLastRevenue) / displayLastRevenue) * 100) : 0;
-  const clientChange = data.clientsLastMonth > 0 ? Math.round(((data.clientsThisMonth - data.clientsLastMonth) / data.clientsLastMonth) * 100) : 0;
+  const clientChange  = data.clientsLastMonth > 0 ? Math.round(((data.clientsThisMonth - data.clientsLastMonth) / data.clientsLastMonth) * 100) : 0;
+
+  // ── Annual totals (Reports & Revenue tabs) ───────────────────────────────
+  const displayAnnualRevenue = dataSource === 'dsr' ? dsrData.annualRevenue
+    : dataSource === 'clients' ? data.totalRevenue
+    : dsrData.annualRevenue + data.totalRevenue;
+  const displayAnnualProfit = dataSource === 'dsr' ? dsrData.annualProfit
+    : dataSource === 'clients' ? data.totalProfit
+    : dsrData.annualProfit + data.totalProfit;
+  const profitMargin = displayAnnualRevenue > 0 ? Math.round((displayAnnualProfit / displayAnnualRevenue) * 100) : 0;
+
+  // ── Employees tab: enrich with DSR revenue from reliable dsrData ─────────
+  const dsrEmpMap = dsrData.entries.reduce((map: Record<string, { revenue: number; profit: number; clients: number }>, e: any) => {
+    const id = e.employee_id;
+    if (id) {
+      if (!map[id]) map[id] = { revenue: 0, profit: 0, clients: 0 };
+      map[id].revenue  += Number(e.sale_amount   || 0);
+      map[id].profit   += Number(e.profit_amount || 0);
+      map[id].clients  += 1;
+    }
+    return map;
+  }, {});
+
+  const enrichedEmployees: any[] = (data.topEmployees || []).map((emp: any) => {
+    const dsr = dsrEmpMap[emp.id] || { revenue: 0, profit: 0, clients: 0 };
+    if (dataSource === 'dsr')      return { ...emp, revenue: dsr.revenue,              profit: dsr.profit,              clients: dsr.clients };
+    if (dataSource === 'combined') return { ...emp, revenue: emp.revenue + dsr.revenue, profit: emp.profit + dsr.profit, clients: emp.clients + dsr.clients };
+    return emp; // clients-only
+  }).filter((e: any) => e.revenue > 0 || e.profit > 0 || e.clients > 0 || e.tasks > 0)
+    .sort((a: any, b: any) => b.revenue - a.revenue);
+
+  // ── Services tab: build from dsrData.entries + client services ───────────
+  const dsrSvcCounts: Record<string, number>  = {};
+  const dsrSvcRevenue: Record<string, number> = {};
+  dsrData.entries.forEach((d: any) => {
+    const svc = d.service_type || d.service || (d.template_key ? d.template_key.replace(/_/g, ' ') : null) || 'DSR Entry';
+    dsrSvcCounts[svc]   = (dsrSvcCounts[svc]   || 0) + 1;
+    dsrSvcRevenue[svc]  = (dsrSvcRevenue[svc]  || 0) + Number(d.sale_amount || 0);
+  });
+
+  let enrichedServiceData: any[];
+  if (dataSource === 'dsr') {
+    enrichedServiceData = Object.entries(dsrSvcCounts).map(([name, value]) => ({ name, value, revenue: dsrSvcRevenue[name] || 0 }));
+  } else if (dataSource === 'clients') {
+    enrichedServiceData = data.serviceData || [];
+  } else {
+    const merged: Record<string, { value: number; revenue: number }> = {};
+    (data.serviceData || []).forEach((s: any) => { merged[s.name] = { value: s.value, revenue: s.revenue }; });
+    Object.entries(dsrSvcCounts).forEach(([name, count]) => {
+      if (merged[name]) { merged[name].value += count; merged[name].revenue += dsrSvcRevenue[name] || 0; }
+      else { merged[name] = { value: count, revenue: dsrSvcRevenue[name] || 0 }; }
+    });
+    enrichedServiceData = Object.entries(merged).map(([name, v]) => ({ name, ...v }));
+  }
+
+  // ── Revenue chart: monthly DSR breakdown from reliable dsrData.annualEntries
+  const dsrMonthlyMap = dsrData.annualEntries.reduce((map: Record<string, { revenue: number; profit: number }>, e: any) => {
+    const key = e.entry_date?.slice(0, 7); // 'YYYY-MM'
+    if (key) {
+      if (!map[key]) map[key] = { revenue: 0, profit: 0 };
+      map[key].revenue += Number(e.sale_amount   || 0);
+      map[key].profit  += Number(e.profit_amount || 0);
+    }
+    return map;
+  }, {});
+
+  // Merge DSR monthly data into revenueData chart array
+  const enrichedRevenueData = (data.revenueData || []).map((item: any, idx: number) => {
+    // item.month is a short label (e.g. 'Jun'); we need the YYYY-MM key
+    // Reconstruct from position: last 12 months ending at reportMonth
+    const [rYear, rMonth] = reportMonth.split('-').map(Number);
+    const d = new Date(rYear, rMonth - 1 - (11 - idx), 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const dsr = dsrMonthlyMap[key] || { revenue: 0, profit: 0 };
+
+    if (dataSource === 'dsr')      return { ...item, revenue: dsr.revenue,              profit: dsr.profit,              clients: dsrData.annualEntries.filter((e: any) => e.entry_date?.startsWith(key)).length };
+    if (dataSource === 'combined') return { ...item, revenue: item.revenue + dsr.revenue, profit: item.profit + dsr.profit };
+    return item; // clients-only
+  });
+
 
   const exportCSV = (rows: any[], filename: string) => {
     exportToExcel(rows, filename.replace(/\.csv$/, ''), 'Sheet1');
@@ -1062,8 +1154,8 @@ export default function AdminDashboard() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="stat-card"><div className="stat-card-icon bg-primary"><Briefcase className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Clients</p><p className="text-xl font-bold font-display">{data.totalClients}</p></div></div>
-            <div className="stat-card"><div className="stat-card-icon bg-success"><TrendingUp className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-xl font-bold font-display">{formatCurrency(data.totalRevenue)}</p></div></div>
-            <div className="stat-card"><div className="stat-card-icon bg-secondary"><span className="text-primary-foreground font-bold text-sm">AED</span></div><div><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-xl font-bold font-display">{formatCurrency(data.totalProfit)}</p></div></div>
+            <div className="stat-card"><div className="stat-card-icon bg-success"><TrendingUp className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-xl font-bold font-display">{formatCurrency(displayAnnualRevenue)}</p></div></div>
+            <div className="stat-card"><div className="stat-card-icon bg-secondary"><span className="text-primary-foreground font-bold text-sm">AED</span></div><div><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-xl font-bold font-display">{formatCurrency(displayAnnualProfit)}</p></div></div>
             <div className="stat-card"><div className="stat-card-icon bg-warning"><Target className="w-6 h-6 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Conversion Rate</p><p className="text-xl font-bold font-display">{data.totalClients > 0 ? Math.round((data.statusCounts.Success / data.totalClients) * 100) : 0}%</p></div></div>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1142,7 +1234,7 @@ export default function AdminDashboard() {
           <div className="table-container border-none">
             <table className="table-nawi w-full text-sm">
               <thead><tr><th>Employee</th><th>Status</th><th>Revenue</th><th>Profit</th><th>Success %</th><th>Total Hours</th><th>Net Hours</th><th>Avg/Day</th></tr></thead>
-              <tbody>{data.topEmployees.map((e: any) => (
+              <tbody>{enrichedEmployees.map((e: any) => (
                 <tr key={e.id}>
                   <td className="font-medium">
                     <div className="flex items-center gap-2">
@@ -1189,7 +1281,7 @@ export default function AdminDashboard() {
                 <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
                     <Pie
-                      data={data.serviceData}
+                      data={enrichedServiceData}
                       dataKey="value"
                       nameKey="name"
                       cx="50%"
@@ -1201,7 +1293,7 @@ export default function AdminDashboard() {
                       labelLine={false}
                       stroke="none"
                     >
-                      {data.serviceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                      {enrichedServiceData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
                     <Tooltip
                       contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
@@ -1212,7 +1304,7 @@ export default function AdminDashboard() {
                       verticalAlign="bottom"
                       align="center"
                       formatter={(value) => {
-                        const item = data.serviceData.find(d => d.name === value);
+                        const item = enrichedServiceData.find(d => d.name === value);
                         return <span className="text-[11px] font-bold text-primary px-2">{value}: {item?.value || 0}</span>;
                       }}
                       wrapperStyle={{ paddingTop: '30px' }}
@@ -1239,8 +1331,8 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
-                    {data.serviceData.sort((a: any, b: any) => b.value - a.value).map((s: any, i: number) => {
-                      const totalValue = data.serviceData.reduce((acc: number, curr: any) => acc + curr.value, 0) || 1;
+                    {enrichedServiceData.sort((a: any, b: any) => b.value - a.value).map((s: any, i: number) => {
+                      const totalValue = enrichedServiceData.reduce((acc: number, curr: any) => acc + curr.value, 0) || 1;
                       const pct = ((s.value / totalValue) * 100).toFixed(1);
                       return (
                         <tr key={i} className="hover:bg-primary/[0.02] transition-colors group">
@@ -1269,7 +1361,7 @@ export default function AdminDashboard() {
           <div className="card-nawi p-8">
             <h3 className="text-base font-semibold font-display mb-8">Revenue Comparison by Service</h3>
             <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={data.serviceData} layout="vertical" margin={{ left: 40, right: 40 }}>
+              <BarChart data={enrichedServiceData} layout="vertical" margin={{ left: 40, right: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(213,45%,92%)" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 11, fontWeight: 700 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fontWeight: 700 }} width={120} axisLine={false} tickLine={false} />
@@ -1288,14 +1380,14 @@ export default function AdminDashboard() {
       {tab === 'revenue' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="card-nawi text-center"><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold font-display">{formatCurrency(data.totalRevenue)}</p></div>
-            <div className="card-nawi text-center"><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-2xl font-bold font-display text-success">{formatCurrency(data.totalProfit)}</p></div>
-            <div className="card-nawi text-center"><p className="text-xs text-muted-foreground">Profit Margin</p><p className="text-2xl font-bold font-display">{data.totalRevenue > 0 ? Math.round((data.totalProfit / data.totalRevenue) * 100) : 0}%</p></div>
+            <div className="card-nawi text-center"><p className="text-xs text-muted-foreground">Total Revenue</p><p className="text-2xl font-bold font-display">{formatCurrency(displayAnnualRevenue)}</p></div>
+            <div className="card-nawi text-center"><p className="text-xs text-muted-foreground">Total Profit</p><p className="text-2xl font-bold font-display text-success">{formatCurrency(displayAnnualProfit)}</p></div>
+            <div className="card-nawi text-center"><p className="text-xs text-muted-foreground">Profit Margin</p><p className="text-2xl font-bold font-display">{profitMargin}%</p></div>
           </div>
           <div className="card-nawi">
             <h3 className="text-base font-semibold font-display mb-4">Revenue vs Profit by Month</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={data.revenueData}><CartesianGrid strokeDasharray="3 3" stroke="hsl(213,45%,92%)" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip formatter={(v: number) => formatCurrency(v)} /><Legend /><Bar dataKey="revenue" fill="#052F59" radius={[4, 4, 0, 0]} name="Revenue" /><Bar dataKey="profit" fill="#0A7040" radius={[4, 4, 0, 0]} name="Profit" /></BarChart>
+              <BarChart data={enrichedRevenueData}><CartesianGrid strokeDasharray="3 3" stroke="hsl(213,45%,92%)" /><XAxis dataKey="month" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip formatter={(v: number) => formatCurrency(v)} /><Legend /><Bar dataKey="revenue" fill="#052F59" radius={[4, 4, 0, 0]} name="Revenue" /><Bar dataKey="profit" fill="#0A7040" radius={[4, 4, 0, 0]} name="Profit" /></BarChart>
             </ResponsiveContainer>
           </div>
         </div>
