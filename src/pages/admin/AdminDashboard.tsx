@@ -156,6 +156,17 @@ export default function AdminDashboard() {
       const dsrAnnual = dsrEntries.filter(e => e.entry_date?.startsWith(String(rYear)));
       const clientAnnual = eligibleClients.filter(c => c.created_at?.startsWith(String(rYear)));
 
+      // DEBUG — open browser console (F12) to see these values
+      console.log('[DSR DEBUG]', {
+        dataSource,
+        reportMonth,
+        totalFetchedDSR: dsrEntries.length,
+        dsrThisMonthCount: dsrThisMonth.length,
+        firstEntry: dsrEntries[0],
+        dsrStats,
+        dsrAnnualCount: dsrAnnual.length,
+      });
+
       let revenueThisMonth = 0, revenueLastMonth = 0, profitThisMonth = 0, totalRevenue = 0, totalProfit = 0;
       
       if (dataSource === 'combined' || dataSource === 'dsr') {
