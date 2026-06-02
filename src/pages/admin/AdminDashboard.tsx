@@ -152,27 +152,42 @@ export default function AdminDashboard() {
         clients, tasks, profiles, attendance, quotations,
         auditRes, leave, dsr, leads, projects, monitoringTasks
       ] = await Promise.all([
-        fetchPaginated('clients', fetchC),
-        fetchPaginated('tasks', fetchT),
-        fetchPaginated('profiles'),
-        fetchPaginated('attendance', fetchA),
-        fetchPaginated('quotations', fetchQ),
+        fetchPaginated('clients', fetchC).catch(() => []),
+        fetchPaginated('tasks', fetchT).catch(() => []),
+        fetchPaginated('profiles').catch(() => []),
+        fetchPaginated('attendance', fetchA).catch(() => []),
+        fetchPaginated('quotations', fetchQ).catch(() => []),
         supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(100),
-        fetchPaginated('leave_requests'),
-        fetchPaginated('dsr_entries', fetchD),
-        fetchPaginated('social_leads', fetchL),
-        fetchPaginated('monitoring_projects' as any),
-        fetchPaginated('monitoring_tasks' as any),
+        fetchPaginated('leave_requests').catch(() => []),
+        fetchPaginated('dsr_entries', fetchD).catch(() => []),
+        fetchPaginated('social_leads', fetchL).catch(() => []),
+        fetchPaginated('monitoring_projects' as any).catch(() => []),
+        fetchPaginated('monitoring_tasks' as any).catch(() => []),
       ]);
 
-      const clientIds = new Set(clients.map(c => c.id));
-      const tasksFiltered = tasks.filter((t: any) => t.client_id && clientIds.has(t.client_id));
-      const employees = profiles;
-      const quotationsFiltered = quotations.filter((q: any) => q.client_id && clientIds.has(q.client_id));
-      const auditLog = auditRes.data || [];
-      const dsrEntries = dsr;
-      const monProjects = projects;
-      const monTasks = monitoringTasks;
+      const clientIds = new Set((clients || []).map(c => c.id));
+      const tasksFiltered = (tasks || []).filter((t: any) => t.client_id && clientIds.has(t.client_id));
+      const employees = profiles || [];
+      const quotationsFiltered = (quotations || []).filter((q: any) => q.client_id && clientIds.has(q.client_id));
+      const auditLog = auditRes?.data || [];
+      const dsrEntries = dsr || [];
+      const monProjects = projects || [];
+      const monTasks = monitoringTasks || [];
+
+      // Ensure data exists before processing
+      const curEntries = Array.isArray(dsr) ? dsr : [];
+      const curStats = calculateFinancials(curEntries);
+      
+      // DSR stats calculation
+      setDsrData({
+        revenue:       curStats.revenue || 0,
+        profit:        curStats.profit || 0,
+        lastRevenue:   0, 
+        salesCount:    curStats.count || 0,
+        annualRevenue: curStats.revenue || 0,
+        annualProfit:  curStats.profit || 0,
+        annualSales:   curStats.count || 0
+      });
 
       // Use filtered data as the main collections
       const finalTasks = tasksFiltered;
@@ -207,12 +222,12 @@ export default function AdminDashboard() {
         return true;
       };
 
-      const dsrMatches = (e: any) => matchesFilter(e.entry_date);
-      const clientMatches = (c: any) => matchesFilter(c.created_at);
+      const dsrMatches = (e: any) => e.entry_date ? matchesFilter(e.entry_date) : false;
+      const clientMatches = (c: any) => c.created_at ? matchesFilter(c.created_at) : false;
 
-      const eligibleClients = clients.filter(c => !c.dsr_entry_id); // Exclude DSR-linked clients to avoid double-counting
+      const eligibleClients = (clients || []).filter(c => !c.dsr_entry_id);
       const clientsThisMonthCount = eligibleClients.filter(clientMatches).length;
-      const clientsLastMonthCount = eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)).length;
+      const clientsLastMonthCount = eligibleClients.filter((c: any) => c.created_at && c.created_at.startsWith(lastMonth)).length;
 
       // DSR financials are NOT computed here — they come from dsrData (reliable independent fetch)
       // Loader only computes CLIENT financials
@@ -395,7 +410,7 @@ export default function AdminDashboard() {
       const topSocialLeadsEmployees = employees.map((e: any) => {
         const empLeads = dsrEntries.filter((l: any) => l.employee_id === e.user_id && dsrMatches(l)); // Note: social leads matches don't have entry_date, they have created_at. So we'll use clientMatches logic but for social_leads.
         // Actually, let's use the fetched social_leads.
-        const allEmpLeads = (leadsRes.data || []).filter((l: any) => l.assigned_to === e.user_id && clientMatches(l));
+        const allEmpLeads = (leads || []).filter((l: any) => l.assigned_to === e.user_id && clientMatches(l));
         const conv = allEmpLeads.filter((l: any) => l.status === 'CONVERTED').length;
         return {
           name: e.name, photo: e.photo_url, id: e.user_id,
@@ -479,7 +494,7 @@ export default function AdminDashboard() {
         leadData,
         nationalityData,
         onlineEmployeesList,
-        allClients: clients.filter(clientMatches),
+        allClients: (clients || []).filter(clientMatches),
         allEmployees: employees,
         allTasks: tasksFiltered,
         allQuotations: quotationsFiltered,
