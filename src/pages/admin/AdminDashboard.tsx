@@ -148,11 +148,21 @@ export default function AdminDashboard() {
       const clientsThisMonthCount = eligibleClients.filter(clientMatches).length;
       const clientsLastMonthCount = eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)).length;
 
-      const dsrStats = calculateFinancials(dsrThisMonth);
-      const dsrLastStats = calculateFinancials(dsrLastMonth);
+      // DSR financials — use sale_amount & profit_amount directly (same as DSRDashboardWidget)
+      const sumDSR = (entries: any[]) => entries.reduce(
+        (acc, e) => ({
+          revenue: acc.revenue + Number(e.sale_amount || 0),
+          profit: acc.profit + Number(e.profit_amount || 0),
+        }),
+        { revenue: 0, profit: 0 }
+      );
+
+      const dsrStats = sumDSR(dsrThisMonth);
+      const dsrLastStats = sumDSR(dsrLastMonth);
+      const dsrAnnualStats = sumDSR(dsrEntries.filter((e: any) => e.entry_date?.startsWith(String(rYear))));
+
       const clientStats = calculateFinancials(eligibleClients.filter(clientMatches));
       const clientLastStats = calculateFinancials(eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)));
-
       const dsrAnnual = dsrEntries.filter(e => e.entry_date?.startsWith(String(rYear)));
       const clientAnnual = eligibleClients.filter(c => c.created_at?.startsWith(String(rYear)));
 
@@ -168,13 +178,13 @@ export default function AdminDashboard() {
       });
 
       let revenueThisMonth = 0, revenueLastMonth = 0, profitThisMonth = 0, totalRevenue = 0, totalProfit = 0;
-      
+
       if (dataSource === 'combined' || dataSource === 'dsr') {
         revenueThisMonth += dsrStats.revenue;
         revenueLastMonth += dsrLastStats.revenue;
         profitThisMonth += dsrStats.profit;
-        totalRevenue += calculateFinancials(dsrAnnual).revenue;
-        totalProfit += calculateFinancials(dsrAnnual).profit;
+        totalRevenue += dsrAnnualStats.revenue;
+        totalProfit += dsrAnnualStats.profit;
       }
       if (dataSource === 'combined' || dataSource === 'clients') {
         revenueThisMonth += clientStats.revenue;
