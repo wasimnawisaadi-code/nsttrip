@@ -198,6 +198,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const startMonitor = () => {
         const triggerLogout = () => {
+          // EXEMPT ADMINS from single-device restriction
+          if (role === 'admin' || role === 'superadmin') {
+            console.log('Multiple device login detected for Admin. Ignoring...');
+            return;
+          }
+
           toast.error('Logged in from another device. Signing out...', {
             duration: 6000,
             position: 'top-center',
