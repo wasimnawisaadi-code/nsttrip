@@ -55,8 +55,11 @@ export default function AdminAttendance() {
   const firstDayOfWeek = new Date(y, m - 1, 1).getDay();
 
   // Summary counts for TODAY
-  const uniqueAttendeeIds = new Set(todayAttendance.map(a => a.employee_id));
-  const lateCount = todayAttendance.filter(a => a.status === 'Late').length;
+  const activeEmpIds = new Set(employees.map(e => e.user_id));
+  const filteredTodayAttendance = todayAttendance.filter(a => activeEmpIds.has(a.employee_id));
+  
+  const uniqueAttendeeIds = new Set(filteredTodayAttendance.map(a => a.employee_id));
+  const lateCount = filteredTodayAttendance.filter(a => a.status === 'Late').length;
   // Present means attended and not late
   const presentCount = Math.max(0, uniqueAttendeeIds.size - lateCount);
   
