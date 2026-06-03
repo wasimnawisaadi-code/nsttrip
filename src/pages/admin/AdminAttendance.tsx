@@ -35,7 +35,7 @@ export default function AdminAttendance() {
     ]);
 
     const adminIds = new Set((rolesRes.data || []).filter((r: any) => r.role === 'admin' || r.role === 'superadmin').map((r: any) => r.user_id));
-    setEmployees((empRes.data || []).filter((e: any) => !adminIds.has(e.user_id)));
+    setEmployees((empRes.data || []).filter((e: any) => !adminIds.has(e.user_id) && e.status === 'active'));
     setAllAttendance(attRes.data || []);
     setAllLeave(leaveRes.data || []);
     
@@ -55,9 +55,16 @@ export default function AdminAttendance() {
   const firstDayOfWeek = new Date(y, m - 1, 1).getDay();
 
   // Summary counts for TODAY
-  const presentCount = todayAttendance.filter(a => a.status === 'Present' || (!a.logout_time && a.login_time)).length;
+  const uniqueAttendeeIds = new Set(todayAttendance.map(a => a.employee_id));
   const lateCount = todayAttendance.filter(a => a.status === 'Late').length;
-  const absentCount = employees.length - todayAttendance.length;
+  // Present means attended and not late
+  const presentCount = Math.max(0, uniqueAttendeeIds.size - lateCount);
+  
+  const leavesToday = allLeave.filter(l => l.status === 'Approved' && l.start_date <= todayStr && l.end_date >= todayStr);
+  const leaveEmployeeIds = new Set(leavesToday.map(l => l.employee_id));
+  
+  const absentCount = employees.filter(e => !uniqueAttendeeIds.has(e.user_id) && !leaveEmployeeIds.has(e.user_id)).length;
+  const onLeaveCount = leaveEmployeeIds.size;
 
   const dailyData: any[] = [];
   for (let d = 1; d <= daysInMonth; d++) {
@@ -65,7 +72,12 @@ export default function AdminAttendance() {
     const dayRecs = allAttendance.filter(a => a.date === dateStr);
     dailyData.push({ day: d, present: dayRecs.filter(a => a.status === 'Present').length, late: dayRecs.filter(a => a.status === 'Late').length, absent: dayRecs.filter(a => a.status === 'Absent').length });
   }
-  const pieData = [{ name: 'Present', value: presentCount }, { name: 'Late', value: lateCount }, { name: 'Absent', value: absentCount }].filter(d => d.value > 0);
+  const pieData = [
+    { name: 'Present', value: presentCount }, 
+    { name: 'Late', value: lateCount }, 
+    { name: 'Absent', value: absentCount },
+    { name: 'On Leave', value: onLeaveCount }
+  ].filter(d => d.value > 0);
 
   const empSummary = employees.map(emp => {
     const recs = monthAttendance.filter(a => a.employee_id === emp.user_id);
@@ -162,12 +174,13 @@ export default function AdminAttendance() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="stat-card"><div className="stat-card-icon bg-primary"><Users className="w-5 h-5 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Employees</p><p className="text-xl font-bold font-display">{employees.length}</p></div></div>
         <div className="stat-card"><div className="stat-card-icon bg-success"><Clock className="w-5 h-5 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Present</p><p className="text-xl font-bold font-display text-success">{presentCount}</p></div></div>
         <div className="stat-card"><div className="stat-card-icon bg-warning"><Clock className="w-5 h-5 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Late</p><p className="text-xl font-bold font-display text-warning">{lateCount}</p></div></div>
         <div className="stat-card"><div className="stat-card-icon bg-destructive"><AlertTriangle className="w-5 h-5 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">Absent</p><p className="text-xl font-bold font-display text-destructive">{absentCount}</p></div></div>
-        <div className="stat-card"><div><p className="text-xs text-muted-foreground">Today's Presence</p><p className="text-xl font-bold font-display">{todayAttendance.length} / {employees.length}</p></div></div>
+        <div className="stat-card"><div className="stat-card-icon bg-secondary"><Calendar className="w-5 h-5 text-primary-foreground" /></div><div><p className="text-xs text-muted-foreground">On Leave</p><p className="text-xl font-bold font-display text-secondary">{onLeaveCount}</p></div></div>
+        <div className="stat-card"><div><p className="text-xs text-muted-foreground">Today's Presence</p><p className="text-xl font-bold font-display">{uniqueAttendeeIds.size} / {employees.length}</p></div></div>
       </div>
 
       {view === 'overview' && (
