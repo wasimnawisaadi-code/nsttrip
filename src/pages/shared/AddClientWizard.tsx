@@ -16,6 +16,7 @@ const SERVICES = [
   { key: 'Pilgrimage', emoji: '🕌' },
   { key: 'Meet & Assist', emoji: '🤝' },
   { key: 'Hotel Booking', emoji: '🏨' },
+  { key: 'Group Sheets', emoji: '📋' },
 ];
 
 const LEAD_SOURCES = ['Walk-in', 'Call', 'WhatsApp', 'Social Media', 'Reference', 'Website', 'B2B Partner'];

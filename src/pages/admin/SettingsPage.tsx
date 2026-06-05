@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { getAttendanceSettings, saveAttendanceSettings, DEFAULT_ATTENDANCE, type AttendanceSettings } from '@/lib/settings';
 import { auditLog } from '@/lib/supabase-service';
-import { Clock, Save, AlertCircle } from 'lucide-react';
+import { Clock, Save, AlertCircle, Database, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -12,6 +13,7 @@ export default function SettingsPage() {
   const [att, setAtt] = useState<AttendanceSettings>(DEFAULT_ATTENDANCE);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     getAttendanceSettings().then(s => { setAtt(s); setLoading(false); });
@@ -81,6 +83,61 @@ export default function SettingsPage() {
         <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">
           <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save Settings'}
         </button>
+      <div className="card-nawi space-y-5">
+        <div className="flex items-center gap-2">
+          <Database className="w-5 h-5 text-secondary" />
+          <h3 className="font-semibold font-display">System Maintenance</h3>
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-sm text-foreground/80">Synchronize database templates and system-defined modules.</p>
+          <button 
+            onClick={async () => {
+              setSyncing(true);
+              try {
+                const template = {
+                  template_key: 'group_sheets',
+                  name: 'Group Sheets',
+                  icon: '📋',
+                  description: 'Group flight bookings and sheets',
+                  columns: [
+                    {"key":"s_no","label":"S.NO","type":"text"},
+                    {"key":"pax_name","label":"PAX NAME","type":"text","required":true},
+                    {"key":"travel_details","label":"TRAVEL DATE FLIGHT DETAILS","type":"text"},
+                    {"key":"issue_for","label":"ISSUE FOR","type":"text"},
+                    {"key":"fare","label":"FARE","type":"number","financial":"cost"},
+                    {"key":"sell","label":"SELL","type":"number","financial":"sale"},
+                    {"key":"issue_date","label":"ISSUE DATE","type":"date"},
+                    {"key":"pnr","label":"PNR","type":"text"},
+                    {"key":"time_limit","label":"TIME LIMIT","type":"text"},
+                    {"key":"dep_time","label":"DEP TIME","type":"text"},
+                    {"key":"arr_time","label":"ARR TIME","type":"text"},
+                    {"key":"issued_by","label":"ISSUED BY","type":"text"},
+                    {"key":"remarks","label":"REMARKS","type":"textarea"}
+                  ],
+                  is_active: true
+                };
+
+                const { error } = await supabase
+                  .from('dsr_templates')
+                  .upsert(template, { onConflict: 'template_key' });
+
+                if (error) throw error;
+                toast.success('DSR Templates synchronized successfully');
+              } catch (err: any) {
+                console.error(err);
+                toast.error('Failed to sync: ' + (err.message || 'Unknown error'));
+              } finally {
+                setSyncing(false);
+              }
+            }} 
+            disabled={syncing} 
+            className="btn-outline text-xs h-9"
+          >
+            <RotateCcw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} /> 
+            {syncing ? 'Syncing...' : 'Sync DSR Templates'}
+          </button>
+        </div>
       </div>
     </div>
   );

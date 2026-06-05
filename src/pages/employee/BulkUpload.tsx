@@ -8,6 +8,7 @@ import Papa from 'papaparse';
 const TEMPLATES: Record<string, string[]> = {
   'Air Ticket': ['SI/NO', 'Issue Date', 'Passenger Name', 'Mobile No', 'Flight No', 'Sector', 'Travel Date', 'PNR', 'Ticket No', 'Issued for', 'Fare', 'Sold', 'Profit', 'Supplier', 'Staff', 'Remarks'],
   'UAE Visa': ['Visa ID', 'Booking Date', 'Passenger Name', 'Passport No', 'Nationality', 'Contact No', 'Agency / Client', 'Sales Executive', 'Visa Type', 'Duration', 'Supplier (GDRFA / Agent)', 'Visa Sale', 'Visa Cost', 'Profit', 'Application Status', 'Payment Status', 'Issue Date', 'Expiry Date', 'Remarks'],
+  'Group Sheets': ['S.NO', 'PAX NAME', 'TRAVEL DATE FLIGHT DETAILS', 'ISSUE FOR', 'FARE', 'SELL', 'ISSUE DATE', 'PNR', 'TIME LIMIT', 'DEP TIME', 'ARR TIME', 'ISSUED BY', 'REMARKS'],
 };
 
 export default function BulkUpload() {
