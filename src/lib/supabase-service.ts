@@ -152,6 +152,9 @@ export function formatCurrency(amount: number, fractions = 2): string {
 
 export function getLocalTodayStr(): string {
   const d = new Date();
+  // Adjust boundary: sessions before 4 AM belong to the previous calendar day
+  // This supports night shifts ending after midnight.
+  d.setHours(d.getHours() - 4);
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -163,65 +166,57 @@ import { getAttendanceSettings, classifyLogin, isWeekend } from './settings';
 
 /**
  * Handles the 'Morning Reset' and Daily Login logic.
- * 1. Checks if there is an open session from a PREVIOUS day.
- * 2. If found, auto-closes it using the user's last_seen_at (heartbeat).
- * 3. Ensures a new session is started for TODAY.
+ * Supports Night Shifts (crossing midnight) and uses a 7-hour grace window.
  */
 export async function handleAttendanceHandshake(userId: string, lat?: number | null, lng?: number | null, locStatus?: string) {
   const today = getLocalTodayStr();
   const now = new Date();
 
-  // 1. Check for forgotten sessions from YESTERDAY or before
-  const { data: forgotten } = await supabase
+  // 1. Check for any OPEN session (regardless of date)
+  const { data: openSession } = await supabase
     .from('attendance')
-    .select('id, date, login_time, employee_id')
+    .select('id, date, login_time, employee_id, status, total_break_minutes, offline_minutes')
     .eq('employee_id', userId)
-    .lt('date', today)
     .is('logout_time', null)
+    .order('date', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
-  if (forgotten) {
-    // Get the user's last seen time (heartbeat) to use as the auto-checkout time
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('last_seen_at')
-      .eq('user_id', userId)
-      .single();
-
-    const lastSeen = profile?.last_seen_at ? new Date(profile.last_seen_at) : null;
-
-    // Fallback: If no last seen or last seen is before login, use settings.work_end or 19:00
+  if (openSession) {
     const settings = await getAttendanceSettings(userId);
-    const [h, m] = (settings.work_end || '19:00').split(':').map(Number);
+    const [startH, startM] = (settings.work_start || '09:00').split(':').map(Number);
+    const [endH, endM] = (settings.work_end || '18:00').split(':').map(Number);
 
-    let autoLogoutTime = lastSeen;
-    const forgottenLoginDate = parseDbDate(forgotten.login_time);
+    // Calculate when this specific shift was supposed to end
+    const scheduledEnd = new Date(openSession.date);
+    scheduledEnd.setHours(endH, endM, 0, 0);
 
-    // The designated default logout time for that shift's day
-    const maxLogoutDate = new Date(forgotten.date);
-    maxLogoutDate.setHours(h, m, 0, 0);
-
-    // Midnight of the shift's day (end of that calendar day)
-    const midnightShiftDay = new Date(forgotten.date);
-    midnightShiftDay.setHours(23, 59, 59, 999);
-
-    if (!autoLogoutTime || (forgottenLoginDate && autoLogoutTime <= forgottenLoginDate)) {
-      if (forgottenLoginDate) {
-        autoLogoutTime = maxLogoutDate;
-      } else {
-        autoLogoutTime = new Date();
-      }
-    } else {
-      // User requested: If activity goes past 12 AM (midnight) of that shift's day, 
-      // cap the checkout time to the default setting logout time (work_end).
-      if (autoLogoutTime > midnightShiftDay) {
-        autoLogoutTime = maxLogoutDate;
-      }
+    // If shift crosses midnight (e.g. 2 PM to 1 AM), the end is on the next calendar day
+    if (endH < startH || (endH === startH && endM < startM)) {
+      scheduledEnd.setDate(scheduledEnd.getDate() + 1);
     }
 
-    const totalMs = autoLogoutTime.getTime() - (forgottenLoginDate ? forgottenLoginDate.getTime() : autoLogoutTime.getTime());
-    const breakMs = (Number((forgotten as any).total_break_minutes) || 0) * 60000;
-    const offlineMs = (Number((forgotten as any).offline_minutes) || 0) * 60000;
+    // Rule: Wait 7 hours after scheduled end before auto-closing
+    const GRACE_HOURS = 7;
+    const cutoffTime = new Date(scheduledEnd.getTime() + GRACE_HOURS * 3600000);
+
+    if (now < cutoffTime) {
+      // User is still within their shift window or the 7-hour grace period
+      // Do nothing, let them stay logged in to their current session
+      return;
+    }
+
+    // EXCEEDED GRACE PERIOD: Auto-close the forgotten session
+    const { data: profile } = await supabase.from('profiles').select('last_seen_at').eq('user_id', userId).single();
+    const lastSeen = profile?.last_seen_at ? new Date(profile.last_seen_at) : null;
+    const loginDate = parseDbDate(openSession.login_time);
+
+    // Smart logout time: Use heartbeat if it's sensible, otherwise cap at scheduled end
+    let autoLogoutTime = lastSeen && loginDate && lastSeen > loginDate && lastSeen < cutoffTime ? lastSeen : scheduledEnd;
+
+    const totalMs = autoLogoutTime.getTime() - (loginDate ? loginDate.getTime() : autoLogoutTime.getTime());
+    const breakMs = (Number(openSession.total_break_minutes) || 0) * 60000;
+    const offlineMs = (Number(openSession.offline_minutes) || 0) * 60000;
     const hoursWorked = Math.max(0, Math.round(((totalMs - breakMs - offlineMs) / 3600000) * 10) / 10);
 
     await supabase.from('attendance').update({
@@ -229,31 +224,32 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
       hours_worked: hoursWorked,
       is_auto_logout: true,
       status: 'Without Checkout',
-      work_summary: 'WITHOUT CHECKOUT (Capped at shift end due to midnight rollover)'
-    } as any).eq('id', forgotten.id);
+      work_summary: `AUTO-CLOSED (Forgotten session capped at ${autoLogoutTime.toLocaleTimeString()})`
+    } as any).eq('id', openSession.id);
 
-    // Send Notification about the reset
     await supabase.from('notifications').insert({
       user_id: userId,
       title: 'Session Auto-Closed',
-      message: `Your session from ${forgotten.date} was auto-closed as 'Without Checkout' at ${autoLogoutTime.toLocaleTimeString()}.`,
+      message: `Your session from ${openSession.date} was auto-closed as 'Without Checkout' after exceeding the 7-hour grace window.`,
       type: 'system',
       is_read: false
     });
   }
 
-  // 2. Now handle TODAY'S login
+  // 2. Now handle starting a NEW session for TODAY (if didn't already return)
   const settings = await getAttendanceSettings(userId);
-  if (isWeekend(now, settings)) return; // Don't track weekends
+  if (isWeekend(now, settings)) return; 
 
   const { data: existingToday } = await supabase
     .from('attendance')
-    .select('id, logout_time')
+    .select('id, logout_time, offline_minutes, auto_logout_count, is_auto_logout')
     .eq('employee_id', userId)
     .eq('date', today)
     .maybeSingle();
 
   if (!existingToday) {
+    // Only start a new session if they are within a reasonable start window for today
+    // Or if it's their first login for this business day.
     const status = classifyLogin(now, settings);
     await supabase.from('attendance').insert({
       employee_id: userId,
@@ -265,20 +261,16 @@ export async function handleAttendanceHandshake(userId: string, lat?: number | n
       login_location_status: locStatus || 'no_zone',
     } as any);
   } else if (existingToday.logout_time) {
-    // Re-login after logout on same day -> resume session
+    // Re-login after manual logout on same day -> resume session
     const logoutDate = new Date(existingToday.logout_time);
     const offlineMin = Math.max(0, Math.round((now.getTime() - logoutDate.getTime()) / 60000));
-
-    const currentOffline = Number((existingToday as any).offline_minutes) || 0;
-    const currentAutoCount = Number((existingToday as any).auto_logout_count) || 0;
-    const isAuto = (existingToday as any).is_auto_logout === true;
 
     await supabase.from('attendance').update({
       logout_time: null,
       hours_worked: 0,
       is_auto_logout: false,
-      offline_minutes: currentOffline + offlineMin,
-      auto_logout_count: isAuto ? currentAutoCount + 1 : currentAutoCount
+      offline_minutes: (Number(existingToday.offline_minutes) || 0) + offlineMin,
+      auto_logout_count: (existingToday as any).is_auto_logout ? (Number((existingToday as any).auto_logout_count) || 0) + 1 : (Number((existingToday as any).auto_logout_count) || 0)
     } as any).eq('id', existingToday.id);
   }
 }

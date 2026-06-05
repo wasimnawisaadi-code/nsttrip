@@ -75,8 +75,11 @@ export default function AttendancePage() {
         .from('attendance')
         .select('*')
         .eq('employee_id', user.id)
-        .eq('date', today)
+        .or(`logout_time.is.null,date.eq.${today}`)
+        .order('date', { ascending: false })
+        .limit(1)
         .maybeSingle();
+
       setTodayRecord(todayData);
     } catch (e) {
       console.error('Attendance load failed', e);
