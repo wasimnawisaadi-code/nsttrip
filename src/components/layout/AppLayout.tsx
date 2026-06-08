@@ -46,7 +46,7 @@ const employeeLinks = [
   { to: '/employee/dsr', label: 'My Daily Status', icon: ClipboardList },
   { to: '/employee/hotel-contracts', label: 'Hotel Contracts', icon: FileText },
   { to: '/employee/performance', label: 'My Performance', icon: Trophy },
-  { to: '/employee/passwords', label: 'Team Passwords', icon: Key },
+  { to: '/employee/passwords', label: 'Password Manager', icon: Key },
   { to: '/employee/attendance', label: 'Attendance', icon: Clock },
   { to: '/employee/leave', label: 'Leave', icon: FileText },
   { to: '/employee/chat', label: 'Team Chat', icon: MessageCircle },
