@@ -34,6 +34,7 @@ import ProjectMonitoring from "./pages/admin/ProjectMonitoring";
 import BroadcastModule from "./pages/admin/BroadcastModule";
 import UserProfile from "./pages/shared/UserProfile";
 import HotelContracts from "./pages/shared/HotelContracts";
+import PasswordManager from "./pages/admin/PasswordManager";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/admin/reports" element={<ReportsPage />} />
               <Route path="/admin/audit-log" element={<AuditLog />} />
               <Route path="/admin/geofence" element={<GeofenceManagement />} />
+              <Route path="/admin/passwords" element={<PasswordManager />} />
               <Route path="/admin/important-dates" element={<ImportantDates />} />
               <Route path="/admin/chat" element={<TeamChat />} />
               <Route path="/admin/notifications" element={<NotificationsPage />} />

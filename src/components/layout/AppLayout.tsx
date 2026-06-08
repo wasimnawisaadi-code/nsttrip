@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Briefcase, Calendar, FileText,
   Coins, Shield, LogOut, Menu,
   Search, ChevronLeft, Clock, PlaneTakeoff, MessageCircle, CalendarDays, Bell, MapPin,
-  ClipboardList, Sparkles, MessagesSquare, Trophy, Megaphone, User as UserIcon, LayoutGrid
+  ClipboardList, Sparkles, MessagesSquare, Trophy, Megaphone, User as UserIcon, LayoutGrid, Key
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,6 +30,7 @@ const adminLinks = [
   { to: '/admin/leave', label: 'Leave & HR', icon: FileText },
   { to: '/admin/payroll', label: 'Payroll', icon: Coins },
   { to: '/admin/geofence', label: 'Geofence Zones', icon: MapPin },
+  { to: '/admin/passwords', label: 'Password Manager', icon: Key },
   { to: '/admin/audit-log', label: 'Audit Log', icon: Shield },
   { to: '/admin/chat', label: 'Team Chat', icon: MessageCircle },
   { to: '/admin/profile', label: 'My Profile', icon: Shield },
@@ -254,7 +255,16 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (!loading && !user) navigate('/login');
-  }, [user, loading, navigate]);
+    if (!loading && user && profile) {
+      if (!isAdmin && location.pathname.startsWith('/admin')) {
+        navigate('/employee/dashboard');
+        toast.error('Access Denied: Admins Only');
+      }
+      if (isAdmin && location.pathname.startsWith('/employee')) {
+        navigate('/admin/dashboard');
+      }
+    }
+  }, [user, profile, loading, navigate, location.pathname, isAdmin]);
 
   if (loading) return <div className="flex h-screen items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" /></div>;
   if (!user || !profile) return null;
