@@ -15,6 +15,20 @@ export interface AttendanceSettings {
   lunch_break_min: number;         // standard lunch deduction or break time allowance
 }
 
+export interface SecuritySettings {
+  require_admin_password_for_passwords: boolean;
+  require_captcha_for_passwords: boolean;
+  mfa_enabled: boolean;
+  session_timeout_min: number;
+}
+
+export const DEFAULT_SECURITY: SecuritySettings = {
+  require_admin_password_for_passwords: true,
+  require_captcha_for_passwords: true,
+  mfa_enabled: false,
+  session_timeout_min: 60,
+};
+
 export type EmployeeOverride = Partial<AttendanceSettings> & {
   enforce_geofence?: boolean;     // per-employee bypass (for field/sales staff)
 };
@@ -37,20 +51,24 @@ export const DEFAULT_ATTENDANCE: AttendanceSettings = {
 
 let baseCache: AttendanceSettings | null = null;
 let overridesCache: AttendanceOverrides | null = null;
+let securityCache: SecuritySettings | null = null;
 let cacheTime = 0;
 const TTL = 60_000; // 1 minute
 
 async function loadAll() {
-  if (baseCache && overridesCache && Date.now() - cacheTime < TTL) return;
+  if (baseCache && overridesCache && securityCache && Date.now() - cacheTime < TTL) return;
   const { data } = await supabase
     .from('app_settings' as any)
     .select('key, value')
-    .in('key', ['attendance', 'attendance_overrides']);
+    .in('key', ['attendance', 'attendance_overrides', 'security']);
   const rows = (data as any[]) || [];
   const baseRow = rows.find(r => r.key === 'attendance');
   const ovRow = rows.find(r => r.key === 'attendance_overrides');
+  const secRow = rows.find(r => r.key === 'security');
+  
   baseCache = { ...DEFAULT_ATTENDANCE, ...((baseRow?.value as any) || {}) };
   overridesCache = (ovRow?.value as AttendanceOverrides) || {};
+  securityCache = { ...DEFAULT_SECURITY, ...((secRow?.value as any) || {}) };
   cacheTime = Date.now();
 }
 
@@ -58,7 +76,24 @@ async function loadAll() {
 export function invalidateAttendanceCache() {
   baseCache = null;
   overridesCache = null;
+  securityCache = null;
   cacheTime = 0;
+}
+
+export async function getSecuritySettings(): Promise<SecuritySettings> {
+  await loadAll();
+  return securityCache!;
+}
+
+export async function saveSecuritySettings(value: SecuritySettings, userId?: string) {
+  const { error } = await supabase
+    .from('app_settings' as any)
+    .upsert({ key: 'security', value, updated_by: userId, updated_at: new Date().toISOString() } as any, { onConflict: 'key' });
+  if (!error) {
+    securityCache = value;
+    cacheTime = Date.now();
+  }
+  return { error };
 }
 
 /** Returns global settings, or merged with per-employee override when userId given. */

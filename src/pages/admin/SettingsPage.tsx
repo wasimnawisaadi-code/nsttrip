@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { getAttendanceSettings, saveAttendanceSettings, DEFAULT_ATTENDANCE, type AttendanceSettings } from '@/lib/settings';
+import { 
+  getAttendanceSettings, 
+  saveAttendanceSettings, 
+  DEFAULT_ATTENDANCE, 
+  type AttendanceSettings,
+  getSecuritySettings,
+  saveSecuritySettings,
+  DEFAULT_SECURITY,
+  type SecuritySettings
+} from '@/lib/settings';
 import { auditLog } from '@/lib/supabase-service';
-import { Clock, Save, AlertCircle, Database, RotateCcw } from 'lucide-react';
+import { Clock, Save, AlertCircle, Database, RotateCcw, Shield, Lock, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -11,12 +20,21 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export default function SettingsPage() {
   const { user } = useAuth();
   const [att, setAtt] = useState<AttendanceSettings>(DEFAULT_ATTENDANCE);
+  const [sec, setSec] = useState<SecuritySettings>(DEFAULT_SECURITY);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingSec, setSavingSec] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    getAttendanceSettings().then(s => { setAtt(s); setLoading(false); });
+    Promise.all([
+      getAttendanceSettings(),
+      getSecuritySettings()
+    ]).then(([a, s]) => { 
+      setAtt(a); 
+      setSec(s);
+      setLoading(false); 
+    });
   }, []);
 
   const toggleDay = (d: number) => {
@@ -27,9 +45,18 @@ export default function SettingsPage() {
     setSaving(true);
     const { error } = await saveAttendanceSettings(att, user?.id);
     setSaving(false);
-    if (error) { toast.error('Failed to save settings'); return; }
+    if (error) { toast.error('Failed to save attendance settings'); return; }
     await auditLog('settings_updated', 'app_settings', 'attendance', att as unknown as Record<string, unknown>);
     toast.success('Attendance settings saved');
+  };
+
+  const handleSaveSecurity = async () => {
+    setSavingSec(true);
+    const { error } = await saveSecuritySettings(sec, user?.id);
+    setSavingSec(false);
+    if (error) { toast.error('Failed to save security settings'); return; }
+    await auditLog('settings_updated', 'app_settings', 'security', sec as unknown as Record<string, unknown>);
+    toast.success('Security settings updated successfully');
   };
 
   if (loading) return <div className="text-center py-12 text-muted-foreground">Loading…</div>;
@@ -83,6 +110,67 @@ export default function SettingsPage() {
         <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">
           <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save Settings'}
         </button>
+      {/* Advanced Security Settings */}
+      <div className="card-nawi space-y-5 border-primary/20 bg-primary/5">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5 text-primary" />
+          <h3 className="font-semibold font-display">Advanced Security & Privacy</h3>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-3 bg-card border border-border rounded-xl">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Require Admin Password</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Ask for admin password before revealing sensitive credentials in Password Manager.</p>
+            </div>
+            <button 
+              onClick={() => setSec(s => ({ ...s, require_admin_password_for_passwords: !s.require_admin_password_for_passwords }))}
+              className={`w-12 h-6 rounded-full transition-colors relative ${sec.require_admin_password_for_passwords ? 'bg-primary' : 'bg-muted'}`}
+            >
+              <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${sec.require_admin_password_for_passwords ? 'translate-x-6' : ''}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-card border border-border rounded-xl">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Numeric Captcha Verification</span>
+              </div>
+              <p className="text-xs text-muted-foreground">Require solving a math puzzle after password confirmation for extra bot protection.</p>
+            </div>
+            <button 
+              onClick={() => setSec(s => ({ ...s, require_captcha_for_passwords: !s.require_captcha_for_passwords }))}
+              className={`w-12 h-6 rounded-full transition-colors relative ${sec.require_captcha_for_passwords ? 'bg-primary' : 'bg-muted'}`}
+            >
+              <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${sec.require_captcha_for_passwords ? 'translate-x-6' : ''}`} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Session Timeout (minutes)</label>
+              <input 
+                type="number" 
+                min={1} 
+                max={1440} 
+                value={sec.session_timeout_min}
+                onChange={e => setSec(s => ({ ...s, session_timeout_min: Math.max(1, Number(e.target.value) || 1) }))}
+                className="input-nawi" 
+              />
+              <p className="text-xs text-muted-foreground mt-1">Automatic session expiry after inactivity.</p>
+            </div>
+          </div>
+        </div>
+
+        <button onClick={handleSaveSecurity} disabled={savingSec} className="btn-primary text-sm shadow-lg shadow-primary/20">
+          <Save className="w-4 h-4" /> {savingSec ? 'Updating…' : 'Update Security Settings'}
+        </button>
+      </div>
+
       <div className="card-nawi space-y-5">
         <div className="flex items-center gap-2">
           <Database className="w-5 h-5 text-secondary" />
