@@ -155,7 +155,7 @@ export default function PasswordManager() {
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'Social Media': return <smartphone className="w-4 h-4" />;
+      case 'Social Media': return <Smartphone className="w-4 h-4" />;
       case 'B2B Portals': return <Globe className="w-4 h-4" />;
       case 'Websites': return <Globe className="w-4 h-4" />;
       case 'Confidential': return <Shield className="w-4 h-4" />;
