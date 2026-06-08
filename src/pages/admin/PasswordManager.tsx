@@ -5,9 +5,11 @@ import {
   ChevronRight, MoreVertical, Filter, Loader2, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import PasswordConfirmDialog from '@/components/PasswordConfirmDialog';
+import { getSecuritySettings, type SecuritySettings, DEFAULT_SECURITY } from '@/lib/settings';
 
 interface PasswordEntry {
   id: string;
@@ -16,9 +18,11 @@ interface PasswordEntry {
   password?: string;
   url?: string;
   category: string;
+  visibility: 'admin_only' | 'shared' | 'personal';
   notes?: string;
   created_at: string;
   updated_at: string;
+  created_by?: string;
 }
 
 const CATEGORIES = [
@@ -33,6 +37,7 @@ const CATEGORIES = [
 ];
 
 export default function PasswordManager() {
+  const { user, isAdmin } = useAuth();
   const [entries, setEntries] = useState<PasswordEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,9 +55,12 @@ export default function PasswordManager() {
   const [captchaValue, setCaptchaValue] = useState<{a: number, b: number, total: number} | null>(null);
   const [captchaInput, setCaptchaInput] = useState('');
   const [showCaptcha, setShowCaptcha] = useState(false);
+  // Security settings
+  const [secSettings, setSecSettings] = useState<SecuritySettings>(DEFAULT_SECURITY);
 
   useEffect(() => {
     fetchEntries();
+    getSecuritySettings().then(setSecSettings);
   }, []);
 
   const fetchEntries = async () => {
@@ -91,6 +99,18 @@ export default function PasswordManager() {
     }
   };
 
+  const handleSecurityAuth = (action: () => void) => {
+    setSecurityAction(() => action);
+
+    if (secSettings.require_admin_password_for_passwords) {
+      setShowConfirmDialog(true);
+    } else if (secSettings.require_captcha_for_passwords) {
+      generateCaptcha();
+    } else {
+      action();
+    }
+  };
+
   const handleRevealPassword = (id: string) => {
     if (revealedPasswords[id]) {
       const newRevealed = { ...revealedPasswords };
@@ -100,8 +120,7 @@ export default function PasswordManager() {
     }
 
     setRevealId(id);
-    setSecurityAction(() => actuallyRevealPassword);
-    setShowConfirmDialog(true);
+    handleSecurityAuth(actuallyRevealPassword);
   };
 
   const actuallyRevealPassword = async () => {
@@ -123,8 +142,7 @@ export default function PasswordManager() {
   };
 
   const handleDelete = (id: string) => {
-    setRevealId(id);
-    setSecurityAction(() => async () => {
+    handleSecurityAuth(async () => {
         try {
             const { error } = await supabase.from('password_entries').delete().eq('id', id);
             if (error) throw error;
@@ -134,7 +152,6 @@ export default function PasswordManager() {
             toast.error('Failed to delete: ' + error.message);
         }
     });
-    setShowConfirmDialog(true);
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -240,12 +257,22 @@ export default function PasswordManager() {
               key={entry.id}
               className="bg-card hover:bg-card/80 border border-border/50 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
             >
-              {/* Category Badge */}
-              <div className="absolute top-0 right-0 p-3">
+              {/* Category & Visibility Badges */}
+              <div className="absolute top-0 right-0 p-3 flex flex-col items-end gap-1">
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full bg-primary/10 text-primary flex items-center gap-1.5">
                   {getCategoryIcon(entry.category)}
                   {entry.category}
                 </span>
+                {entry.visibility === 'shared' && (
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-success/10 text-success">
+                    Shared
+                  </span>
+                )}
+                {entry.visibility === 'personal' && (
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-secondary/10 text-secondary">
+                    Personal
+                  </span>
+                )}
               </div>
 
               <div className="flex items-start gap-4 mb-4">
@@ -328,21 +355,27 @@ export default function PasswordManager() {
                   Updated: {format(new Date(entry.updated_at), 'MMM d, yyyy')}
                 </span>
                 <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => {
-                        setEditingEntry(entry);
-                        setShowAddModal(true);
-                    }}
-                    className="p-2 hover:bg-primary/10 text-muted-foreground hover:text-primary rounded-lg transition-all"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(entry.id)}
-                    className="p-2 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-lg transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {(isAdmin || entry.created_by === user?.id) && (
+                    <>
+                      <button 
+                        onClick={() => {
+                            handleSecurityAuth(() => {
+                                setEditingEntry(entry);
+                                setShowAddModal(true);
+                            });
+                        }}
+                        className="p-2 hover:bg-primary/10 text-muted-foreground hover:text-primary rounded-lg transition-all"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(entry.id)}
+                        className="p-2 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-lg transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -370,17 +403,18 @@ export default function PasswordManager() {
               
               setLoading(true);
               try {
+                const payload = { ...data, created_by: user?.id } as any;
                 if (editingEntry) {
                     const { error } = await supabase
                         .from('password_entries')
-                        .update(data as any)
+                        .update(payload)
                         .eq('id', editingEntry.id);
                     if (error) throw error;
                     toast.success('Credential updated');
                 } else {
                     const { error } = await supabase
                         .from('password_entries')
-                        .insert([data] as any);
+                        .insert([payload]);
                     if (error) throw error;
                     toast.success('Credential added successfully');
                 }
@@ -404,6 +438,18 @@ export default function PasswordManager() {
                     {CATEGORIES.filter(c => c !== 'All').map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider mb-1.5 block text-muted-foreground">Visibility</label>
+                <select name="visibility" defaultValue={editingEntry?.visibility || (isAdmin ? 'admin_only' : 'personal')} className="input-nawi" required>
+                  {isAdmin && <option value="admin_only">Admin Only</option>}
+                  <option value="shared">Shared (Team)</option>
+                  <option value="personal">Personal (Private)</option>
+                </select>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {isAdmin ? 'Admins can see everything. "Shared" will be visible to all staff.' : 'Personal passwords are only visible to you. Shared will be visible to everyone.'}
+                </p>
               </div>
 
               <div>
@@ -487,7 +533,11 @@ export default function PasswordManager() {
         onClose={() => setShowConfirmDialog(false)}
         onConfirm={() => {
             setShowConfirmDialog(false);
-            generateCaptcha();
+            if (secSettings.require_captcha_for_passwords) {
+              generateCaptcha();
+            } else {
+              securityAction?.();
+            }
         }}
         title="Admin Security Check"
         description="This action requires additional authentication. Please enter your administrator password."
