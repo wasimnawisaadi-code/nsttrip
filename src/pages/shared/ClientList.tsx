@@ -22,6 +22,7 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
   const [monthFilter, setMonthFilter] = useState('all');
   const [employeeFilter, setEmployeeFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [refreshCount, setRefreshCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -34,7 +35,7 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
       setProfiles(pData || []);
     };
     fetchData();
-  }, []);
+  }, [refreshCount]);
 
   const services = [...new Set(clients.map(c => c.service).filter(Boolean))];
   const nationalities = [...new Set(clients.map(c => c.nationality || (c.service_details as any)?.nationality).filter(Boolean))];
@@ -49,7 +50,9 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
         const dsr = await fetchEntries({ isAdmin: true });
         if (dsr.length > 0) {
           await autoConvertWalkins(dsr);
-          // If something was synced, it will show up on the next regular fetch
+          // Force a local state update by re-fetching clients if needed, 
+          // but for now, we'll just let the regular fetch handle it or trigger a reload if we detect changes
+          setRefreshCount(p => p + 1);
         }
       } catch (err) {
         console.error('Initial sync failed:', err);
@@ -57,6 +60,7 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
     };
     syncWalkins();
   }, [user]);
+
 
   const filtered = clients.filter(c => {
     if (serviceFilter !== 'all' && c.service !== serviceFilter) return false;

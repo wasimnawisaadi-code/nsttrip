@@ -195,11 +195,16 @@ export async function autoConvertWalkins(entries: DSREntry[]) {
     const mobile = mobileValue.replace(/[^\d+]/g, '') || '000000';
 
     // Deduplicate: same name and mobile OR same DSR ID
-    const { data: duplicate } = await supabase
-      .from('clients')
-      .select('id')
-      .or(`name.ilike.%${name}%,mobile.eq.${mobile}`)
-      .maybeSingle();
+    // If mobile is generic '000000', only match if name is also specific (not 'Walk-in Client')
+    let duplicate = null;
+    if (mobile !== '000000' || name !== 'Walk-in Client') {
+      const { data } = await supabase
+        .from('clients')
+        .select('id')
+        .or(`name.ilike.${name},mobile.eq.${mobile}`)
+        .maybeSingle();
+      duplicate = data;
+    }
 
     if (duplicate) {
       await supabase.from('clients').update({ dsr_entry_id: entry.id }).eq('id', duplicate.id);
