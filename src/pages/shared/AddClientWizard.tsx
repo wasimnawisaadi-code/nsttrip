@@ -7,6 +7,8 @@ import { generateDisplayId, auditLog, formatDate } from '@/lib/supabase-service'
 import { toast } from 'sonner';
 import WhatsAppTemplateModal from '@/components/WhatsAppTemplateModal';
 
+const uid = () => Math.random().toString(36).substring(2, 9);
+
 const SERVICES = [
   { key: 'Air Ticket', emoji: '✈️' },
   { key: 'UAE Visa', emoji: '🪪', subcategories: ['Transit Visa', 'Outside Visa - Single Entry', 'Outside Visa - Multiple Entry', 'Visa Extension', 'Visa Change by Bus', 'Visa Change by Flight', 'Family Visa', 'Status Change', 'Visa Cancellation', 'Abscond'] },
