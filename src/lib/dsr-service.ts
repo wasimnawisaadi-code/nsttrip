@@ -238,7 +238,7 @@ export async function autoConvertWalkins(entries: DSREntry[]) {
       assigned_to: entry.employee_id,
       created_by: entry.employee_id,
       dsr_entry_id: entry.id,
-      status: 'New',
+      status: 'Success',
       service_details: entry.data,
     }).select('id').single();
 

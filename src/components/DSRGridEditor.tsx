@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, Save, RotateCcw, CalendarClock, UserPlus, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, Save, RotateCcw, CalendarClock, UserPlus, ExternalLink, Link2, FileType } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 
@@ -307,8 +307,8 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
                   <div className="flex flex-col items-center gap-1">
                     {idx + 1}
                     {isWalkInRow(r) && (
-                      <span className="text-[8px] bg-orange-100 text-orange-600 px-1 rounded font-bold whitespace-nowrap">
-                        WALKIN
+                      <span className={`text-[8px] px-1 rounded font-bold whitespace-nowrap ${linkedClientIds[r.id!] ? 'bg-indigo-100 text-indigo-600' : 'bg-orange-100 text-orange-600'}`}>
+                        {linkedClientIds[r.id!] ? 'MERGED' : 'WALKIN'}
                       </span>
                     )}
                   </div>
@@ -317,9 +317,9 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
                   <div className="flex items-center justify-center gap-1">
                     {onConvertWalkin && isWalkInRow(r) && r.id && (
                       linkedClientIds[r.id] ? (
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:bg-green-50" asChild>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-indigo-600 hover:bg-indigo-50" title="Merged with Client" asChild>
                           <a href={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[r.id]}`} target="_blank" rel="noreferrer">
-                            <ExternalLink className="w-3.5 h-3.5" />
+                            <Link2 className="w-4 h-4" />
                           </a>
                         </Button>
                       ) : (

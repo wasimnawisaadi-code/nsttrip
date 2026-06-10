@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { exportToExcel } from '@/lib/excel-export';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, LayoutGrid, LayoutList, Briefcase, Filter, Download, MessageCircle } from 'lucide-react';
+import { Plus, Search, Eye, LayoutGrid, LayoutList, Briefcase, Filter, Download, MessageCircle, FileType } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { fetchPaginated } from '@/lib/dsr-service';
@@ -136,6 +136,9 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
                   <td className="text-xs">{formatCurrency(c.revenue || 0)}</td>
                   <td className="flex gap-1">
                     <Eye className="w-4 h-4 text-muted-foreground" />
+                    {c.dsr_entry_id && (
+                      <FileType className="w-4 h-4 text-indigo-600" title="Linked to DSR Entry" />
+                    )}
                     {(c.status === 'New' || c.status === 'Processing') && c.mobile && (
                       <button onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${c.mobile.replace(/[^0-9]/g, '')}?text=Dear ${c.name},%0AThis is a follow-up regarding your ${c.service || 'service'} enquiry with Nawi Saadi Travel %26 Tourism.%0APlease let us know if you need any updates.%0ARegards`, '_blank'); }} className="text-success hover:text-success/80" title="WhatsApp Follow-up">
                         <MessageCircle className="w-4 h-4" />
