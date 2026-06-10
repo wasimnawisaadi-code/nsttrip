@@ -588,8 +588,10 @@ export default function DailyStatusReport() {
                             <Link to={`${isAdmin ? '/admin' : '/employee'}/clients/${isLinked}`}>View Client →</Link>
                           </Button>
                         ) : (
-                          <Button size="sm" onClick={() => handleConvertToClient(w)} className="h-7 text-[10px] bg-orange-500 hover:bg-orange-600 text-white font-bold">
-                            <Plus className="w-3 h-3 mr-1" /> Add Client
+                          <Button size="sm" asChild className="h-7 text-[10px] bg-orange-500 hover:bg-orange-600 text-white font-bold">
+                            <Link to={`${isAdmin ? '/admin' : '/employee'}/clients/add?from_dsr=1&dsr_entry_id=${w.id}&name=${encodeURIComponent(w.data['Passenger Name'] || w.data['passenger_name'] || w.data['Name'] || '')}&mobile=${encodeURIComponent(w.data['Issued for'] || w.data['Mobile'] || w.data['Phone'] || '')}&pnr=${encodeURIComponent(w.data['PNR'] || w.data['pnr'] || '')}&sector=${encodeURIComponent(w.data['Sector'] || w.data['sector'] || '')}&flight_no=${encodeURIComponent(w.data['Flight No'] || w.data['flight_no'] || '')}&travel_date=${encodeURIComponent(w.data['Travel Date'] || w.data['travel_date'] || '')}&ticket_no=${encodeURIComponent(w.data['Ticket No'] || w.data['ticket_no'] || '')}&sold=${w.sale_amount || ''}&supplier=${encodeURIComponent(w.data['Supplier'] || '')}`}>
+                              <Plus className="w-3 h-3 mr-1" /> Add Client
+                            </Link>
                           </Button>
                         )}
                       </div>

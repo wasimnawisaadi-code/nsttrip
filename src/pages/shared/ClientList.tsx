@@ -41,6 +41,23 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
   const months = [...new Set(clients.map(c => c.created_at?.substring(0, 7)).filter(Boolean))].sort().reverse();
   const leadSources = [...new Set(clients.map(c => c.lead_source).filter(Boolean))];
 
+  // Background Sync: Auto-detect and convert walk-ins from DSR
+  useEffect(() => {
+    const syncWalkins = async () => {
+      try {
+        const { fetchEntries, autoConvertWalkins } = await import('@/lib/dsr-service');
+        const dsr = await fetchEntries({ isAdmin: true });
+        if (dsr.length > 0) {
+          await autoConvertWalkins(dsr);
+          // If something was synced, it will show up on the next regular fetch
+        }
+      } catch (err) {
+        console.error('Initial sync failed:', err);
+      }
+    };
+    syncWalkins();
+  }, [user]);
+
   const filtered = clients.filter(c => {
     if (serviceFilter !== 'all' && c.service !== serviceFilter) return false;
     if (statusFilter !== 'all' && c.status !== statusFilter) return false;
