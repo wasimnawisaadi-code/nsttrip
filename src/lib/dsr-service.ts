@@ -125,6 +125,18 @@ export async function createEntry(
     source,
   });
   if (error) throw error;
+
+  // Auto-convert walk-ins to clients
+  try {
+    const { data: newEntry } = await supabase
+      .from('dsr_entries')
+      .select('*')
+      .eq('display_id', display_id)
+      .single();
+    if (newEntry) await autoConvertWalkins([newEntry as any]);
+  } catch (err) {
+    console.error('Failed to auto-convert walk-in:', err);
+  }
 }
 
 export async function bulkCreateEntries(
@@ -156,7 +168,92 @@ export async function bulkCreateEntries(
   }));
   const { error } = await supabase.from('dsr_entries').insert(inserts);
   if (error) throw error;
+
+  // Auto-convert walk-ins for all newly created entries
+  try {
+    const { data: newEntries } = await supabase
+      .from('dsr_entries')
+      .select('*')
+      .in('display_id', inserts.map(i => i.display_id));
+    if (newEntries) await autoConvertWalkins(newEntries as any);
+  } catch (err) {
+    console.error('Failed to auto-convert walk-ins from bulk upload:', err);
+  }
+
   return inserts.length;
+}
+
+export async function autoConvertWalkins(entries: DSREntry[]) {
+  const WALKIN_REGEX = /(walk|was|wal)[\s-]?k?[i|l][m|n|k]?[g|n]?/i;
+  
+  for (const entry of entries) {
+    const isWalkin = Object.values(entry.data || {}).some(v => WALKIN_REGEX.test(String(v || '')));
+    if (!isWalkin) continue;
+
+    // Check if already linked
+    const { data: existing } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('dsr_entry_id', entry.id)
+      .maybeSingle();
+
+    if (existing) continue;
+
+    const name = (entry.data['Passenger Name'] || entry.data['passenger_name'] || 'Walk-in Client').trim();
+    const mobileValue = entry.data['Issued for'] || entry.data['Mobile'] || entry.data['Phone'] || entry.data['Contact No'] || '';
+    const mobile = String(mobileValue).replace(/[^\d+]/g, '') || '000000';
+
+    // Deduplicate: same name and mobile OR same DSR ID
+    const { data: duplicate } = await supabase
+      .from('clients')
+      .select('id')
+      .or(`name.ilike.%${name}%,mobile.eq.${mobile}`)
+      .maybeSingle();
+
+    if (duplicate) {
+      await supabase.from('clients').update({ dsr_entry_id: entry.id }).eq('id', duplicate.id);
+      continue;
+    }
+
+    const serviceNameMap: Record<string, string> = {
+      'air_ticket': 'Air Ticket',
+      'uae_visa': 'UAE Visa',
+      'global_visa': 'Global Visa',
+      'holiday_package': 'Holiday Package',
+      'group_sheets': 'Group Sheets'
+    };
+    const service = serviceNameMap[entry.template_key] || entry.template_key;
+
+    // Create new client
+    const displayId = await generateDisplayId('CLT');
+    const { data: newClient } = await supabase.from('clients').insert({
+      display_id: displayId,
+      name,
+      mobile,
+      client_type: 'Individual',
+      service,
+      lead_source: 'Walk-in',
+      revenue: entry.sale_amount || 0,
+      profit: entry.profit_amount || 0,
+      assigned_to: entry.employee_id,
+      created_by: entry.employee_id,
+      dsr_entry_id: entry.id,
+      status: 'New',
+      service_details: entry.data,
+    }).select('id').single();
+
+    if (newClient) {
+      const svcDisplayId = await generateDisplayId('SVC');
+      await supabase.from('client_services').insert({
+        display_id: svcDisplayId,
+        client_id: newClient.id,
+        service,
+        service_details: entry.data,
+        status: 'New' as const,
+        created_by: entry.employee_id,
+      });
+    }
+  }
 }
 
 export async function updateEntry(entryId: string, template: DSRTemplate, data: Record<string, any>) {
@@ -166,6 +263,14 @@ export async function updateEntry(entryId: string, template: DSRTemplate, data: 
     .update({ data, sale_amount: sale, cost_amount: cost, profit_amount: profit })
     .eq('id', entryId);
   if (error) throw error;
+
+  // Auto-convert if it's now a walk-in
+  try {
+    const { data: updatedEntry } = await supabase.from('dsr_entries').select('*').eq('id', entryId).single();
+    if (updatedEntry) await autoConvertWalkins([updatedEntry as any]);
+  } catch (err) {
+    console.error('Failed to auto-convert on update:', err);
+  }
 }
 
 export async function deleteEntry(entryId: string) {

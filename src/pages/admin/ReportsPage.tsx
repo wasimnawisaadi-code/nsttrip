@@ -69,6 +69,20 @@ export default function ReportsPage() {
     load();
   }, [yearMonth, viewType, dateFrom, dateTo]);
 
+  const syncHistoricalWalkins = async () => {
+    if (!dsrEntries.length) return;
+    toast.loading('Syncing historical walk-ins...');
+    try {
+      const { autoConvertWalkins } = await import('@/lib/dsr-service');
+      await autoConvertWalkins(dsrEntries);
+      toast.success('Historical walk-ins synchronized');
+      // Trigger reload
+      window.location.reload();
+    } catch (e: any) {
+      toast.error('Sync failed: ' + e.message);
+    }
+  };
+
   const exportCSV = (data: any[], filename: string) => {
     exportToExcel(data, filename.replace(/\.csv$/, ''), 'Sheet1');
   };
@@ -161,14 +175,17 @@ export default function ReportsPage() {
   }).sort((a, b) => b.revenue - a.revenue);
 
   let totalRevenue = 0, totalProfit = 0;
-  if (dataSource === 'combined' || dataSource === 'dsr') {
+  if (dataSource === 'dsr') {
     const stats = calculateFinancials(filteredDsr);
-    totalRevenue += stats.revenue; totalProfit += stats.profit;
-  }
-  if (dataSource === 'combined' || dataSource === 'clients') {
-    const eligibleClients = filteredClients.filter(c => dataSource !== 'combined' || !c.dsr_entry_id);
-    const stats = calculateFinancials(eligibleClients);
-    totalRevenue += stats.revenue; totalProfit += stats.profit;
+    totalRevenue = stats.revenue; totalProfit = stats.profit;
+  } else if (dataSource === 'clients' || dataSource === 'combined') {
+    // True Combined Total: All DSR entries + Clients that are NOT linked to DSR
+    const dsrStats = calculateFinancials(filteredDsr);
+    const unlinkedClients = filteredClients.filter(c => !c.dsr_entry_id);
+    const clientStats = calculateFinancials(unlinkedClients);
+    
+    totalRevenue = dsrStats.revenue + clientStats.revenue;
+    totalProfit = dsrStats.profit + clientStats.profit;
   }
 
   // Force client-only view when on the Clients tab
@@ -200,7 +217,16 @@ export default function ReportsPage() {
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-xl font-bold font-display">Reports & Analytics</h2>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1">
+          {isAdmin && dsrEntries.length > 0 && (
+            <button 
+              onClick={syncHistoricalWalkins}
+              className="btn-outline text-[10px] h-7 px-2 font-bold text-orange-600 border-orange-200 hover:bg-orange-50 mr-2"
+              title="Detect and convert historical walk-ins from DSR"
+            >
+              Sync Walk-ins
+            </button>
+          )}
           {renderDataSourceSelect()}
           <select value={viewType} onChange={(e) => setViewType(e.target.value as any)} className="input-nawi w-auto text-sm">
             <option value="monthly">Monthly</option>
