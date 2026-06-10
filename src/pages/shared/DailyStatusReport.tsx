@@ -576,8 +576,12 @@ export default function DailyStatusReport() {
                     return (
                       <div key={w.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-orange-100 shadow-sm">
                         <div className="min-w-0">
-                          <p className="text-xs font-bold truncate">{w.data['Passenger Name'] || 'Unknown'}</p>
-                          <p className="text-[9px] text-muted-foreground uppercase font-medium">PNR: {w.data['PNR'] || '—'}</p>
+                          <p className="text-xs font-bold truncate">
+                            {w.data['Passenger Name'] || w.data['passenger_name'] || w.data['Name'] || w.data['Client Name'] || 'Walk-in'}
+                          </p>
+                          <p className="text-[9px] text-muted-foreground uppercase font-medium">
+                            {w.data['PNR'] || w.data['pnr'] || w.data['Passport No'] || w.data['Mobile'] || '—'}
+                          </p>
                         </div>
                         {isLinked ? (
                           <Button size="sm" variant="ghost" asChild className="h-7 text-[10px] text-green-600 font-bold hover:bg-green-50">

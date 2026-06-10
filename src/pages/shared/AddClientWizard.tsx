@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Check, ChevronLeft, ChevronRight, Upload, AlertTriangle, Plus, Trash2, Calendar, Loader2, Sparkles, Camera, FileText, Download, Star, CheckCircle2 } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Upload, AlertTriangle, Plus, Trash2, Calendar, Loader2, Sparkles, Camera, FileText, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/integrations/supabase/client';
 import { generateDisplayId, auditLog, formatDate } from '@/lib/supabase-service';
@@ -151,44 +151,6 @@ export default function AddClientWizard() {
     documents: [] as DocEntry[],
     importantDates: [] as DateEntry[],
   });
-
-  const [recentWalkins, setRecentWalkins] = useState<any[]>([]);
-  const [loadingWalkins, setLoadingWalkins] = useState(false);
-
-  useEffect(() => {
-    if (isEditMode || step !== 0) return;
-    const loadWalkins = async () => {
-      setLoadingWalkins(true);
-      const { data: clients } = await supabase.from('clients').select('dsr_entry_id').not('dsr_entry_id', 'is', null);
-      const linkedIds = (clients || []).map(c => c.dsr_entry_id);
-      
-      const { data: walkins } = await supabase
-        .from('dsr_entries')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(30);
-      
-      const WALKIN_REGEX = /(walk|was|wal)[\s-]?k?[i|l][m|n|k]?[g|n]?/i;
-      const filtered = (walkins || []).filter(w => 
-        Object.values(w.data || {}).some(v => WALKIN_REGEX.test(String(v || '')))
-      );
-      setRecentWalkins(filtered.map(w => ({ ...w, isLinked: linkedIds.includes(w.id) })));
-      setLoadingWalkins(false);
-    };
-    loadWalkins();
-  }, [isEditMode, step]);
-
-  const handleConvertToClient = async (entry: any) => {
-    toast.loading(`Converting ${entry.data['Passenger Name'] || 'Walk-in'} to client...`);
-    try {
-      const { autoConvertWalkins } = await import('@/lib/dsr-service');
-      await autoConvertWalkins([entry]);
-      toast.success('Client created successfully');
-      setRefreshCount(prev => prev + 1);
-    } catch (e: any) {
-      toast.error('Conversion failed: ' + e.message);
-    }
-  };
 
   // ---- Load existing client (edit mode only) ----
   useEffect(() => {
@@ -562,34 +524,6 @@ export default function AddClientWizard() {
       )}
 
       <div className="card-nawi">
-        {recentWalkins.length > 0 && step === 0 && !isEditMode && (
-          <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-xl space-y-3 animate-in fade-in slide-in-from-top-4 duration-500">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
-                  <Star className="w-4 h-4 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-orange-900 uppercase tracking-wider">Quick Import from DSR</p>
-                  <p className="text-[10px] text-orange-700">Found {recentWalkins.length} walk-ins in DSR that are not in CRM yet.</p>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {recentWalkins.map(w => (
-                <button key={w.id} onClick={() => importFromDsr(w)} 
-                  className="flex items-center justify-between p-3 bg-white hover:bg-orange-100/50 border border-orange-100 rounded-lg text-left transition-all group">
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold truncate group-hover:text-orange-700">{w.data['Passenger Name'] || w.data['passenger_name'] || 'Walk-in'}</p>
-                    <p className="text-[9px] text-muted-foreground">{w.data['PNR'] || w.data['pnr'] || 'No PNR'} • {w.entry_date}</p>
-                    {w.isLinked && <p className="text-[8px] text-green-600 font-bold uppercase mt-0.5 flex items-center gap-1"><CheckCircle2 className="w-2 h-2" /> Already in CRM (Success)</p>}
-                  </div>
-                  {w.isLinked ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> : <Download className="w-3.5 h-3.5 text-orange-400 group-hover:text-orange-600" />}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {linkedDsrEntryId && !isEditMode && (
           <div className="mb-6 p-3 bg-orange-50 border border-orange-200 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-1">

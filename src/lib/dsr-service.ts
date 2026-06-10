@@ -111,7 +111,7 @@ export async function createEntry(
 ) {
   const display_id = await generateDisplayId('DSR');
   const { sale, cost, profit } = computeFinancials(template, data);
-  const { error } = await supabase.from('dsr_entries').insert({
+  const { data: newEntry, error } = await supabase.from('dsr_entries').insert({
     display_id,
     template_id: template.id,
     template_key: template.template_key,
@@ -123,20 +123,10 @@ export async function createEntry(
     cost_amount: cost,
     profit_amount: profit,
     source,
-  });
+  }).select('*').single();
+  
   if (error) throw error;
-
-  // Auto-convert walk-ins to clients
-  try {
-    const { data: newEntry } = await supabase
-      .from('dsr_entries')
-      .select('*')
-      .eq('display_id', display_id)
-      .single();
-    if (newEntry) await autoConvertWalkins([newEntry as any]);
-  } catch (err) {
-    console.error('Failed to auto-convert walk-in:', err);
-  }
+  if (newEntry) await autoConvertWalkins([newEntry as any]);
 }
 
 export async function bulkCreateEntries(
@@ -166,25 +156,17 @@ export async function bulkCreateEntries(
       source: 'excel' as const,
     };
   }));
-  const { error } = await supabase.from('dsr_entries').insert(inserts);
+  const { data: newEntries, error } = await supabase.from('dsr_entries').insert(inserts).select('*');
   if (error) throw error;
 
   // Auto-convert walk-ins for all newly created entries
-  try {
-    const { data: newEntries } = await supabase
-      .from('dsr_entries')
-      .select('*')
-      .in('display_id', inserts.map(i => i.display_id));
-    if (newEntries) await autoConvertWalkins(newEntries as any);
-  } catch (err) {
-    console.error('Failed to auto-convert walk-ins from bulk upload:', err);
-  }
+  if (newEntries) await autoConvertWalkins(newEntries as any);
 
   return inserts.length;
 }
 
 export async function autoConvertWalkins(entries: DSREntry[]) {
-  const WALKIN_REGEX = /(walk|was|wal)[\s-]?k?[i|l][m|n|k]?[g|n]?/i;
+  const WALKIN_REGEX = /(walk|wal|wak|wk)[\s-]?in?/i;
   
   for (const entry of entries) {
     const isWalkin = Object.values(entry.data || {}).some(v => WALKIN_REGEX.test(String(v || '')));
@@ -199,9 +181,18 @@ export async function autoConvertWalkins(entries: DSREntry[]) {
 
     if (existing) continue;
 
-    const name = (entry.data['Passenger Name'] || entry.data['passenger_name'] || 'Walk-in Client').trim();
-    const mobileValue = entry.data['Issued for'] || entry.data['Mobile'] || entry.data['Phone'] || entry.data['Contact No'] || '';
-    const mobile = String(mobileValue).replace(/[^\d+]/g, '') || '000000';
+    const nameKeys = ['Passenger Name', 'passenger_name', 'Name', 'Client Name', 'Customer Name', 'Full Name'];
+    let name = 'Walk-in Client';
+    for (const k of nameKeys) {
+      if (entry.data[k]) { name = String(entry.data[k]).trim(); break; }
+    }
+    
+    const mobileKeys = ['Issued for', 'Mobile', 'Phone', 'Contact No', 'Mobile No', 'WhatsApp'];
+    let mobileValue = '';
+    for (const k of mobileKeys) {
+      if (entry.data[k]) { mobileValue = String(entry.data[k]); break; }
+    }
+    const mobile = mobileValue.replace(/[^\d+]/g, '') || '000000';
 
     // Deduplicate: same name and mobile OR same DSR ID
     const { data: duplicate } = await supabase
