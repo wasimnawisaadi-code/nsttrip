@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { exportToExcel } from '@/lib/excel-export';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, Eye, LayoutGrid, LayoutList, Briefcase, Filter, Download, MessageCircle, FileType } from 'lucide-react';
@@ -42,14 +42,16 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
   const months = [...new Set(clients.map(c => c.created_at?.substring(0, 7)).filter(Boolean))].sort().reverse();
   const leadSources = [...new Set(clients.map(c => c.lead_source).filter(Boolean))];
 
+  const syncDone = useRef(false);
+
   // Background Sync: Auto-detect and convert walk-ins from DSR
   useEffect(() => {
-    if (!user) return;
+    if (!user || syncDone.current) return;
+    syncDone.current = true;
+    
     const syncWalkins = async () => {
       try {
         const { fetchEntries, autoConvertWalkins } = await import('@/lib/dsr-service');
-        const { toast } = await import('sonner');
-        // Only sync recent 200 entries to avoid hitting limits during background check
         const { data: dsr } = await supabase
           .from('dsr_entries')
           .select('*')
@@ -65,7 +67,7 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
       }
     };
     syncWalkins();
-  }, [user]);
+  }, [user?.id]);
 
 
   const filtered = clients.filter(c => {
