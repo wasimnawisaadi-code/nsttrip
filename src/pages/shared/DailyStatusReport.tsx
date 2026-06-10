@@ -584,12 +584,19 @@ export default function DailyStatusReport() {
                           </p>
                         </div>
                         {isLinked ? (
-                          <Button size="sm" variant="ghost" asChild className="h-7 text-[10px] text-green-600 font-bold hover:bg-green-50">
-                            <Link to={`${isAdmin ? '/admin' : '/employee'}/clients/${isLinked}`}>View Client →</Link>
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded-full flex items-center gap-1 shadow-sm border border-green-100 animate-in zoom-in duration-300">
+                              <CheckCircle2 className="w-3 h-3" /> MERGED
+                            </span>
+                            <Button size="icon" variant="ghost" asChild className="h-7 w-7 text-indigo-600 hover:bg-indigo-50">
+                              <Link to={`${isAdmin ? '/admin' : '/employee'}/clients/${isLinked}`} title="View Client Details">
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </Link>
+                            </Button>
+                          </div>
                         ) : (
-                          <Button size="sm" asChild className="h-7 text-[10px] bg-orange-500 hover:bg-orange-600 text-white font-bold">
-                            <Link to={`${isAdmin ? '/admin' : '/employee'}/clients/add?from_dsr=1&dsr_entry_id=${w.id}&name=${encodeURIComponent(w.data['Passenger Name'] || w.data['passenger_name'] || w.data['Name'] || '')}&mobile=${encodeURIComponent(w.data['Issued for'] || w.data['Mobile'] || w.data['Phone'] || '')}&pnr=${encodeURIComponent(w.data['PNR'] || w.data['pnr'] || '')}&sector=${encodeURIComponent(w.data['Sector'] || w.data['sector'] || '')}&flight_no=${encodeURIComponent(w.data['Flight No'] || w.data['flight_no'] || '')}&travel_date=${encodeURIComponent(w.data['Travel Date'] || w.data['travel_date'] || '')}&ticket_no=${encodeURIComponent(w.data['Ticket No'] || w.data['ticket_no'] || '')}&sold=${w.sale_amount || ''}&supplier=${encodeURIComponent(w.data['Supplier'] || '')}`}>
+                          <Button size="sm" asChild className="h-7 text-[10px] bg-orange-500 hover:bg-orange-600 text-white font-bold shadow-sm transition-all hover:scale-105 active:scale-95">
+                            <Link to={`${isAdmin ? '/admin' : '/employee'}/clients/add?from_dsr=1&dsr_entry_id=${w.id}&name=${encodeURIComponent(w.data['Passenger Name'] || w.data['passenger_name'] || w.data['Name'] || w.data['Client Name'] || '')}&mobile=${encodeURIComponent(w.data['Issued for'] || w.data['Mobile'] || w.data['Phone'] || '')}&pnr=${encodeURIComponent(w.data['PNR'] || w.data['pnr'] || '')}&sector=${encodeURIComponent(w.data['Sector'] || w.data['sector'] || '')}&flight_no=${encodeURIComponent(w.data['Flight No'] || w.data['flight_no'] || '')}&travel_date=${encodeURIComponent(w.data['Travel Date'] || w.data['travel_date'] || '')}&ticket_no=${encodeURIComponent(w.data['Ticket No'] || w.data['ticket_no'] || '')}&sold=${w.sale_amount || ''}&supplier=${encodeURIComponent(w.data['Supplier'] || '')}`}>
                               <Plus className="w-3 h-3 mr-1" /> Add Client
                             </Link>
                           </Button>

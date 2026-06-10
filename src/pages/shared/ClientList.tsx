@@ -44,18 +44,24 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
 
   // Background Sync: Auto-detect and convert walk-ins from DSR
   useEffect(() => {
+    if (!user) return;
     const syncWalkins = async () => {
       try {
         const { fetchEntries, autoConvertWalkins } = await import('@/lib/dsr-service');
-        const dsr = await fetchEntries({ isAdmin: true });
-        if (dsr.length > 0) {
-          await autoConvertWalkins(dsr);
-          // Force a local state update by re-fetching clients if needed, 
-          // but for now, we'll just let the regular fetch handle it or trigger a reload if we detect changes
+        const { toast } = await import('sonner');
+        // Only sync recent 200 entries to avoid hitting limits during background check
+        const { data: dsr } = await supabase
+          .from('dsr_entries')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(200);
+
+        if (dsr && dsr.length > 0) {
+          await autoConvertWalkins(dsr as any);
           setRefreshCount(p => p + 1);
         }
       } catch (err) {
-        console.error('Initial sync failed:', err);
+        console.error('Background sync failed:', err);
       }
     };
     syncWalkins();
