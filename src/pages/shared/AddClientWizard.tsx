@@ -212,33 +212,33 @@ export default function AddClientWizard() {
     const sector = searchParams.get('sector') || '';
     const [dep, arr] = sector.includes('-') ? sector.split('-') : sector.includes('/') ? sector.split('/') : [sector, ''];
 
-    setForm(prev => ({
-      ...prev,
-      name: searchParams.get('name') || prev.name,
-      mobile: searchParams.get('mobile') || prev.mobile,
-      service: 'Air Ticket',
-      leadSource: 'Walk-in',
-      serviceDetails: {
-        ...prev.serviceDetails,
-        pnr: searchParams.get('pnr') || '',
-        flightNumber: searchParams.get('flight_no') || '',
-        departureCity: dep.trim(),
-        arrivalCity: arr.trim(),
-        travelDate: searchParams.get('travel_date') || '',
-        ticketNo: searchParams.get('ticket_no') || '',
-        supplier: searchParams.get('supplier') || '',
-        fare: searchParams.get('sold') || '',
-      },
-    }));
-    
-    // Auto-add travel date to important dates if available
-    const tDate = searchParams.get('travel_date');
-    if (tDate) {
-      setForm(prev => ({
+    setForm(prev => {
+      const newForm = {
         ...prev,
-        importantDates: [...prev.importantDates, { id: uid(), name: 'Travel Date (Departure)', date: tDate }]
-      }));
-    }
+        name: searchParams.get('name') || prev.name,
+        mobile: searchParams.get('mobile') || prev.mobile,
+        service: 'Air Ticket',
+        leadSource: 'Walk-in',
+        serviceDetails: {
+          ...prev.serviceDetails,
+          pnr: searchParams.get('pnr') || '',
+          flightNumber: searchParams.get('flight_no') || '',
+          departureCity: dep.trim(),
+          arrivalCity: arr.trim(),
+          travelDate: searchParams.get('travel_date') || '',
+          ticketNo: searchParams.get('ticket_no') || '',
+          supplier: searchParams.get('supplier') || '',
+          fare: searchParams.get('sold') || '',
+        },
+      };
+      
+      const tDate = searchParams.get('travel_date');
+      const hasDate = prev.importantDates.some(d => d.date === tDate && d.name === 'Travel Date (Departure)');
+      if (tDate && !hasDate) {
+        newForm.importantDates = [...prev.importantDates, { id: uid(), name: 'Travel Date (Departure)', date: tDate }];
+      }
+      return newForm;
+    });
   }, [searchParams, isEditMode]);
 
   const updateForm = (changes: Partial<typeof form>) => setForm(prev => ({ ...prev, ...changes }));
