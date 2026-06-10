@@ -108,14 +108,11 @@ export default function DailyStatusReport() {
   }, [entries]);
 
   const WALKIN_REGEX = /(walk|was|wal)[\s-]?k?[i|l][m|n|k]?[g|n]?/i;
-  const todayWalkins = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    if (activeTemplate?.name !== 'Air Ticket') return [];
+  const detectedWalkins = useMemo(() => {
     return entries.filter(e =>
-      e.entry_date === today &&
       Object.values(e.data || {}).some(v => WALKIN_REGEX.test(String(v || '')))
     );
-  }, [entries, activeTemplate]);
+  }, [entries]);
 
   const handleConvertToClient = (entry: DSREntry) => {
     const p = entry.data;
@@ -559,7 +556,7 @@ export default function DailyStatusReport() {
         {templates.map(t => (
           <TabsContent key={t.id} value={t.id} className="animate-in fade-in duration-300 mt-0">
             {/* Walk-in Detection Alert */}
-            {t.name === 'Air Ticket' && todayWalkins.length > 0 && showWalkinPanel && (
+            {detectedWalkins.length > 0 && showWalkinPanel && (
               <div className="mb-4 bg-orange-50 border border-orange-200 rounded-xl p-4 shadow-sm animate-in slide-in-from-top-2 duration-500">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -567,14 +564,14 @@ export default function DailyStatusReport() {
                       <Users className="w-4 h-4 text-orange-600" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-orange-900">Walk-ins Detected in Today's DSR</h3>
-                      <p className="text-[10px] text-orange-700">These entries have "walkin" in remarks. Convert them to full client profiles for CRM tracking.</p>
+                      <h3 className="text-sm font-bold text-orange-900">Walk-ins Detected in DSR</h3>
+                      <p className="text-[10px] text-orange-700">These entries were identified as walk-ins. Linked clients are shown below.</p>
                     </div>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => setShowWalkinPanel(false)} className="h-7 text-orange-600 hover:bg-orange-100">Dismiss</Button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {todayWalkins.map((w) => {
+                  {detectedWalkins.map((w) => {
                     const isLinked = linkedClientIds[w.id];
                     return (
                       <div key={w.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-orange-100 shadow-sm">
