@@ -70,14 +70,19 @@ export default function ReportsPage() {
   }, [yearMonth, viewType, dateFrom, dateTo]);
 
   const syncHistoricalWalkins = async () => {
-    if (!dsrEntries.length) return;
-    toast.loading('Syncing historical walk-ins...');
+    const allTime = confirm('Do you want to sync ALL historical walk-ins from the beginning? Click "OK" for All Time, or "Cancel" for the current view range only.');
+    toast.loading(allTime ? 'Syncing ALL historical walk-ins...' : 'Syncing walk-ins for current view...');
     try {
-      const { autoConvertWalkins } = await import('@/lib/dsr-service');
-      await autoConvertWalkins(dsrEntries);
-      toast.success('Historical walk-ins synchronized');
-      // Trigger reload
-      window.location.reload();
+      const { autoConvertWalkins, fetchEntries } = await import('@/lib/dsr-service');
+      let targetEntries = dsrEntries;
+      
+      if (allTime) {
+        targetEntries = await fetchEntries({ fromDate: '2024-01-01', toDate: '2030-12-31', isAdmin: true });
+      }
+
+      await autoConvertWalkins(targetEntries);
+      toast.success(allTime ? 'ALL historical walk-ins synchronized' : 'Current range walk-ins synchronized');
+      setTimeout(() => window.location.reload(), 1500);
     } catch (e: any) {
       toast.error('Sync failed: ' + e.message);
     }

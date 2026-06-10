@@ -249,7 +249,7 @@ export async function autoConvertWalkins(entries: DSREntry[]) {
         client_id: newClient.id,
         service,
         service_details: entry.data,
-        status: 'New' as const,
+        status: 'Success' as const,
         created_by: entry.employee_id,
       });
     }
