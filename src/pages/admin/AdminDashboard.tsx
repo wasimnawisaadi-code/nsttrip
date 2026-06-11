@@ -59,7 +59,8 @@ export default function AdminDashboard() {
     revenue: number; profit: number; lastRevenue: number;
     annualRevenue: number; annualProfit: number;
     entries: any[]; annualEntries: any[];
-  }>({ revenue: 0, profit: 0, lastRevenue: 0, annualRevenue: 0, annualProfit: 0, entries: [], annualEntries: [] });
+    lastEntriesCount: number;
+  }>({ revenue: 0, profit: 0, lastRevenue: 0, annualRevenue: 0, annualProfit: 0, entries: [], annualEntries: [], lastEntriesCount: 0 });
 
   useEffect(() => {
     (async () => {
@@ -108,6 +109,7 @@ export default function AdminDashboard() {
         annualProfit:  annualStats.profit,
         entries:       curEntries,
         annualEntries,
+        lastEntriesCount: lastEntries.length,
       });
     })();
   }, [reportMonth, viewType, customStartDate, customEndDate]);
@@ -211,7 +213,7 @@ export default function AdminDashboard() {
       const dsrMatches = (e: any) => e.entry_date ? matchesFilter(e.entry_date) : false;
       const clientMatches = (c: any) => c.created_at ? matchesFilter(c.created_at) : false;
 
-      const eligibleClients = (clients || []).filter(c => !c.dsr_entry_id);
+      const eligibleClients = (clients || []);
       const clientsThisMonthCount = eligibleClients.filter(clientMatches).length;
       const clientsLastMonthCount = eligibleClients.filter((c: any) => c.created_at && c.created_at.startsWith(lastMonth)).length;
 
@@ -245,7 +247,7 @@ export default function AdminDashboard() {
       // Service counts — CLIENT-ONLY (DSR services added at render time from dsrData)
       const serviceCounts: Record<string, number> = {};
       const serviceRevenue: Record<string, number> = {};
-      clients.filter(c => !c.dsr_entry_id && clientMatches(c)).forEach((c: any) => {
+      clients.filter(clientMatches).forEach((c: any) => {
         if (c.service) {
           serviceCounts[c.service] = (serviceCounts[c.service] || 0) + 1;
           serviceRevenue[c.service] = (serviceRevenue[c.service] || 0) + (c.revenue || 0);
@@ -257,7 +259,6 @@ export default function AdminDashboard() {
       const getRevForDate = (datePrefix: string, exactMatch = false) => {
         let rev = 0, prof = 0, clt = 0;
         const m = clients.filter((c: any) => {
-          if (c.dsr_entry_id) return false;
           return exactMatch ? c.created_at?.startsWith(datePrefix) : c.created_at?.startsWith(datePrefix);
         });
         const stats = calculateFinancials(m);
@@ -367,7 +368,7 @@ export default function AdminDashboard() {
         // Employee stats — CLIENT-ONLY (DSR stats added at render time from dsrData)
         let empRev = 0, empProf = 0, empClientsCount = 0;
 
-        const cc = clients.filter((c_cl: any) => !c_cl.dsr_entry_id && c_cl.created_by === e.user_id && clientMatches(c_cl));
+        const cc = clients.filter((c_cl: any) => c_cl.created_by === e.user_id && clientMatches(c_cl));
         empClientsCount = cc.length;
         empRev = cc.reduce((s: number, c_cl: any) => s + (c_cl.revenue || 0), 0);
         empProf = cc.reduce((s: number, c_cl: any) => s + (c_cl.profit || 0), 0);
@@ -504,8 +505,17 @@ export default function AdminDashboard() {
   const displayLastRevenue = dataSource === 'dsr' ? dsrData.lastRevenue
     : dataSource === 'clients' ? data.revenueLastMonth
     : dsrData.lastRevenue + data.revenueLastMonth;
+
+  const displayClients = dataSource === 'dsr' ? dsrData.entries.length 
+    : dataSource === 'clients' ? data.totalClients 
+    : (dsrData.entries.length + data.totalClients);
+
+  const displayLastClients = dataSource === 'dsr' ? dsrData.lastEntriesCount 
+    : dataSource === 'clients' ? data.clientsLastMonth 
+    : (dsrData.lastEntriesCount + data.clientsLastMonth);
+
   const revenueChange = displayLastRevenue > 0 ? Math.round(((displayRevenue - displayLastRevenue) / displayLastRevenue) * 100) : 0;
-  const clientChange  = data.clientsLastMonth > 0 ? Math.round(((data.clientsThisMonth - data.clientsLastMonth) / data.clientsLastMonth) * 100) : 0;
+  const clientChange  = displayLastClients > 0 ? Math.round(((displayClients - displayLastClients) / displayLastClients) * 100) : 0;
 
   // ── Annual totals (Reports & Revenue tabs) ───────────────────────────────
   // reports tab = always Client Only; revenue tab = always Combined
@@ -654,7 +664,7 @@ export default function AdminDashboard() {
               <div className="absolute top-0 right-0 w-16 h-16 bg-secondary/5 rounded-bl-[40px] transition-all group-hover:w-20 group-hover:h-20" />
               <div className="relative">
                 <Users className="w-5 h-5 text-secondary mb-2" />
-                <p className="text-2xl font-black font-display">{data.totalClients}</p>
+                <p className="text-2xl font-black font-display">{displayClients}</p>
                 <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Total Clients</p>
                 {clientChange !== 0 && <span className={`text-xs font-bold ${clientChange > 0 ? 'text-success' : 'text-destructive'}`}>{clientChange > 0 ? '↑' : '↓'} {Math.abs(clientChange)}%</span>}
               </div>

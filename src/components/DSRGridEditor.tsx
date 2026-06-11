@@ -202,7 +202,7 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
 
   const dirtyCount = useMemo(() => rows.filter(r => r.dirty).length, [rows]);
   const ownsRow = (r: Row) => isAdmin || !r.id || (r.employee_id === user?.id);
-  const WALKIN_REGEX = /(walk|was|wal)[\s-]?k?[i|l][m|n|k]?[g|n]?/i;
+  const WALKIN_REGEX = /(walk|was|wal|vak|vlk)[\s-]?k?[i|l|e][m|n|k|y]?[g|n]?/i;
   const isWalkInRow = (r: Row) => Object.values(r.data || {}).some(v => WALKIN_REGEX.test(String(v || '')));
 
   const filteredRows = useMemo(() => {
@@ -301,18 +301,28 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
                 {searchTerm ? 'No matches found for your search.' : 'No rows. Click "Add Row" to start.'}
               </td></tr>
             )}
-            {filteredRows.map((r, idx) => (
-              <tr key={r.id || `new-${idx}`} className={`border-t hover:bg-muted/20 transition-colors animate-in fade-in slide-in-from-left-2 duration-300 ${r.dirty ? 'bg-warning/5' : ''}`}>
-                <td className="p-2 text-xs text-muted-foreground">
-                  <div className="flex flex-col items-center gap-1">
-                    {idx + 1}
-                    {isWalkInRow(r) && (
-                      <span className="text-[8px] bg-orange-100 text-orange-600 px-1 rounded font-bold whitespace-nowrap">
-                        WALKIN
-                      </span>
-                    )}
-                  </div>
-                </td>
+            {filteredRows.map((r, idx) => {
+              const isWalkin = isWalkInRow(r);
+              const isLinked = r.id ? !!linkedClientIds[r.id] : false;
+              
+              return (
+                <tr 
+                  key={r.id || `new-${idx}`} 
+                  className={`border-t hover:bg-muted/20 transition-colors animate-in fade-in slide-in-from-left-2 duration-300 
+                    ${r.dirty ? 'bg-warning/5' : ''} 
+                    ${isWalkin ? (isLinked ? 'bg-green-50/30' : 'bg-orange-50/60') : ''}`}
+                >
+                  <td className="p-2 text-xs text-muted-foreground">
+                    <div className="flex flex-col items-center gap-1">
+                      {idx + 1}
+                      {isWalkin && (
+                        <span className={`text-[8px] px-1 rounded font-bold whitespace-nowrap 
+                          ${isLinked ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-600'}`}>
+                          {isLinked ? 'SYNCED' : 'WALKIN'}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                 <td className="p-1 text-center">
                   <div className="flex items-center justify-center gap-1">
                     {onConvertWalkin && isWalkInRow(r) && r.id && (
@@ -360,7 +370,8 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
                   </td>
                 ))}
               </tr>
-            ))}
+            );
+          })}
           </tbody>
         </table>
       </div>

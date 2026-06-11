@@ -1,13 +1,25 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { exportToExcel } from '@/lib/excel-export';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, LayoutGrid, LayoutList, Briefcase, Filter, Download, MessageCircle } from 'lucide-react';
+import { Plus, Search, Eye, LayoutGrid, LayoutList, Briefcase, Filter, Download, MessageCircle, Trash2, CheckSquare, Square } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { fetchPaginated } from '@/lib/dsr-service';
 import { formatCurrency, formatDate } from '@/lib/supabase-service';
 import StatusBadge from '@/components/ui/StatusBadge';
 import EmptyState from '@/components/ui/EmptyState';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 
 export default function ClientList({ adminView = false }: { adminView?: boolean }) {
   const navigate = useNavigate();
@@ -22,6 +34,11 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
   const [monthFilter, setMonthFilter] = useState('all');
   const [employeeFilter, setEmployeeFilter] = useState('all');
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState('');
+  const { profile } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,6 +80,51 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
     exportToExcel(rows, 'clients_export', 'Clients');
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filtered.map(c => c.id));
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    if (!selectedIds.length) return;
+    setShowDeleteModal(true);
+  };
+
+  const finalizeDelete = async () => {
+    if (confirmEmail !== profile?.email) {
+      toast.error('Email verification failed. Please enter your correct email.');
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .in('id', selectedIds);
+
+      if (error) throw error;
+
+      toast.success(`Successfully deleted ${selectedIds.length} clients`);
+      setClients(prev => prev.filter(c => !selectedIds.includes(c.id)));
+      setSelectedIds([]);
+      setShowDeleteModal(false);
+      setConfirmEmail('');
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete: ' + error.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -87,6 +149,16 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
           </select>
         </div>
         <div className="flex items-center gap-2">
+          {selectedIds.length > 0 && (
+            <button
+              onClick={handleDeleteSelected}
+              disabled={isDeleting}
+              className="btn-outline text-destructive border-destructive hover:bg-destructive hover:text-white flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Delete ({selectedIds.length})</span>
+            </button>
+          )}
           <button onClick={exportCSV} className="btn-outline text-sm"><Download className="w-4 h-4" /></button>
           <div className="flex border border-border rounded-lg overflow-hidden">
             <button onClick={() => setViewMode('table')} className={`p-1.5 ${viewMode === 'table' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}><LayoutList className="w-4 h-4" /></button>
@@ -121,10 +193,37 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
       ) : viewMode === 'table' ? (
         <div className="table-container">
           <table className="table-nawi w-full">
-            <thead><tr><th>ID</th><th>Name</th><th>Mobile</th><th>Service</th><th>Status</th><th>Source</th><th>Assigned</th><th>Created</th><th>Revenue</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th className="w-10">
+                  <button onClick={toggleSelectAll} className="p-1 hover:bg-muted rounded">
+                    {selectedIds.length === filtered.length && filtered.length > 0 ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />}
+                  </button>
+                </th>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Mobile</th>
+                <th>Service</th>
+                <th>Status</th>
+                <th>Source</th>
+                <th>Assigned</th>
+                <th>Created</th>
+                <th>Revenue</th>
+                <th></th>
+              </tr>
+            </thead>
             <tbody>
               {filtered.map(c => (
-                <tr key={c.id} className="cursor-pointer" onClick={() => navigate(`${basePath}/clients/${c.id}`)}>
+                <tr
+                  key={c.id}
+                  className={`cursor-pointer transition-colors ${selectedIds.includes(c.id) ? 'bg-primary/5' : ''}`}
+                  onClick={() => navigate(`${basePath}/clients/${c.id}`)}
+                >
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => toggleSelect(c.id)} className="p-1 hover:bg-muted rounded">
+                      {selectedIds.includes(c.id) ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />}
+                    </button>
+                  </td>
                   <td className="font-mono text-xs">{c.display_id}</td>
                   <td className="font-medium">{c.name}</td>
                   <td>{c.mobile}</td>
@@ -150,20 +249,68 @@ export default function ClientList({ adminView = false }: { adminView?: boolean 
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(c => (
-            <Link key={c.id} to={`${basePath}/clients/${c.id}`} className="card-nawi-hover">
-              <div className="flex items-start justify-between mb-2">
-                <div><p className="font-medium">{c.name}</p><p className="font-mono text-xs text-muted-foreground">{c.display_id}</p></div>
-                <StatusBadge status={c.status} />
+            <div
+              key={c.id}
+              className={`card-nawi-hover relative flex flex-col ${selectedIds.includes(c.id) ? 'ring-2 ring-primary bg-primary/5' : ''}`}
+            >
+              <div className="absolute top-2 right-2 z-10">
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleSelect(c.id); }}
+                  className="p-1 bg-background/80 backdrop-blur rounded hover:bg-muted shadow-sm"
+                >
+                  {selectedIds.includes(c.id) ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />}
+                </button>
               </div>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <p>{c.service || 'No service'} • {c.lead_source}</p>
-                <p>{c.mobile}</p>
-                <p className="font-medium text-foreground">{formatCurrency(c.revenue || 0)}</p>
-              </div>
-            </Link>
+              <Link to={`${basePath}/clients/${c.id}`} className="flex-1">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="pr-8"><p className="font-medium">{c.name}</p><p className="font-mono text-xs text-muted-foreground">{c.display_id}</p></div>
+                  <StatusBadge status={c.status} />
+                </div>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p>{c.service || 'No service'} • {c.lead_source}</p>
+                  <p>{c.mobile}</p>
+                  <p className="font-medium text-foreground">{formatCurrency(c.revenue || 0)}</p>
+                </div>
+              </Link>
+            </div>
           ))}
         </div>
       )}
+
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="w-5 h-5" /> Confirm Bulk Deletion
+            </DialogTitle>
+            <DialogDescription>
+              You are about to delete <strong>{selectedIds.length}</strong> client profiles. This operation is permanent and cannot be reversed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="email-confirm">To confirm, type your admin email: <span className="font-mono text-[10px] text-muted-foreground">({profile?.email})</span></Label>
+              <Input
+                id="email-confirm"
+                placeholder="Enter your email"
+                value={confirmEmail}
+                onChange={(e) => setConfirmEmail(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)} disabled={isDeleting}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={finalizeDelete}
+              disabled={isDeleting || confirmEmail !== profile?.email}
+            >
+              {isDeleting ? 'Deleting...' : 'Confirm Deletion'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

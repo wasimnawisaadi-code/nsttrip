@@ -48,6 +48,9 @@ export default function DailyStatusReport() {
   const [analysisSort, setAnalysisSort] = useState<'profit' | 'sale'>('profit');
   const [linkedClientIds, setLinkedClientIds] = useState<Record<string, string>>({});
   const [showWalkinPanel, setShowWalkinPanel] = useState(true);
+  const [historicalWalkins, setHistoricalWalkins] = useState<DSREntry[]>([]);
+  const [selectedWalkinIds, setSelectedWalkinIds] = useState<string[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const loadTemplates = async () => {
     if (!user) return;
@@ -98,24 +101,107 @@ export default function DailyStatusReport() {
 
   // Sync linked clients
   useEffect(() => {
-    if (entries.length === 0) { setLinkedClientIds({}); return; }
-    const entryIds = entries.map(e => e.id);
-    supabase.from('clients').select('id, dsr_entry_id').in('dsr_entry_id', entryIds).then(({ data }) => {
-      const map: Record<string, string> = {};
-      data?.forEach(c => { if (c.dsr_entry_id) map[c.dsr_entry_id] = c.id; });
-      setLinkedClientIds(map);
-    });
-  }, [entries]);
+    const allIds = [...new Set([...entries.map(e => e.id), ...historicalWalkins.map(e => e.id)])];
+    if (allIds.length === 0) { setLinkedClientIds({}); return; }
+    
+    supabase.from('clients')
+      .select('id, dsr_entry_id')
+      .in('dsr_entry_id', allIds)
+      .then(({ data }) => {
+        const map: Record<string, string> = {};
+        data?.forEach(c => { if (c.dsr_entry_id) map[c.dsr_entry_id] = c.id; });
+        setLinkedClientIds(map);
+      });
+  }, [entries, historicalWalkins, refreshCount]);
 
-  const WALKIN_REGEX = /(walk|was|wal)[\s-]?k?[i|l][m|n|k]?[g|n]?/i;
-  const todayWalkins = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    if (activeTemplate?.name !== 'Air Ticket') return [];
-    return entries.filter(e =>
-      e.entry_date === today &&
-      Object.values(e.data || {}).some(v => WALKIN_REGEX.test(String(v || '')))
-    );
-  }, [entries, activeTemplate]);
+  const handleUnlink = async (entryId: string) => {
+    if (!confirm('Unlink this client from DSR? The client will remain in CRM, but will show as Unlinked here.')) return;
+    try {
+      const clientId = linkedClientIds[entryId];
+      if (!clientId) return;
+      const { error } = await supabase.from('clients').update({ dsr_entry_id: null }).eq('id', clientId);
+      if (error) throw error;
+      toast.success('Successfully unlinked');
+      setRefreshCount(prev => prev + 1);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleBulkSync = async () => {
+    if (selectedWalkinIds.length === 0) return;
+    const candidates = detectedWalkins.filter(w => selectedWalkinIds.includes(w.id) && !linkedClientIds[w.id]);
+    if (candidates.length === 0) { toast.info('No unlinked walk-ins selected'); return; }
+    
+    if (!confirm(`Sync ${candidates.length} walk-ins to Client CRM?`)) return;
+    
+    setIsSyncing(true);
+    let ok = 0;
+    try {
+      for (const w of candidates) {
+        const p = w.data;
+        const mobile = (() => {
+          const issuedFor = String(p['Issued for'] || p['Issued For'] || p['issued_for'] || '');
+          const cleaned = issuedFor.replace(/[^\d+]/g, '');
+          const match = cleaned.match(/\+?\d{7,15}/);
+          return match ? match[0] : (p['Mobile'] || p['WhatsApp'] || '');
+        })();
+
+        const { error } = await supabase.from('clients').insert({
+          name: p['Passenger Name'] || p['passenger_name'] || p['Name'] || 'DSR Walk-in',
+          mobile: mobile,
+          dsr_entry_id: w.id,
+          created_by: w.employee_id || user?.id,
+          status: 'New',
+          service: templates.find(t => t.id === w.template_id)?.name || 'DSR Import',
+          revenue: Number(w.sale_amount || 0),
+          profit: Number(w.profit_amount || 0),
+        });
+        if (!error) ok++;
+      }
+      toast.success(`Success: Synced ${ok} clients`);
+      setSelectedWalkinIds([]);
+      setRefreshCount(prev => prev + 1);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setIsSyncing(false); }
+  };
+  
+  const WALKIN_REGEX = /(walk|was|wal|vak|vlk)[\s-]?k?[i|l|e][m|n|k|y]?[g|n]?/i;
+  
+  const loadHistoricalWalkins = async () => {
+    try {
+      // Fetch unlinked walk-ins from any date (limited to 200 for performance)
+      // We look for common walk-in keywords across the most active templates
+      const { data } = await supabase
+        .from('dsr_entries')
+        .select('*')
+        .limit(1000); // We'll filter in JS to use the complex regex
+      
+      if (data) {
+        setHistoricalWalkins(data.filter(e => {
+          const isWalkin = Object.values(e.data || {}).some(v => WALKIN_REGEX.test(String(v || '')));
+          return isWalkin;
+        }));
+      }
+    } catch (e) {
+      console.error('Error loading historical walk-ins:', e);
+    }
+  };
+  
+  useEffect(() => {
+    loadHistoricalWalkins();
+  }, [user]);
+
+  const detectedWalkins = useMemo(() => {
+    // Merge current entries with historical ones
+    const allCandidates = [...historicalWalkins, ...entries.filter(e => !historicalWalkins.find(h => h.id === e.id))];
+    
+    return allCandidates.filter(e => {
+      // If a specific template is active, only show walk-ins for that template
+      if (activeTemplate && e.template_id !== activeTemplate.id) return false;
+      
+      // Still only show those that match the WALKIN_REGEX
+      return Object.values(e.data || {}).some(v => WALKIN_REGEX.test(String(v || '')));
+    });
+  }, [entries, historicalWalkins, linkedClientIds, activeTemplate]);
 
   const handleConvertToClient = (entry: DSREntry) => {
     const p = entry.data;
@@ -399,6 +485,103 @@ export default function DailyStatusReport() {
           </TabsList>
         </div>
 
+        {detectedWalkins.length > 0 && showWalkinPanel && (
+          <div className="mb-4 bg-orange-50/80 backdrop-blur-sm border border-orange-200 rounded-xl p-4 shadow-sm animate-in slide-in-from-top-2 duration-500">
+            <div className="flex flex-wrap items-center justify-between mb-3 gap-4" id="walkin-panel-header">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shadow-inner">
+                  <Users className="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-orange-900 tracking-tight flex items-center gap-2">
+                    {activeTemplate ? `${activeTemplate.name} Walk-ins Detected` : 'All Walk-ins Detected in DSR'} 
+                    <span className="px-2 py-0.5 bg-orange-200 text-orange-800 rounded-full text-[10px] font-black">{detectedWalkins.length}</span>
+                  </h3>
+                  <p className="text-[10px] text-orange-700/80 font-medium">These entries have "walkin" in details. Check boxes to bulk sync to CRM.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {selectedWalkinIds.length > 0 && (
+                  <Button size="sm" onClick={handleBulkSync} disabled={isSyncing} className="bg-orange-600 hover:bg-orange-700 text-white font-bold h-8 animate-in zoom-in px-4 rounded-full shadow-lg shadow-orange-200">
+                    {isSyncing ? 'Syncing...' : `Sync Selected (${selectedWalkinIds.length})`}
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => setShowWalkinPanel(false)} className="h-8 text-orange-600 hover:bg-orange-100 rounded-full">Dismiss Panel</Button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 mb-2 px-2">
+               <label className="flex items-center gap-2 cursor-pointer group">
+                  <input 
+                    type="checkbox" 
+                    className="w-4 h-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
+                    checked={selectedWalkinIds.length === detectedWalkins.filter(w => !linkedClientIds[w.id]).length && detectedWalkins.length > 0}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedWalkinIds(detectedWalkins.filter(w => !linkedClientIds[w.id]).map(w => w.id));
+                      else setSelectedWalkinIds([]);
+                    }}
+                  />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-orange-800">Select All Unlinked</span>
+               </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
+              {detectedWalkins.map((w) => {
+                const name = w.data['Passenger Name'] || w.data['passenger_name'] || w.data['Name'] || w.data['name'] || 'Unknown';
+                const pnr = w.data['PNR'] || w.data['pnr'] || w.data['Reference'] || '—';
+                const type = templates.find(temp => temp.id === w.template_id)?.name || 'Service';
+                const isLinked = !!linkedClientIds[w.id];
+                const isSelected = selectedWalkinIds.includes(w.id);
+
+                return (
+                  <div key={w.id} className={`flex items-center justify-between p-2 rounded-lg border shadow-sm transition-all ${isLinked ? 'bg-green-50/50 border-green-100' : (isSelected ? 'bg-orange-100 border-orange-300 ring-2 ring-orange-200/50' : 'bg-white border-orange-100')}`}>
+                    <div className="flex items-center gap-2 min-w-0 pr-2">
+                      {!isLinked && (
+                        <input 
+                          type="checkbox" 
+                          className="w-4 h-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) setSelectedWalkinIds(prev => [...prev, w.id]);
+                            else setSelectedWalkinIds(prev => prev.filter(id => id !== w.id));
+                          }}
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <p className="text-xs font-bold truncate">{name}</p>
+                          {isLinked ? (
+                            <Badge className="h-4 px-1 text-[8px] bg-green-500 hover:bg-green-600 border-none font-black uppercase">Linked</Badge>
+                          ) : (
+                            <Badge className="h-4 px-1 text-[8px] bg-orange-500 hover:bg-orange-600 border-none font-black uppercase">Unlinked</Badge>
+                          )}
+                        </div>
+                        <p className="text-[9px] text-muted-foreground uppercase font-medium">{type} • {w.entry_date} • {pnr}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {isLinked ? (
+                        <>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => handleUnlink(w.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button size="sm" asChild variant="secondary" className="h-7 text-[10px] text-green-700 font-bold bg-green-100 hover:bg-green-200 border-green-200">
+                            <Link to={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[w.id]}`}>Profile</Link>
+                          </Button>
+                        </>
+                      ) : (
+                        <Button size="sm" onClick={() => handleConvertToClient(w)} className="h-7 text-[10px] bg-orange-600 hover:bg-orange-700 text-white font-bold px-3">
+                          <Plus className="w-3 h-3 mr-1" /> Add
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <TabsContent value="dashboard" className="space-y-6 animate-in fade-in duration-500 mt-0">
           {/* KPI Stat Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -558,46 +741,6 @@ export default function DailyStatusReport() {
 
         {templates.map(t => (
           <TabsContent key={t.id} value={t.id} className="animate-in fade-in duration-300 mt-0">
-            {/* Walk-in Detection Alert */}
-            {t.name === 'Air Ticket' && todayWalkins.length > 0 && showWalkinPanel && (
-              <div className="mb-4 bg-orange-50 border border-orange-200 rounded-xl p-4 shadow-sm animate-in slide-in-from-top-2 duration-500">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
-                      <Users className="w-4 h-4 text-orange-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-orange-900">Walk-ins Detected in Today's DSR</h3>
-                      <p className="text-[10px] text-orange-700">These entries have "walkin" in remarks. Convert them to full client profiles for CRM tracking.</p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => setShowWalkinPanel(false)} className="h-7 text-orange-600 hover:bg-orange-100">Dismiss</Button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {todayWalkins.map((w) => {
-                    const isLinked = linkedClientIds[w.id];
-                    return (
-                      <div key={w.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-orange-100 shadow-sm">
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold truncate">{w.data['Passenger Name'] || 'Unknown'}</p>
-                          <p className="text-[9px] text-muted-foreground uppercase font-medium">PNR: {w.data['PNR'] || '—'}</p>
-                        </div>
-                        {isLinked ? (
-                          <Button size="sm" variant="ghost" asChild className="h-7 text-[10px] text-green-600 font-bold hover:bg-green-50">
-                            <Link to={`${isAdmin ? '/admin' : '/employee'}/clients/${isLinked}`}>View Client →</Link>
-                          </Button>
-                        ) : (
-                          <Button size="sm" onClick={() => handleConvertToClient(w)} className="h-7 text-[10px] bg-orange-500 hover:bg-orange-600 text-white font-bold">
-                            <Plus className="w-3 h-3 mr-1" /> Add Client
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             <div className="card-nawi overflow-hidden !p-0">
               <DSRGridEditor
                 template={t}

@@ -150,6 +150,8 @@ export default function AddClientWizard() {
     serviceDetails: {} as Record<string, string>,
     documents: [] as DocEntry[],
     importantDates: [] as DateEntry[],
+    revenue: '',
+    profit: '',
   });
 
   // ---- Load existing client (edit mode only) ----
@@ -194,6 +196,8 @@ export default function AddClientWizard() {
         serviceDetails: (data.service_details as any) || {},
         importantDates: dateEntries,
         documents: docEntries,
+        revenue: String(data.revenue || ''),
+        profit: String(data.profit || ''),
       }));
       setStep(0);
     });
@@ -227,6 +231,8 @@ export default function AddClientWizard() {
         supplier: searchParams.get('supplier') || '',
         fare: searchParams.get('sold') || '',
       },
+      revenue: searchParams.get('sold') || '',
+      profit: searchParams.get('profit') || '',
     }));
     
     // Auto-add travel date to important dates if available
@@ -422,6 +428,8 @@ export default function AddClientWizard() {
           documents: form.documents as any,
           important_dates: datesObj as any,
           dsr_entry_id: linkedDsrEntryId || (editClient?.dsr_entry_id || null),
+          revenue: Number(form.revenue) || null,
+          profit: Number(form.profit) || null,
         }).eq('id', editClient.id);
         await auditLog('client_updated_via_wizard', 'client', editClient.id, { name: form.name });
         toast.success('Client updated');
@@ -444,6 +452,8 @@ export default function AddClientWizard() {
         status: 'New' as const,
         assigned_to: user.id, created_by: user.id,
         dsr_entry_id: linkedDsrEntryId,
+        revenue: Number(form.revenue) || null,
+        profit: Number(form.profit) || null,
       }).select('id').single();
 
       if (error || !newClient) {
@@ -689,6 +699,8 @@ export default function AddClientWizard() {
               <div><label className="block text-sm font-medium mb-1">Nationality</label><input value={form.nationality} onChange={(e) => updateForm({ nationality: e.target.value })} className="input-nawi" /></div>
               <div><label className="block text-sm font-medium mb-1">Date of Birth</label><input type="date" value={form.dob} onChange={(e) => updateForm({ dob: e.target.value })} className="input-nawi" /></div>
               <div><label className="block text-sm font-medium mb-1">Passport Number</label><input value={form.passportNo} onChange={(e) => updateForm({ passportNo: e.target.value })} className="input-nawi" /></div>
+              <div><label className="block text-sm font-medium mb-1">Revenue (AED)</label><input type="number" value={form.revenue} onChange={(e) => updateForm({ revenue: e.target.value })} className="input-nawi border-primary/30" placeholder="0.00" /></div>
+              <div><label className="block text-sm font-medium mb-1">Profit (AED)</label><input type="number" value={form.profit} onChange={(e) => updateForm({ profit: e.target.value })} className="input-nawi border-success/30" placeholder="0.00" /></div>
             </div>
 
             <div className="border-t border-border pt-4">
@@ -725,7 +737,7 @@ export default function AddClientWizard() {
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Client</h3>
                 <div className="space-y-1">
-                  {[['Name', form.name], ['Mobile', form.mobile], ['Email', form.email], ['Nationality', form.nationality], ['Client Type', form.clientType], ['Lead Source', form.leadSource], ['Request Month', selectedMonth]].map(([l, v]) => v && (
+                  {[['Name', form.name], ['Mobile', form.mobile], ['Email', form.email], ['Nationality', form.nationality], ['Client Type', form.clientType], ['Lead Source', form.leadSource], ['Request Month', selectedMonth], ['Revenue', form.revenue ? `AED ${form.revenue}` : ''], ['Profit', form.profit ? `AED ${form.profit}` : '']].map(([l, v]) => v && (
                     <div key={l} className="flex justify-between text-sm"><span className="text-muted-foreground">{l}</span><span className="font-medium">{v}</span></div>
                   ))}
                 </div>
