@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, Save, RotateCcw, CalendarClock, UserPlus, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, Save, RotateCcw, CalendarClock, UserPlus, ExternalLink, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 
@@ -43,6 +43,7 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [convertingRowId, setConvertingRowId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const STORAGE_KEY = useMemo(() => `dsr-draft-${template.id}-${user?.id}`, [template.id, user?.id]);
@@ -305,30 +306,43 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
             {filteredRows.map((r, idx) => {
               const isWalkin = isWalkInRow(r);
               const isLinked = r.id ? !!linkedClientIds[r.id] : false;
-              
+              const isConverting = convertingRowId === r.id;
+
               return (
-                <tr 
-                  key={r.id || `new-${idx}`} 
-                  className={`border-t hover:bg-muted/20 transition-colors animate-in fade-in slide-in-from-left-2 duration-300 
-                    ${r.dirty ? 'bg-warning/5' : ''} 
-                    ${isWalkin ? (isLinked ? 'bg-green-50/30' : 'bg-orange-50/60') : ''}`}
+                <tr
+                  key={r.id || `new-${idx}`}
+                  className={`border-t transition-colors animate-in fade-in slide-in-from-left-2 duration-300
+                    ${isLinked
+                      ? 'bg-green-50/50 hover:bg-green-50'
+                      : isConverting
+                        ? 'bg-blue-50/70 animate-pulse'
+                        : r.dirty
+                          ? 'bg-warning/5 hover:bg-warning/10'
+                          : isWalkin
+                            ? 'bg-orange-50/60 hover:bg-orange-50'
+                            : 'hover:bg-muted/20'
+                    }`}
                 >
                   <td className="p-2 text-xs text-muted-foreground">
                     <div className="flex flex-col items-center gap-1">
                       {idx + 1}
                       {isWalkin && (
                         isLinked ? (
-                          <a 
-                            href={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[r.id!]}`} 
-                            target="_blank" 
+                          <a
+                            href={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[r.id!]}`}
+                            target="_blank"
                             rel="noreferrer"
-                            className="text-[8px] px-1 rounded font-bold whitespace-nowrap bg-green-100 text-green-700 hover:bg-green-200 transition-colors cursor-pointer"
+                            className="text-[8px] px-1.5 py-0.5 rounded font-bold whitespace-nowrap bg-green-200 text-green-800 hover:bg-green-300 transition-colors cursor-pointer border border-green-300"
                           >
-                            LINKED
+                            ✓ LINKED
                           </a>
+                        ) : isConverting ? (
+                          <span className="text-[8px] px-1.5 py-0.5 rounded font-bold whitespace-nowrap bg-blue-100 text-blue-700 border border-blue-200">
+                            SYNCING
+                          </span>
                         ) : (
-                          <span className="text-[8px] px-1 rounded font-bold whitespace-nowrap bg-orange-100 text-orange-600">
-                            WALKIN
+                          <span className="text-[8px] px-1.5 py-0.5 rounded font-bold whitespace-nowrap bg-orange-100 text-orange-600 border border-orange-200">
+                            WALK-IN
                           </span>
                         )
                       )}
@@ -337,7 +351,7 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
                 <td className="p-1 text-center">
                   <div className="flex items-center justify-center gap-1">
                     {onConvertWalkin && isWalkInRow(r) && r.id && (
-                      linkedClientIds[r.id] ? (
+                      isLinked ? (
                         <>
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:bg-green-50" asChild>
                             <a href={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[r.id]}`} target="_blank" rel="noreferrer">
@@ -345,14 +359,30 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
                             </a>
                           </Button>
                           {onUnlink && (
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-600 hover:bg-orange-50" title="Unlink client" onClick={() => onUnlink(r.id!)}>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="Unlink client" onClick={() => onUnlink(r.id!)}>
                               <RotateCcw className="w-3.5 h-3.5" />
                             </Button>
                           )}
                         </>
                       ) : (
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-600 hover:bg-orange-50" onClick={() => onConvertWalkin(r)}>
-                          <UserPlus className="w-3.5 h-3.5" />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className={`h-7 w-7 ${isConverting ? 'text-blue-500' : 'text-orange-600 hover:bg-orange-50'}`}
+                          disabled={isConverting}
+                          title="Auto-create client from this walk-in"
+                          onClick={async () => {
+                            setConvertingRowId(r.id!);
+                            try {
+                              await onConvertWalkin(r);
+                            } finally {
+                              setConvertingRowId(null);
+                            }
+                          }}
+                        >
+                          {isConverting
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <UserPlus className="w-3.5 h-3.5" />}
                         </Button>
                       )
                     )}

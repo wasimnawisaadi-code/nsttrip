@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { generateDisplayId } from '@/lib/supabase-service';
 import { calculateFinancials, getMonthRange } from '@/lib/accounting-logic';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -21,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import DSRGridEditor from '@/components/DSRGridEditor';
 import {
   ClipboardList, Plus, Upload, Download, FileSpreadsheet, Calendar, CalendarClock, Pencil, Trash2,
-  Settings as SettingsIcon, TrendingUp, Users, AlertCircle, CheckCircle2, ExternalLink, BarChart2, Star, LayoutDashboard,
+  Settings as SettingsIcon, TrendingUp, Users, AlertCircle, CheckCircle2, ExternalLink, BarChart2, Star, LayoutDashboard, Loader2, LinkOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link, useNavigate } from 'react-router-dom';
@@ -126,42 +127,77 @@ export default function DailyStatusReport() {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  // ── Helper: extract mobile from DSR data ──────────────────────────────────
+  const extractMobile = (p: Record<string, any>): string => {
+    const issuedFor = String(p['Issued for'] || p['Issued For'] || p['issued_for'] || p['issuedFor'] || '');
+    const cleaned = issuedFor.replace(/[^\d+]/g, '');
+    const match = cleaned.match(/\+?\d{7,15}/);
+    return match ? match[0] : (p['Mobile'] || p['Mobile No'] || p['Phone'] || p['Phone No'] || p['WhatsApp'] || p['whatsapp'] || p['mobile'] || '');
+  };
+
+  // ── Helper: build full client payload from a DSR entry ───────────────────
+  const buildClientPayload = (w: DSREntry, displayId: string) => {
+    const p = w.data;
+    const serviceName = templates.find(t => t.id === w.template_id)?.name || 'Air Ticket';
+    const sector = p['Sector'] || p['sector'] || '';
+    const [dep, arr] = sector.includes('-') ? sector.split('-') : sector.includes('/') ? sector.split('/') : [sector, ''];
+    const travelDate = p['Travel Date'] || p['travel_date'] || '';
+    return {
+      display_id: displayId,
+      name: (p['Passenger Name'] || p['passenger_name'] || p['Name'] || p['name'] || 'DSR Walk-in').trim(),
+      mobile: extractMobile(p),
+      passport_no: p['Passport No'] || p['passport_no'] || p['Passport'] || null,
+      nationality: p['Nationality'] || p['nationality'] || null,
+      client_type: 'Individual',
+      lead_source: 'Walk-in',
+      status: 'New' as const,
+      service: serviceName,
+      service_details: {
+        pnr: p['PNR'] || p['pnr'] || '',
+        flightNumber: p['Flight No'] || p['flight_no'] || p['Flight Number'] || '',
+        ticketNo: p['Ticket No'] || p['ticket_no'] || '',
+        supplier: p['Supplier'] || p['supplier'] || '',
+        departureCity: dep.trim(),
+        arrivalCity: arr.trim(),
+        travelDate,
+        fare: String(w.sale_amount || ''),
+        sector,
+      },
+      important_dates: travelDate ? { 'Travel Date (Departure)': travelDate } : {},
+      family_members: [] as any,
+      dsr_entry_id: w.id,
+      created_by: w.employee_id || user?.id,
+      assigned_to: w.employee_id || user?.id,
+      revenue: Number(w.sale_amount || 0),
+      profit: Number(w.profit_amount || 0),
+    };
+  };
+
   const handleBulkSync = async () => {
     if (selectedWalkinIds.length === 0) return;
     const candidates = detectedWalkins.filter(w => selectedWalkinIds.includes(w.id) && !linkedClientIds[w.id]);
     if (candidates.length === 0) { toast.info('No unlinked walk-ins selected'); return; }
-    
-    if (!confirm(`Sync ${candidates.length} walk-ins to Client CRM?`)) return;
-    
-    setIsSyncing(true);
-    let ok = 0;
-    try {
-      for (const w of candidates) {
-        const p = w.data;
-        const mobile = (() => {
-          const issuedFor = String(p['Issued for'] || p['Issued For'] || p['issued_for'] || '');
-          const cleaned = issuedFor.replace(/[^\d+]/g, '');
-          const match = cleaned.match(/\+?\d{7,15}/);
-          return match ? match[0] : (p['Mobile'] || p['WhatsApp'] || '');
-        })();
+    if (!confirm(`Auto-create ${candidates.length} client(s) from walk-in DSR entries?`)) return;
 
-        const { error } = await supabase.from('clients').insert({
-          name: p['Passenger Name'] || p['passenger_name'] || p['Name'] || 'DSR Walk-in',
-          mobile: mobile,
-          dsr_entry_id: w.id,
-          created_by: w.employee_id || user?.id,
-          status: 'New',
-          service: templates.find(t => t.id === w.template_id)?.name || 'DSR Import',
-          revenue: Number(w.sale_amount || 0),
-          profit: Number(w.profit_amount || 0),
-        });
-        if (!error) ok++;
-      }
-      toast.success(`Success: Synced ${ok} clients`);
+    setIsSyncing(true);
+    const toastId = toast.loading(`⏳ Syncing ${candidates.length} client${candidates.length > 1 ? 's' : ''}...`);
+    try {
+      // Generate all display IDs in parallel — much faster than sequential
+      const displayIds = await Promise.all(candidates.map(() => generateDisplayId('CLT')));
+      const payloads = candidates.map((w, i) => buildClientPayload(w, displayIds[i]));
+
+      // Single bulk insert
+      const { error } = await supabase.from('clients').insert(payloads);
+      if (error) throw error;
+
+      toast.success(`✅ ${candidates.length} client${candidates.length > 1 ? 's' : ''} created in CRM!`, { id: toastId });
       setSelectedWalkinIds([]);
       setRefreshCount(prev => prev + 1);
-    } catch (e: any) { toast.error(e.message); }
-    finally { setIsSyncing(false); }
+    } catch (e: any) {
+      toast.error('Sync failed: ' + e.message, { id: toastId });
+    } finally {
+      setIsSyncing(false);
+    }
   };
   
   const WALKIN_REGEX = /(walk|was|wal|vak|vlk)[\s-]?k?[i|l|e][m|n|k|y]?[g|n]?/i;
@@ -203,35 +239,27 @@ export default function DailyStatusReport() {
     });
   }, [entries, historicalWalkins, linkedClientIds, activeTemplate]);
 
-  const handleConvertToClient = (entry: DSREntry) => {
-    const p = entry.data;
-    const serviceName = templates.find(t => t.id === entry.template_id)?.name || 'DSR Import';
-    const params = new URLSearchParams({
-      from_dsr: '1',
-      dsr_entry_id: entry.id,
-      employee_id: entry.employee_id || '',
-      service: serviceName,
-      name: p['Passenger Name'] || p['passenger_name'] || p['Name'] || '',
-      pnr: p['PNR'] || p['pnr'] || '',
-      flight_no: p['Flight No'] || p['flight_no'] || '',
-      sector: p['Sector'] || p['sector'] || '',
-      travel_date: p['Travel Date'] || p['travel_date'] || '',
-      ticket_no: p['Ticket No'] || p['ticket_no'] || '',
-      supplier: p['Supplier'] || p['supplier'] || '',
-      sold: String(entry.sale_amount || ''),
-      profit: String(entry.profit_amount || ''),
-      mobile: (() => {
-        // Try multiple variations of the column name
-        const issuedFor = String(p['Issued for'] || p['Issued For'] || p['issued_for'] || p['issuedFor'] || '');
-        // Match anything that looks like a phone number (7 to 15 digits, can have + prefix)
-        // This regex looks for digits even if they are mixed with spaces, dots, or dashes
-        const cleaned = issuedFor.replace(/[^\d+]/g, ''); // Remove everything except digits and +
-        const match = cleaned.match(/\+?\d{7,15}/);
-        return match ? match[0] : (p['Mobile'] || p['Mobile No'] || p['Phone'] || p['Phone No'] || p['WhatsApp'] || p['whatsapp'] || p['mobile'] || '');
-      })(),
-    });
-    const path = isAdmin ? '/admin' : '/employee';
-    navigate(`${path}/clients/new?${params.toString()}`);
+  // ── Single walk-in: auto-create client directly (no wizard redirect) ──────
+  const [convertingId, setConvertingId] = useState<string | null>(null);
+
+  const handleConvertToClient = async (entry: DSREntry) => {
+    if (linkedClientIds[entry.id]) {
+      toast.info('Already linked to a client.');
+      return;
+    }
+    setConvertingId(entry.id);
+    try {
+      const displayId = await generateDisplayId('CLT');
+      const payload = buildClientPayload(entry, displayId);
+      const { error } = await supabase.from('clients').insert(payload);
+      if (error) throw error;
+      toast.success(`✅ Client "${payload.name}" created successfully!`);
+      setRefreshCount(prev => prev + 1);
+    } catch (e: any) {
+      toast.error('Failed to create client: ' + e.message);
+    } finally {
+      setConvertingId(null);
+    }
   };
 
   const handleWorkingDateChange = (date: string) => {
@@ -536,12 +564,22 @@ export default function DailyStatusReport() {
                 const isLinked = !!linkedClientIds[w.id];
                 const isSelected = selectedWalkinIds.includes(w.id);
 
+                const isConverting = convertingId === w.id;
+
                 return (
-                  <div key={w.id} className={`flex items-center justify-between p-2 rounded-lg border shadow-sm transition-all ${isLinked ? 'bg-green-50/50 border-green-100' : (isSelected ? 'bg-orange-100 border-orange-300 ring-2 ring-orange-200/50' : 'bg-white border-orange-100')}`}>
+                  <div key={w.id} className={`flex items-center justify-between p-2 rounded-lg border shadow-sm transition-all duration-300
+                    ${isLinked
+                      ? 'bg-green-50 border-green-300 ring-1 ring-green-200'
+                      : isConverting
+                        ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-200 animate-pulse'
+                        : isSelected
+                          ? 'bg-orange-100 border-orange-300 ring-2 ring-orange-200/50'
+                          : 'bg-white border-orange-100 hover:border-orange-300'
+                    }`}>
                     <div className="flex items-center gap-2 min-w-0 pr-2">
-                      {!isLinked && (
-                        <input 
-                          type="checkbox" 
+                      {!isLinked && !isConverting && (
+                        <input
+                          type="checkbox"
                           className="w-4 h-4 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
                           checked={isSelected}
                           onChange={(e) => {
@@ -550,11 +588,15 @@ export default function DailyStatusReport() {
                           }}
                         />
                       )}
+                      {isLinked && <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />}
+                      {isConverting && <Loader2 className="w-4 h-4 text-blue-600 flex-shrink-0 animate-spin" />}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
-                          <p className="text-xs font-bold truncate">{name}</p>
+                          <p className={`text-xs font-bold truncate ${isLinked ? 'text-green-800' : ''}`}>{name}</p>
                           {isLinked ? (
-                            <Badge className="h-4 px-1 text-[8px] bg-green-500 hover:bg-green-600 border-none font-black uppercase">Linked</Badge>
+                            <Badge className="h-4 px-1 text-[8px] bg-green-600 hover:bg-green-700 border-none font-black uppercase">✓ Linked</Badge>
+                          ) : isConverting ? (
+                            <Badge className="h-4 px-1 text-[8px] bg-blue-500 border-none font-black uppercase">Creating...</Badge>
                           ) : (
                             <Badge className="h-4 px-1 text-[8px] bg-orange-500 hover:bg-orange-600 border-none font-black uppercase">Unlinked</Badge>
                           )}
@@ -565,16 +607,23 @@ export default function DailyStatusReport() {
                     <div className="flex items-center gap-1">
                       {isLinked ? (
                         <>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => handleUnlink(w.id)}>
-                            <Trash2 className="w-3.5 h-3.5" />
+                          <Button size="sm" variant="ghost" className="h-7 text-[10px] text-orange-600 hover:text-orange-700 hover:bg-orange-50 font-semibold px-2" title="Remove link between DSR and client" onClick={() => handleUnlink(w.id)}>
+                            <LinkOff className="w-3 h-3 mr-1" />Unlink
                           </Button>
-                          <Button size="sm" asChild variant="secondary" className="h-7 text-[10px] text-green-700 font-bold bg-green-100 hover:bg-green-200 border-green-200">
-                            <Link to={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[w.id]}`}>Profile</Link>
+                          <Button size="sm" asChild variant="secondary" className="h-7 text-[10px] text-green-700 font-bold bg-green-100 hover:bg-green-200 border border-green-300">
+                            <Link to={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[w.id]}`}><ExternalLink className="w-3 h-3 mr-1" />View</Link>
                           </Button>
                         </>
                       ) : (
-                        <Button size="sm" onClick={() => handleConvertToClient(w)} className="h-7 text-[10px] bg-orange-600 hover:bg-orange-700 text-white font-bold px-3">
-                          <Plus className="w-3 h-3 mr-1" /> Add
+                        <Button
+                          size="sm"
+                          onClick={() => handleConvertToClient(w)}
+                          disabled={isConverting || isSyncing}
+                          className="h-7 text-[10px] bg-orange-600 hover:bg-orange-700 text-white font-bold px-3 disabled:opacity-60"
+                        >
+                          {isConverting
+                            ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Creating...</>
+                            : <><Plus className="w-3 h-3 mr-1" />Add</>}
                         </Button>
                       )}
                     </div>
