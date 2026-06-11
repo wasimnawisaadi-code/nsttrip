@@ -116,13 +116,13 @@ export default function DailyStatusReport() {
   }, [entries, historicalWalkins, refreshCount]);
 
   const handleUnlink = async (entryId: string) => {
-    if (!confirm('Unlink this client from DSR? The client will remain in CRM, but will show as Unlinked here.')) return;
+    if (!confirm('Delete this synced client from CRM? The DSR entry will remain but the client record will be removed.')) return;
     try {
       const clientId = linkedClientIds[entryId];
       if (!clientId) return;
-      const { error } = await supabase.from('clients').update({ dsr_entry_id: null }).eq('id', clientId);
+      const { error } = await supabase.from('clients').delete().eq('id', clientId);
       if (error) throw error;
-      toast.success('Successfully unlinked');
+      toast.success('Client record deleted from CRM.');
       setRefreshCount(prev => prev + 1);
     } catch (e: any) { toast.error(e.message); }
   };
@@ -149,8 +149,8 @@ export default function DailyStatusReport() {
       passport_no: p['Passport No'] || p['passport_no'] || p['Passport'] || null,
       nationality: p['Nationality'] || p['nationality'] || null,
       client_type: 'Individual',
-      lead_source: 'Walk-in',
-      status: 'New' as const,
+      lead_source: 'DSR Sync',
+      status: 'Success' as any,
       service: serviceName,
       service_details: {
         pnr: p['PNR'] || p['pnr'] || '',
@@ -162,6 +162,8 @@ export default function DailyStatusReport() {
         travelDate,
         fare: String(w.sale_amount || ''),
         sector,
+        fromDSR: true,
+        dsrDate: w.entry_date,
       },
       important_dates: travelDate ? { 'Travel Date (Departure)': travelDate } : {},
       family_members: [] as any,
@@ -595,7 +597,7 @@ export default function DailyStatusReport() {
                         <div className="flex items-center gap-1.5 mb-0.5">
                           <p className={`text-xs font-bold truncate ${isLinked ? 'text-green-800' : ''}`}>{name}</p>
                           {isLinked ? (
-                            <Badge className="h-4 px-1 text-[8px] bg-green-600 hover:bg-green-700 border-none font-black uppercase">✓ Linked</Badge>
+                            <Badge className="h-4 px-1.5 text-[8px] bg-green-600 hover:bg-green-700 border-none font-black uppercase">✅ Success</Badge>
                           ) : isConverting ? (
                             <Badge className="h-4 px-1 text-[8px] bg-blue-500 border-none font-black uppercase">Creating...</Badge>
                           ) : (
