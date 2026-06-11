@@ -205,10 +205,13 @@ export default function DailyStatusReport() {
 
   const handleConvertToClient = (entry: DSREntry) => {
     const p = entry.data;
+    const serviceName = templates.find(t => t.id === entry.template_id)?.name || 'DSR Import';
     const params = new URLSearchParams({
       from_dsr: '1',
       dsr_entry_id: entry.id,
-      name: p['Passenger Name'] || p['passenger_name'] || '',
+      employee_id: entry.employee_id || '',
+      service: serviceName,
+      name: p['Passenger Name'] || p['passenger_name'] || p['Name'] || '',
       pnr: p['PNR'] || p['pnr'] || '',
       flight_no: p['Flight No'] || p['flight_no'] || '',
       sector: p['Sector'] || p['sector'] || '',
@@ -753,6 +756,7 @@ export default function DailyStatusReport() {
                 onChanged={() => setRefreshCount(prev => prev + 1)}
                 linkedClientIds={linkedClientIds}
                 onConvertWalkin={handleConvertToClient}
+                onUnlink={handleUnlink}
               />
             </div>
           </TabsContent>

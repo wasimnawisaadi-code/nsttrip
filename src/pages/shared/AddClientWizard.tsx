@@ -209,16 +209,18 @@ export default function AddClientWizard() {
     if (fromDsr !== '1' || isEditMode) return;
 
     const dsrId = searchParams.get('dsr_entry_id');
+    const employeeId = searchParams.get('employee_id');
     setLinkedDsrEntryId(dsrId);
 
     const sector = searchParams.get('sector') || '';
     const [dep, arr] = sector.includes('-') ? sector.split('-') : sector.includes('/') ? sector.split('/') : [sector, ''];
+    const serviceName = searchParams.get('service') || 'Air Ticket';
 
     setForm(prev => ({
       ...prev,
       name: searchParams.get('name') || prev.name,
       mobile: searchParams.get('mobile') || prev.mobile,
-      service: 'Air Ticket',
+      service: serviceName,
       leadSource: 'Walk-in',
       serviceDetails: {
         ...prev.serviceDetails,
@@ -439,6 +441,7 @@ export default function AddClientWizard() {
 
       const displayId = await generateDisplayId('CLT');
       const svcDisplayId = await generateDisplayId('SVC');
+      const employeeId = searchParams.get('employee_id') || user.id;
       const { data: newClient, error } = await supabase.from('clients').insert({
         display_id: displayId, name: form.name, mobile: form.mobile, email: form.email || null,
         passport_no: form.passportNo || null, client_type: form.clientType || null,
@@ -450,7 +453,7 @@ export default function AddClientWizard() {
         important_dates: datesObj as any,
         family_members: [] as any,
         status: 'New' as const,
-        assigned_to: user.id, created_by: user.id,
+        assigned_to: employeeId, created_by: employeeId,
         dsr_entry_id: linkedDsrEntryId,
         revenue: Number(form.revenue) || null,
         profit: Number(form.profit) || null,

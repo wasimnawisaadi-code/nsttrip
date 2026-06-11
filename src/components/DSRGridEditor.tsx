@@ -28,6 +28,7 @@ interface Props {
   onChanged?: () => void;
   linkedClientIds?: Record<string, string>;
   onConvertWalkin?: (row: any) => void;
+  onUnlink?: (entryId: string) => void;
 }
 
 /**
@@ -36,7 +37,7 @@ interface Props {
  * - Auto-detect today date OR manual per-row date selection
  * - Save dirty rows in batch
  */
-export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, employeeFilter, workingDate, onWorkingDateChange, onChanged, linkedClientIds = {}, onConvertWalkin }: Props) {
+export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, employeeFilter, workingDate, onWorkingDateChange, onChanged, linkedClientIds = {}, onConvertWalkin, onUnlink }: Props) {
   const { user, profile } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -316,10 +317,20 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
                     <div className="flex flex-col items-center gap-1">
                       {idx + 1}
                       {isWalkin && (
-                        <span className={`text-[8px] px-1 rounded font-bold whitespace-nowrap 
-                          ${isLinked ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-600'}`}>
-                          {isLinked ? 'SYNCED' : 'WALKIN'}
-                        </span>
+                        isLinked ? (
+                          <a 
+                            href={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[r.id!]}`} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="text-[8px] px-1 rounded font-bold whitespace-nowrap bg-green-100 text-green-700 hover:bg-green-200 transition-colors cursor-pointer"
+                          >
+                            LINKED
+                          </a>
+                        ) : (
+                          <span className="text-[8px] px-1 rounded font-bold whitespace-nowrap bg-orange-100 text-orange-600">
+                            WALKIN
+                          </span>
+                        )
                       )}
                     </div>
                   </td>
@@ -327,18 +338,25 @@ export default function DSRGridEditor({ template, fromDate, toDate, isAdmin, emp
                   <div className="flex items-center justify-center gap-1">
                     {onConvertWalkin && isWalkInRow(r) && r.id && (
                       linkedClientIds[r.id] ? (
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:bg-green-50" asChild>
-                          <a href={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[r.id]}`} target="_blank" rel="noreferrer">
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </Button>
+                        <>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:bg-green-50" asChild>
+                            <a href={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[r.id]}`} target="_blank" rel="noreferrer">
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          </Button>
+                          {onUnlink && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-600 hover:bg-orange-50" title="Unlink client" onClick={() => onUnlink(r.id!)}>
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </>
                       ) : (
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-600 hover:bg-orange-50" onClick={() => onConvertWalkin(r)}>
                           <UserPlus className="w-3.5 h-3.5" />
                         </Button>
                       )
                     )}
-                    {ownsRow(r) && (
+                    {ownsRow(r) && !linkedClientIds[r.id!] && (
                       <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeRow(idx)}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
