@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import DSRGridEditor from '@/components/DSRGridEditor';
 import {
   ClipboardList, Plus, Upload, Download, FileSpreadsheet, Calendar, CalendarClock, Pencil, Trash2,
-  Settings as SettingsIcon, TrendingUp, Users, AlertCircle, CheckCircle2, ExternalLink, BarChart2, Star, LayoutDashboard, Loader2, LinkOff,
+  Settings as SettingsIcon, TrendingUp, Users, AlertCircle, CheckCircle2, ExternalLink, BarChart2, Star, LayoutDashboard, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link, useNavigate } from 'react-router-dom';
@@ -182,15 +182,16 @@ export default function DailyStatusReport() {
     setIsSyncing(true);
     const toastId = toast.loading(`⏳ Syncing ${candidates.length} client${candidates.length > 1 ? 's' : ''}...`);
     try {
-      // Generate all display IDs in parallel — much faster than sequential
+      // Generate all IDs in parallel (fast)
       const displayIds = await Promise.all(candidates.map(() => generateDisplayId('CLT')));
       const payloads = candidates.map((w, i) => buildClientPayload(w, displayIds[i]));
 
-      // Single bulk insert
-      const { error } = await supabase.from('clients').insert(payloads);
+      // Single bulk insert — much faster than sequential
+      const { data: inserted, error } = await supabase.from('clients').insert(payloads).select('id');
       if (error) throw error;
 
-      toast.success(`✅ ${candidates.length} client${candidates.length > 1 ? 's' : ''} created in CRM!`, { id: toastId });
+      const ok = inserted?.length ?? payloads.length;
+      toast.success(`✅ ${ok} client${ok > 1 ? 's' : ''} synced to CRM successfully!`, { id: toastId });
       setSelectedWalkinIds([]);
       setRefreshCount(prev => prev + 1);
     } catch (e: any) {
@@ -607,8 +608,8 @@ export default function DailyStatusReport() {
                     <div className="flex items-center gap-1">
                       {isLinked ? (
                         <>
-                          <Button size="sm" variant="ghost" className="h-7 text-[10px] text-orange-600 hover:text-orange-700 hover:bg-orange-50 font-semibold px-2" title="Remove link between DSR and client" onClick={() => handleUnlink(w.id)}>
-                            <LinkOff className="w-3 h-3 mr-1" />Unlink
+                          <Button size="sm" variant="ghost" className="h-7 text-[10px] text-orange-600 hover:bg-orange-100 hover:text-orange-700 font-bold px-2 border border-orange-200" title="Remove link between this DSR entry and client" onClick={() => handleUnlink(w.id)}>
+                            🔓 Unlink
                           </Button>
                           <Button size="sm" asChild variant="secondary" className="h-7 text-[10px] text-green-700 font-bold bg-green-100 hover:bg-green-200 border border-green-300">
                             <Link to={`${isAdmin ? '/admin' : '/employee'}/clients/${linkedClientIds[w.id]}`}><ExternalLink className="w-3 h-3 mr-1" />View</Link>
