@@ -123,11 +123,32 @@ export default function ReportsPage() {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    
+    const monthClients = clients.filter((c: any) => c.created_at?.startsWith(key));
+    const monthDsr = dsrEntries.filter((e: any) => e.entry_date?.startsWith(key));
+    const linkedDsrIds = new Set(monthClients.map((c: any) => c.dsr_entry_id).filter(Boolean));
+    
+    let rev = 0, prof = 0;
+    if (dataSource === 'combined' || dataSource === 'dsr') {
+      rev += monthDsr.reduce((s, e) => s + Number(e.sale_amount || 0), 0);
+      prof += monthDsr.reduce((s, e) => s + Number(e.profit_amount || 0), 0);
+    }
+    if (dataSource === 'combined' || dataSource === 'clients') {
+      const eligible = monthClients.filter(c => dataSource !== 'combined' || !c.dsr_entry_id);
+      rev += eligible.reduce((s, c) => s + Number(c.revenue || 0), 0);
+      prof += eligible.reduce((s, c) => s + Number(c.profit || 0), 0);
+    }
+    // For combined, we also need to subtract linked DSR stats if we added BOTH DSR and Client
+    // But the logic above already handles it: 
+    // DSR Part: Add all DSRs.
+    // Client Part: Add only Clients NOT linked to a DSR.
+    // Result: Total = All DSRs + Clients that don't have a DSR entry. This is correct!
+
     monthlyTrend.push({
       month: label,
-      clients: clients.filter((c: any) => c.created_at?.startsWith(key)).length,
-      revenue: dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).reduce((s: number, e: any) => s + Number(e.sale_amount || 0), 0),
-      profit: dsrEntries.filter((e: any) => e.entry_date?.startsWith(key)).reduce((s: number, e: any) => s + Number(e.profit_amount || 0), 0),
+      clients: monthClients.length,
+      revenue: rev,
+      profit: prof,
     });
   }
 

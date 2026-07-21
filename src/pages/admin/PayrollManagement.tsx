@@ -81,8 +81,16 @@ export default function PayrollManagement() {
   useEffect(() => { load(); }, [yearMonth]);
 
   const calculatePayroll = async () => {
-    const { data: attendance } = await supabase.from('attendance').select('*').gte('date', `${yearMonth}-01`).lte('date', `${yearMonth}-31`);
-    const { data: leave } = await supabase.from('leave_requests').select('*').eq('status', 'Approved');
+    // SLOWNESS FIX: Restrict leave and attendance to the specific month being processed
+    const startOfMonth = `${yearMonth}-01`;
+    const endOfMonth = `${yearMonth}-31`; // Supabase handles 31 even for Feb
+    
+    const { data: attendance } = await supabase.from('attendance').select('*').gte('date', startOfMonth).lte('date', endOfMonth);
+    const { data: leave } = await supabase.from('leave_requests')
+      .select('*')
+      .eq('status', 'Approved')
+      .or(`start_date.gte.${startOfMonth},end_date.lte.${endOfMonth}`);
+    
     const allAttendance = attendance || [];
     const allLeave = leave || [];
 

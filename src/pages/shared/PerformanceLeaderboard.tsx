@@ -12,6 +12,7 @@ type EmpStat = {
   dsr_sales: number; dsr_profit: number; dsr_count: number;
   clients_added: number; clients_converted: number;
   clients_sales: number; clients_profit: number;
+  totalSales: number; totalProfit: number;
   leads_taken: number; leads_converted: number;
   attendance_score: number;
   scores: { dsr: number; leads: number; clients: number; overall: number };
@@ -85,10 +86,21 @@ export default function PerformanceLeaderboard() {
         const dsr_sales = myDsr.reduce((s, d: any) => s + Number(d.sale_amount || 0), 0);
         const dsr_profit = myDsr.reduce((s, d: any) => s + Number(d.profit_amount || 0), 0);
         const dsr_count = myDsr.length;
+
         const clients_added = myClients.length;
         const clients_converted = myClients.filter((c: any) => c.status === 'Completed' || c.status === 'Success').length;
         const clients_sales = myClients.reduce((s, c: any) => s + Number(c.revenue || 0), 0);
         const clients_profit = myClients.reduce((s, c: any) => s + Number(c.profit || 0), 0);
+        
+        // DEDUPLICATION LOGIC: Find DSRs linked to THIS employee's clients
+        const linkedDsrIds = new Set(myClients.map(c => c.dsr_entry_id).filter(Boolean));
+        const linkedDsrStats = myDsr.filter(d => linkedDsrIds.has(d.id)).reduce((acc, d) => {
+          acc.revenue += Number(d.sale_amount || 0);
+          acc.profit += Number(d.profit_amount || 0);
+          acc.count += 1;
+          return acc;
+        }, { revenue: 0, profit: 0, count: 0 });
+
         const leads_taken = myLeads.length;
         const leads_converted = myLeads.filter((l: any) => l.status === 'CONVERTED').length;
         const present = myAtt.filter((a: any) => a.status === 'Present').length;
@@ -96,9 +108,21 @@ export default function PerformanceLeaderboard() {
         const totalDays = Math.max(1, myAtt.length);
         const attendance_score = Math.round(((present + late * 0.7) / totalDays) * 100);
 
+        // Deduplicate stats for overall scoring
+        const finalSales = dsr_sales + clients_sales - linkedDsrStats.revenue;
+        const finalProfit = dsr_profit + clients_profit - linkedDsrStats.profit;
+        const finalCount = dsr_count + clients_added - linkedDsrStats.count;
+
         const scoreDsr = Math.round(dsr_profit / 100) + dsr_count * 2;
         const scoreLeads = leads_converted * 30 + leads_taken * 5;
         const scoreClients = clients_converted * 50 + clients_added * 10;
+        
+        // We use the same scoring logic but maybe adjusted for "overall" to use deduplicated stats?
+        // Actually, the current scoring just adds the category scores.
+        // If categories are calculated independently, they are fine.
+        // But the "overall" total display (lines 244-245) needs to be deduplicated.
+        // So we'll store the deduplicated values in the object.
+
         const scoreOverall = scoreDsr + scoreLeads + scoreClients + attendance_score;
 
         return {
@@ -106,6 +130,9 @@ export default function PerformanceLeaderboard() {
           dsr_sales, dsr_profit, dsr_count,
           clients_added, clients_converted,
           clients_sales, clients_profit,
+          // NEW: store deduplicated totals
+          totalSales: finalSales,
+          totalProfit: finalProfit,
           leads_taken, leads_converted,
           attendance_score,
           scores: { dsr: scoreDsr, leads: scoreLeads, clients: scoreClients, overall: scoreOverall },
@@ -240,9 +267,9 @@ export default function PerformanceLeaderboard() {
                                 <td className="text-right">{formatCurrency(s.clients_sales)}</td>
                                 <td className="text-right text-success font-medium">{formatCurrency(s.clients_profit)}</td>
                               </>}
-                              {category === 'overall' && <>
-                                <td className="text-right font-medium">{formatCurrency(s.dsr_sales + s.clients_sales)}</td>
-                                <td className="text-right font-bold text-success">{formatCurrency(s.dsr_profit + s.clients_profit)}</td>
+                                {category === 'overall' && <>
+                                  <td className="text-right font-medium">{formatCurrency(s.totalSales)}</td>
+                                  <td className="text-right font-bold text-success">{formatCurrency(s.totalProfit)}</td>
                                 <td className="text-right">{s.dsr_count}</td>
                                 <td className="text-right">{s.clients_added}/{s.clients_converted}</td>
                                 <td className="text-right">{s.leads_taken}/{s.leads_converted}</td>

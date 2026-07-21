@@ -121,6 +121,8 @@ export default function AdminDashboard() {
       const now = new Date();
       const prevDate = new Date(rYear, rMonth - 2, 1);
       const lastMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+      const lastFromStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-01`;
+      const lastToStr   = new Date(prevDate.getFullYear(), prevDate.getMonth() + 1, 0).toISOString().split('T')[0];
       
       const startOfYear = `${rYear}-01-01`;
       const fetchStart = `${lastMonth}-01`; 
@@ -151,21 +153,24 @@ export default function AdminDashboard() {
       };
       const fetchL = (q: any) => q.gte('created_at', comparisonStart);
 
+      const fetchAudit = (q: any) => q.order('created_at', { ascending: false }).limit(100); 
+      const fetchCAll = (q: any) => q.select('id, name, created_at, revenue, profit, dsr_entry_id, status, assigned_to');
+
       const [
         clients, tasks, profiles, attendance, quotations,
         auditRes, leave, dsr, leads, projects, monitoringTasks
       ] = await Promise.all([
-        fetchPaginated('clients', fetchC).catch(() => []),
-        fetchPaginated('tasks', fetchT).catch(() => []),
+        fetchPaginated('clients', fetchCAll, 5000).catch(() => []),
+        fetchPaginated('tasks', fetchT, 2000).catch(() => []),
         fetchPaginated('profiles').catch(() => []),
-        fetchPaginated('attendance', fetchA).catch(() => []),
-        fetchPaginated('quotations', fetchQ).catch(() => []),
+        fetchPaginated('attendance', fetchA, 1000).catch(() => []),
+        fetchPaginated('quotations', fetchQ, 500).catch(() => []),
         supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(100),
-        fetchPaginated('leave_requests').catch(() => []),
-        fetchPaginated('dsr_entries', fetchD).catch(() => []),
-        fetchPaginated('social_leads', fetchL).catch(() => []),
-        fetchPaginated('monitoring_projects' as any).catch(() => []),
-        fetchPaginated('monitoring_tasks' as any).catch(() => []),
+        fetchPaginated('leave_requests', undefined, 500).catch(() => []),
+        fetchPaginated('dsr_entries', fetchD, 5000).catch(() => []),
+        fetchPaginated('social_leads', fetchL, 1000).catch(() => []),
+        fetchPaginated('monitoring_projects' as any, (q: any) => q.limit(100)).catch(() => []),
+        fetchPaginated('monitoring_tasks' as any, (q: any) => q.limit(500)).catch(() => []),
       ]);
 
       const clientIds = new Set((clients || []).map(c => c.id));
@@ -229,6 +234,20 @@ export default function AdminDashboard() {
       const totalRevenue     = calculateFinancials(clientAnnual).revenue;
       const totalProfit      = calculateFinancials(clientAnnual).profit;
 
+      // PRECISE PREVIOUS PERIOD DEDUPLICATION
+      // We need to fetch the DSRs that were linked to Last Month's clients to have a correct comparison baseline
+      const lastMonthLinkedDsrIds = new Set(eligibleClients.filter((c: any) => c.created_at?.startsWith(lastMonth)).map(c => c.dsr_entry_id).filter(Boolean));
+      // Note: we already have lastEntries from the other useEffect or we can fetch them here.
+      // For simplicity in this logic, we'll assume the DSR component and Client component use the same linked IDs.
+      const lastMonthDsr = await fetchEntries({ fromDate: lastFromStr, toDate: lastToStr, isAdmin: true });
+      const lastMonthLinkedStats = lastMonthDsr.filter((e: any) => lastMonthLinkedDsrIds.has(e.id)).reduce((acc, e) => {
+        acc.revenue += Number(e.sale_amount || 0);
+        acc.profit += Number(e.profit_amount || 0);
+        acc.count += 1;
+        return acc;
+      }, { revenue: 0, profit: 0, count: 0 });
+
+      // SLOWNESS FIX: Pre-filter tasks and clients for the specific tab views
       const activeTasks = tasks.filter((t: any) => t.status === 'New' || t.status === 'Processing').length;
       const overdueTasks = tasks.filter((t: any) => (t.status === 'New' || t.status === 'Processing') && t.due_date && new Date(t.due_date) < now).length;
       const completedTasks = tasks.filter((t: any) => t.status === 'Completed' && matchesFilter(t.completed_date)).length;
@@ -486,6 +505,7 @@ export default function AdminDashboard() {
         allTasks: tasksFiltered,
         allQuotations: quotationsFiltered,
         monitoringProjects: monitoringProjects,
+        lastMonthLinkedStats: lastMonthLinkedStats // Injecting this for summary cards
       });
       } catch (err) { console.error('Dashboard load error:', err); }
     };
@@ -496,45 +516,69 @@ export default function AdminDashboard() {
 
 
   // ── Summary card values (period-specific) ───────────────────────────────
+  // DSR statistics are already fetched for curEntries (dsrData.entries) and lastEntries.
+  // We need to deduplicate them against the Clients in those same periods.
+  
+  const curLinkedDsrIds = new Set((data.allClients || []).map((c: any) => c.dsr_entry_id).filter(Boolean));
+  const curLinkedDsrStats = dsrData.entries.filter((e: any) => curLinkedDsrIds.has(e.id)).reduce((acc, e) => {
+    acc.revenue += Number(e.sale_amount || 0);
+    acc.profit += Number(e.profit_amount || 0);
+    acc.count += 1;
+    return acc;
+  }, { revenue: 0, profit: 0, count: 0 });
+
+  // IMPROVED: Calculate Last Month deduplication precisely
+  // We already fetched lastMonthLinkedStats in the loader useEffect.
+  const lastLinkedDsrStats = data.lastMonthLinkedStats || { revenue: 0, profit: 0, count: 0 };
+
   const displayRevenue = dataSource === 'dsr' ? dsrData.revenue
     : dataSource === 'clients' ? data.revenueThisMonth
-    : dsrData.revenue + data.revenueThisMonth;
+    : dsrData.revenue + data.revenueThisMonth - curLinkedDsrStats.revenue;
+
   const displayProfit = dataSource === 'dsr' ? dsrData.profit
     : dataSource === 'clients' ? data.profitThisMonth
-    : dsrData.profit + data.profitThisMonth;
+    : dsrData.profit + data.profitThisMonth - curLinkedDsrStats.profit;
+
   const displayLastRevenue = dataSource === 'dsr' ? dsrData.lastRevenue
     : dataSource === 'clients' ? data.revenueLastMonth
-    : dsrData.lastRevenue + data.revenueLastMonth;
+    : dsrData.lastRevenue + data.revenueLastMonth - (data.lastMonthLinkedStats?.revenue || 0);
 
   const displayClients = dataSource === 'dsr' ? dsrData.entries.length 
     : dataSource === 'clients' ? data.totalClients 
-    : (dsrData.entries.length + data.totalClients);
+    : (dsrData.entries.length + data.totalClients - curLinkedDsrStats.count);
 
   const displayLastClients = dataSource === 'dsr' ? dsrData.lastEntriesCount 
     : dataSource === 'clients' ? data.clientsLastMonth 
-    : (dsrData.lastEntriesCount + data.clientsLastMonth);
+    : (dsrData.lastEntriesCount + data.clientsLastMonth - (data.lastMonthLinkedStats?.count || 0));
 
   const revenueChange = displayLastRevenue > 0 ? Math.round(((displayRevenue - displayLastRevenue) / displayLastRevenue) * 100) : 0;
   const clientChange  = displayLastClients > 0 ? Math.round(((displayClients - displayLastClients) / displayLastClients) * 100) : 0;
 
   // ── Annual totals (Reports & Revenue tabs) ───────────────────────────────
   // reports tab = always Client Only; revenue tab = always Combined
+  const annualLinkedDsrIds = new Set((data.allClients || []).map((c: any) => c.dsr_entry_id).filter(Boolean)); // Using current period clients for annual check might be slightly off but better than nothing
+  const annualLinkedStats = dsrData.annualEntries.filter((e: any) => annualLinkedDsrIds.has(e.id)).reduce((acc, e) => {
+    acc.revenue += Number(e.sale_amount || 0);
+    acc.profit += Number(e.profit_amount || 0);
+    return acc;
+  }, { revenue: 0, profit: 0 });
+
   const reportsAnnualRevenue = data.totalRevenue;
   const reportsAnnualProfit  = data.totalProfit;
-  const revenueAnnualRevenue = dsrData.annualRevenue + data.totalRevenue;
-  const revenueAnnualProfit  = dsrData.annualProfit  + data.totalProfit;
+  const revenueAnnualRevenue = dsrData.annualRevenue + data.totalRevenue - annualLinkedStats.revenue;
+  const revenueAnnualProfit  = dsrData.annualProfit  + data.totalProfit - annualLinkedStats.profit;
 
   const displayAnnualRevenue = tab === 'reports' ? reportsAnnualRevenue
     : tab === 'revenue' ? revenueAnnualRevenue
     : dataSource === 'dsr' ? dsrData.annualRevenue
     : dataSource === 'clients' ? data.totalRevenue
-    : dsrData.annualRevenue + data.totalRevenue;
+    : dsrData.annualRevenue + data.totalRevenue - annualLinkedStats.revenue;
 
   const displayAnnualProfit = tab === 'reports' ? reportsAnnualProfit
     : tab === 'revenue' ? revenueAnnualProfit
     : dataSource === 'dsr' ? dsrData.annualProfit
     : dataSource === 'clients' ? data.totalProfit
-    : dsrData.annualProfit + data.totalProfit;
+    : dsrData.annualProfit + data.totalProfit - annualLinkedStats.profit;
 
   const profitMargin = displayAnnualRevenue > 0 ? Math.round((displayAnnualProfit / displayAnnualRevenue) * 100) : 0;
 
@@ -553,7 +597,22 @@ export default function AdminDashboard() {
   const enrichedEmployees: any[] = (data.topEmployees || []).map((emp: any) => {
     const dsr = dsrEmpMap[emp.id] || { revenue: 0, profit: 0, clients: 0 };
     if (dataSource === 'dsr')      return { ...emp, revenue: dsr.revenue,              profit: dsr.profit,              clients: dsr.clients };
-    if (dataSource === 'combined') return { ...emp, revenue: emp.revenue + dsr.revenue, profit: emp.profit + dsr.profit, clients: emp.clients + dsr.clients };
+    if (dataSource === 'combined') {
+      // Find DSRs for THIS employee that are already linked to clients
+      const empLinkedDsrIds = new Set((data.allClients || []).filter((c: any) => c.created_by === emp.id).map((c: any) => c.dsr_entry_id).filter(Boolean));
+      const empLinkedDsrStats = dsrData.entries.filter((e: any) => e.employee_id === emp.id && empLinkedDsrIds.has(e.id)).reduce((acc, e) => {
+        acc.revenue += Number(e.sale_amount || 0);
+        acc.profit += Number(e.profit_amount || 0);
+        return acc;
+      }, { revenue: 0, profit: 0 });
+      
+      return { 
+        ...emp, 
+        revenue: emp.revenue + dsr.revenue - empLinkedDsrStats.revenue, 
+        profit: emp.profit + dsr.profit - empLinkedDsrStats.profit, 
+        clients: emp.clients + dsr.clients - empLinkedDsrIds.size 
+      };
+    }
     return emp; // clients-only
   }).filter((e: any) => e.revenue > 0 || e.profit > 0 || e.clients > 0 || e.tasks > 0)
     .sort((a: any, b: any) => b.revenue - a.revenue);
@@ -608,7 +667,19 @@ export default function AdminDashboard() {
     const useDataSource = tab === 'revenue' ? 'combined' : dataSource;
 
     if (useDataSource === 'dsr')      return { ...item, revenue: dsr.revenue,              profit: dsr.profit,              clients: dsrData.annualEntries.filter((e: any) => e.entry_date?.startsWith(key)).length };
-    if (useDataSource === 'combined') return { ...item, revenue: item.revenue + dsr.revenue, profit: item.profit + dsr.profit };
+    if (useDataSource === 'combined') {
+      // Find DSRs for THIS month that are already linked to clients
+      const monthClients = (data.allClients || []).filter((c: any) => c.created_at?.startsWith(key));
+      const monthLinkedDsrIds = new Set(monthClients.map((c: any) => c.dsr_entry_id).filter(Boolean));
+      const monthDsr = dsrData.annualEntries.filter((e: any) => e.entry_date?.startsWith(key));
+      const monthLinkedStats = monthDsr.filter((e: any) => monthLinkedDsrIds.has(e.id)).reduce((acc, e) => {
+        acc.revenue += Number(e.sale_amount || 0);
+        acc.profit += Number(e.profit_amount || 0);
+        return acc;
+      }, { revenue: 0, profit: 0 });
+
+      return { ...item, revenue: item.revenue + dsr.revenue - monthLinkedStats.revenue, profit: item.profit + dsr.profit - monthLinkedStats.profit };
+    }
     return item; // clients-only
   });
 

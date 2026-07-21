@@ -27,15 +27,20 @@ export default function AdminAttendance() {
 
   const loadData = async () => {
     setLoading(true);
+    // SLOWNESS FIX: Only fetch data relevant to the current month view
+    const [y, m] = yearMonth.split('-').map(Number);
+    const startOfMonth = `${yearMonth}-01`;
+    const endOfMonth = new Date(y, m, 0).toISOString().split('T')[0];
+
     const [empRes, attRes, leaveRes, rolesRes] = await Promise.all([
-      supabase.from('profiles').select('*'),
-      supabase.from('attendance').select('*'),
-      supabase.from('leave_requests').select('*'),
+      supabase.from('profiles').select('*').eq('status', 'active'),
+      supabase.from('attendance').select('*').gte('date', startOfMonth).lte('date', endOfMonth),
+      supabase.from('leave_requests').select('*').or(`start_date.gte.${startOfMonth},end_date.lte.${endOfMonth}`),
       supabase.from('user_roles').select('*'),
     ]);
 
     const adminIds = new Set((rolesRes.data || []).filter((r: any) => r.role === 'admin' || r.role === 'superadmin').map((r: any) => r.user_id));
-    setEmployees((empRes.data || []).filter((e: any) => !adminIds.has(e.user_id) && e.status === 'active'));
+    setEmployees((empRes.data || []).filter((e: any) => !adminIds.has(e.user_id)));
     setAllAttendance(attRes.data || []);
     setAllLeave(leaveRes.data || []);
     
@@ -44,7 +49,7 @@ export default function AdminAttendance() {
     setLoading(false);
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [yearMonth]); // Reload when month changes!
 
   const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
   const todayAttendance = allAttendance.filter(a => a.date === todayStr);
