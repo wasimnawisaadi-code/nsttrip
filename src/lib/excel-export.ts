@@ -54,6 +54,15 @@ export function exportToExcel(rows: Array<Record<string, unknown>>, filenameNoEx
     return { wch: Math.min(60, Math.max(10, max + 2)) };
   });
 
+  // Turn on Excel's filter dropdowns over the whole table so the sheet can be
+  // filtered (e.g. by Nationality) straight after opening it.
+  ws['!autofilter'] = {
+    ref: XLSX.utils.encode_range(
+      { r: 0, c: 0 },
+      { r: aoa.length - 1, c: Math.max(0, headers.length - 1) },
+    ),
+  };
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
   XLSX.writeFile(wb, `${filenameNoExt}.xlsx`);

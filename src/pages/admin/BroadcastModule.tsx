@@ -112,8 +112,8 @@ export default function BroadcastModule() {
         };
 
         const [c, l, d] = await Promise.all([
-          fetchAllRows('clients', 'id, display_id, name, mobile, email, nationality, service, client_type, status, lead_source, created_at', 'created_at'),
-          fetchAllRows('social_leads', 'id, display_id, full_name, phone, source, status, client_need, assigned_to, created_at', 'created_at'),
+          fetchAllRows('clients', 'id, display_id, name, mobile, email, nationality, service, client_type, status, lead_source, revenue, profit, created_at', 'created_at'),
+          fetchAllRows('social_leads', 'id, display_id, full_name, phone, username, source, status, client_need, language, notes, follow_up_date, assigned_to, last_interaction, created_at', 'created_at'),
           fetchAllRows('dsr_entries', 'id, display_id, employee_name, employee_id, entry_date, data, sale_amount, profit_amount, template_key', 'entry_date'),
         ]);
 
@@ -189,7 +189,18 @@ export default function BroadcastModule() {
         return true;
       }).map(c => ({
         id: c.id, name: c.name, phone: c.mobile || '', email: c.email,
-        meta: { type: 'Client', display_id: c.display_id, nationality: c.nationality, service: c.service, status: c.status },
+        meta: {
+          Type: 'Client',
+          'Client ID': c.display_id || '',
+          Nationality: c.nationality || '',
+          Service: c.service || '',
+          'Client Type': c.client_type || '',
+          Status: c.status || '',
+          'Lead Source': c.lead_source || '',
+          Revenue: c.revenue ?? 0,
+          Profit: c.profit ?? 0,
+          'Created At': c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '',
+        },
       }));
     }
     if (source === 'leads') {
@@ -201,7 +212,19 @@ export default function BroadcastModule() {
         return true;
       }).map(l => ({
         id: l.id, name: l.full_name || 'Lead', phone: l.phone || '', email: '',
-        meta: { type: 'Lead', display_id: l.display_id, source: l.source, status: l.status, need: l.client_need },
+        meta: {
+          Type: 'Lead',
+          'Lead ID': l.display_id || '',
+          Channel: l.source || '',
+          Username: l.username || '',
+          Status: l.status || '',
+          'Client Need': l.client_need || '',
+          Language: l.language || '',
+          Notes: l.notes || '',
+          'Follow-up Date': l.follow_up_date || '',
+          'Last Interaction': l.last_interaction ? new Date(l.last_interaction).toLocaleDateString('en-GB') : '',
+          'Created At': l.created_at ? new Date(l.created_at).toLocaleDateString('en-GB') : '',
+        },
       }));
     }
     // DSR — group by passenger phone if column exists
@@ -215,7 +238,16 @@ export default function BroadcastModule() {
       const name = data['Passenger Name'] || data['passenger_name'] || data['Name'] || data['name'] || d.employee_name || 'DSR';
       return {
         id: d.id, name, phone, email: data.email || data.Email || '',
-        meta: { type: 'DSR', display_id: d.display_id, employee: d.employee_name, date: d.entry_date, sale: d.sale_amount, profit: d.profit_amount },
+        meta: {
+          Type: 'DSR',
+          'Entry ID': d.display_id || '',
+          Nationality: data['Nationality'] || data['nationality'] || data['Country'] || data['country'] || '',
+          Service: d.template_key || '',
+          Employee: d.employee_name || '',
+          Date: d.entry_date || '',
+          Sale: d.sale_amount ?? 0,
+          Profit: d.profit_amount ?? 0,
+        },
       };
     });
   }, [source, clients, leads, dsr, search, nationality, service, clientType, status, leadSource, month, year]);
