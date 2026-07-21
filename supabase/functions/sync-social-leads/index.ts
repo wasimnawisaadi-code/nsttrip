@@ -27,6 +27,21 @@ function isNumericId(s: string): boolean {
   return /^\d{6,20}$/.test(n);
 }
 
+// True only if s looks like a REAL phone number, not a short internal PSID.
+// Facebook/Messenger PSIDs are 7-10 digits; genuine international mobile
+// numbers are 11-15 digits (country code + subscriber) and often start "+".
+// We only ever copy a value into the `phone` column when this passes, so a
+// PSID never becomes a fake, un-messageable "phone number".
+function looksLikePhone(raw: string): boolean {
+  if (!raw) return false;
+  const hadPlus = raw.trim().startsWith("+");
+  const n = normaliseId(raw);
+  if (!/^\d+$/.test(n)) return false;
+  // A leading "+" is a strong signal it's a real international number.
+  if (hadPlus) return n.length >= 8 && n.length <= 15;
+  return n.length >= 11 && n.length <= 15;
+}
+
 // ── Google service-account JWT auth ──────────────────────────────────────────
 async function getSheetsAccessToken(): Promise<{ token: string } | null> {
   const saJson = Deno.env.get("GOOGLE_SHEETS_SA_JSON");
@@ -165,7 +180,7 @@ Deno.serve(async (req) => {
       // ── Column index detection (broad matching) ───────────────────────────
       const idIdx       = headers.findIndex(h => /contact.?id|psid|^id$|user.?id/.test(h));
       const nameIdx     = headers.findIndex(h => /full.?name|^name$|first.?name/.test(h));
-      const phoneIdx    = headers.findIndex(h => /phone|whatsapp|mobile|tel/.test(h));
+      const phoneIdx    = headers.findIndex(h => /phone|whatsapp|mobile|tel|number|contact/.test(h));
       const usernameIdx = headers.findIndex(h => /username|ig.?username|handle/.test(h));
       const dateIdx     = headers.findIndex(h => /last.?interaction|last.?seen|date|timestamp|time/.test(h));
 
@@ -233,9 +248,25 @@ Deno.serve(async (req) => {
         }
 
         // ── 4. Phone ──────────────────────────────────────────────────────
+        // Only accept values that look like a REAL phone number (looksLikePhone).
+        // Order: dedicated phone column → the unique key itself (many WhatsApp
+        // rows use the phone AS the id) → any other cell that looks like a phone.
+        // Short PSIDs (7-10 digit Messenger ids) intentionally leave phone null
+        // rather than becoming a fake, un-callable number.
         let phone = "";
-        if (phoneIdx >= 0 && r[phoneIdx]?.trim()) {
+        if (phoneIdx >= 0 && phoneIdx !== idIdx && looksLikePhone(r[phoneIdx] || "")) {
           phone = r[phoneIdx].trim();
+        } else if (looksLikePhone(uniqueKey)) {
+          phone = uniqueKey;
+        } else {
+          for (const cell of r) {
+            if (looksLikePhone(cell || "")) { phone = cell.trim(); break; }
+          }
+        }
+        // Normalise stored phone: keep a leading "+" if present, digits only otherwise
+        if (phone) {
+          const digits = normaliseId(phone);
+          phone = phone.trim().startsWith("+") ? `+${digits}` : digits;
         }
 
         // ── 5. Last interaction date ──────────────────────────────────────

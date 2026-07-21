@@ -27,6 +27,42 @@ const MONTHS = [
   '01','02','03','04','05','06','07','08','09','10','11','12',
 ];
 
+// Extract a mobile number from a DSR data JSON blob. DSR templates vary wildly
+// (Air Ticket, UAE Visa, Packages…) so the phone can live under many keys —
+// most commonly `contact_no` for visas and inside `issued_for` for tickets.
+// Falls back to scanning every value for anything phone-shaped.
+function extractDsrMobile(p: Record<string, any>): string {
+  const PHONE_KEYS = [
+    'Contact No', 'Contact Number', 'contact_no', 'contact_number', 'contact',
+    'Mobile', 'Mobile No', 'Mobile Number', 'mobile', 'mobile_no',
+    'Phone', 'Phone No', 'Phone Number', 'phone', 'phone_no',
+    'WhatsApp', 'Whatsapp', 'whatsapp', 'passenger_phone', 'Passenger Phone',
+  ];
+  // 1. `issued_for` on ticket entries often embeds the number in free text.
+  const issuedFor = String(p['Issued for'] || p['Issued For'] || p['issued_for'] || p['issuedFor'] || '');
+  const issuedMatch = issuedFor.replace(/[^\d+]/g, '').match(/\+?\d{9,15}/);
+  if (issuedMatch) return issuedMatch[0];
+
+  // 2. Explicit phone-ish keys.
+  for (const k of PHONE_KEYS) {
+    const v = p[k];
+    if (v == null) continue;
+    const s = String(v).trim();
+    if (!s) continue;
+    const m = s.replace(/[^\d+]/g, '').match(/\+?\d{9,15}/);
+    if (m) return m[0];
+  }
+
+  // 3. Last resort: scan every value for something phone-shaped.
+  for (const v of Object.values(p)) {
+    if (v == null) continue;
+    const digits = String(v).replace(/[^\d+]/g, '');
+    const m = digits.match(/\+?\d{9,15}/);
+    if (m) return m[0];
+  }
+  return '';
+}
+
 export default function BroadcastModule() {
   const { user } = useAuth();
   const [source, setSource] = useState<SourceKey>('clients');
@@ -51,15 +87,45 @@ export default function BroadcastModule() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [c, l, d] = await Promise.all([
-        supabase.from('clients').select('id, display_id, name, mobile, email, nationality, service, client_type, status, lead_source, created_at').order('created_at', { ascending: false }).limit(2000),
-        supabase.from('social_leads').select('id, display_id, full_name, phone, source, status, client_need, assigned_to, created_at').order('created_at', { ascending: false }).limit(2000),
-        supabase.from('dsr_entries').select('id, display_id, employee_name, employee_id, entry_date, data, sale_amount, profit_amount, template_key').order('entry_date', { ascending: false }).limit(2000),
-      ]);
-      setClients(c.data || []);
-      setLeads(l.data || []);
-      setDsr(d.data || []);
-      setLoading(false);
+      try {
+        const fetchAllRows = async (tableName: string, selectCols: string, orderCol: string, maxRows = 50000) => {
+          let all: any[] = [];
+          let p = 0;
+          let hasMore = true;
+          const pageSize = 1000;
+          while (hasMore && all.length < maxRows) {
+            const { data, error } = await supabase
+              .from(tableName as any)
+              .select(selectCols)
+              .order(orderCol, { ascending: false })
+              .range(p * pageSize, (p + 1) * pageSize - 1);
+            if (error) throw error;
+            if (!data || data.length === 0) {
+              hasMore = false;
+            } else {
+              all = [...all, ...data];
+              if (data.length < pageSize) hasMore = false;
+              p++;
+            }
+          }
+          return all;
+        };
+
+        const [c, l, d] = await Promise.all([
+          fetchAllRows('clients', 'id, display_id, name, mobile, email, nationality, service, client_type, status, lead_source, created_at', 'created_at'),
+          fetchAllRows('social_leads', 'id, display_id, full_name, phone, source, status, client_need, assigned_to, created_at', 'created_at'),
+          fetchAllRows('dsr_entries', 'id, display_id, employee_name, employee_id, entry_date, data, sale_amount, profit_amount, template_key', 'entry_date'),
+        ]);
+
+        setClients(c);
+        setLeads(l);
+        setDsr(d);
+      } catch (err: any) {
+        console.error('Error loading broadcast data:', err);
+        toast.error('Failed to load some data: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
@@ -145,10 +211,10 @@ export default function BroadcastModule() {
       return true;
     }).map(d => {
       const data = d.data || {};
-      const phone = data.passenger_phone || data.phone || data.mobile || data.contact || '';
-      const name = data.passenger_name || data.client_name || data.name || d.employee_name || 'DSR';
+      const phone = extractDsrMobile(data);
+      const name = data['Passenger Name'] || data['passenger_name'] || data['Name'] || data['name'] || d.employee_name || 'DSR';
       return {
-        id: d.id, name, phone, email: data.email || '',
+        id: d.id, name, phone, email: data.email || data.Email || '',
         meta: { type: 'DSR', display_id: d.display_id, employee: d.employee_name, date: d.entry_date, sale: d.sale_amount, profit: d.profit_amount },
       };
     });
@@ -157,7 +223,7 @@ export default function BroadcastModule() {
   const exportCSV = () => {
     if (recipients.length === 0) { toast.error('No recipients to export'); return; }
     const rows = recipients.map(r => ({
-      Name: r.name, Phone: r.phone ? `\u200B${r.phone}` : '', Email: r.email || '',
+      Name: r.name, Phone: r.phone || '', Email: r.email || '',
       ...r.meta,
     }));
     exportToExcel(rows, `broadcast_${source}_${new Date().toISOString().split('T')[0]}`, source);

@@ -427,6 +427,22 @@ export function exportEntriesToExcel(template: DSRTemplate, entries: DSREntry[])
     ...template.columns.map(c => e.data[c.key] ?? ''),
   ]);
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+  // Keep phone/contact columns as TEXT so long numbers stay fully visible in
+  // Excel (no scientific notation, no dropped leading "+"/zeros).
+  const phoneHeader = /phone|mobile|contact|whatsapp|number|tel/i;
+  headers.forEach((h, colIdx) => {
+    if (!phoneHeader.test(h)) return;
+    for (let rowIdx = 1; rowIdx <= rows.length; rowIdx++) {
+      const addr = XLSX.utils.encode_cell({ r: rowIdx, c: colIdx });
+      const cell = (ws as any)[addr];
+      if (!cell || cell.v === '' || cell.v == null) continue;
+      cell.t = 's';
+      cell.v = String(cell.v);
+      cell.z = '@';
+    }
+  });
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, template.name.slice(0, 30));
   XLSX.writeFile(wb, `${template.template_key}_export_${new Date().toISOString().split('T')[0]}.xlsx`);
