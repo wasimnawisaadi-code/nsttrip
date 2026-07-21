@@ -10,7 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Megaphone, Filter, Download, MessageCircle, Users as UsersIcon, MessagesSquare, Briefcase, ClipboardList } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Megaphone, Filter, Download, MessageCircle, Users as UsersIcon, MessagesSquare, Briefcase, ClipboardList, ChevronsUpDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 type SourceKey = 'clients' | 'leads' | 'dsr';
@@ -73,7 +75,7 @@ export default function BroadcastModule() {
 
   // Filters
   const [search, setSearch] = useState('');
-  const [nationality, setNationality] = useState('all');
+  const [selectedNationalities, setSelectedNationalities] = useState<string[]>([]);
   const [service, setService] = useState('all');
   const [clientType, setClientType] = useState('all');
   const [status, setStatus] = useState('all');
@@ -180,7 +182,7 @@ export default function BroadcastModule() {
     if (source === 'clients') {
       return clients.filter(c => {
         if (search && !`${c.name} ${c.mobile} ${c.email} ${c.display_id}`.toLowerCase().includes(search.toLowerCase())) return false;
-        if (nationality !== 'all' && c.nationality !== nationality) return false;
+        if (selectedNationalities.length > 0 && !selectedNationalities.includes(c.nationality)) return false;
         if (service !== 'all' && c.service !== service) return false;
         if (clientType !== 'all' && c.client_type !== clientType) return false;
         if (status !== 'all' && c.status !== status) return false;
@@ -250,7 +252,7 @@ export default function BroadcastModule() {
         },
       };
     });
-  }, [source, clients, leads, dsr, search, nationality, service, clientType, status, leadSource, month, year]);
+  }, [source, clients, leads, dsr, search, selectedNationalities, service, clientType, status, leadSource, month, year]);
 
   const exportCSV = () => {
     if (recipients.length === 0) { toast.error('No recipients to export'); return; }
@@ -302,7 +304,7 @@ export default function BroadcastModule() {
 
               {source === 'clients' && (
                 <>
-                  <FilterSelect label="Nationality" value={nationality} onChange={setNationality} options={filterOptions.nationalities} />
+                  <FilterMultiSelect label="Nationality" selected={selectedNationalities} onChange={setSelectedNationalities} options={filterOptions.nationalities} />
                   <FilterSelect label="Service" value={service} onChange={setService} options={filterOptions.services} />
                   <FilterSelect label="Client Type" value={clientType} onChange={setClientType} options={filterOptions.clientTypes} />
                   <FilterSelect label="Status" value={status} onChange={setStatus} options={filterOptions.statuses} />
@@ -397,6 +399,62 @@ export default function BroadcastModule() {
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// Multi-select filter: pick any number of values (e.g. several nationalities).
+// An empty selection means "All", matching the single-select behaviour.
+function FilterMultiSelect({ label, selected, onChange, options }: { label: string; selected: string[]; onChange: (v: string[]) => void; options: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const shown = options.filter(o => o.toLowerCase().includes(q.toLowerCase()));
+
+  const toggle = (o: string) => {
+    onChange(selected.includes(o) ? selected.filter(s => s !== o) : [...selected, o]);
+  };
+
+  const summary = selected.length === 0
+    ? 'All'
+    : selected.length <= 2 ? selected.join(', ') : `${selected.length} selected`;
+
+  return (
+    <div>
+      <Label className="text-xs">{label}</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="w-full justify-between font-normal">
+            <span className="truncate">{summary}</span>
+            <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[260px] p-0" align="start">
+          <div className="p-2 border-b">
+            <Input value={q} onChange={e => setQ(e.target.value)} placeholder={`Search ${label.toLowerCase()}...`} className="h-8" />
+          </div>
+          <div className="max-h-64 overflow-y-auto p-1">
+            {shown.length === 0 && <div className="px-2 py-4 text-sm text-muted-foreground text-center">No matches</div>}
+            {shown.map(o => (
+              <button
+                key={o}
+                type="button"
+                onClick={() => toggle(o)}
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent text-left"
+              >
+                <Checkbox checked={selected.includes(o)} className="pointer-events-none" />
+                <span className="truncate">{o}</span>
+              </button>
+            ))}
+          </div>
+          {selected.length > 0 && (
+            <div className="border-t p-2">
+              <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => onChange([])}>
+                Clear selection
+              </Button>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
