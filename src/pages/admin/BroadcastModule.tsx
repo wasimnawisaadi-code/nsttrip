@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 import { exportToExcel } from '@/lib/excel-export';
+import { canonicalNationality } from '@/lib/nationality';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,13 @@ const MONTHS = [
 // (Air Ticket, UAE Visa, Packages…) so the phone can live under many keys —
 // most commonly `contact_no` for visas and inside `issued_for` for tickets.
 // Falls back to scanning every value for anything phone-shaped.
+// DSR templates store nationality under a few different keys.
+function dsrNationality(data: Record<string, any>): string {
+  return canonicalNationality(
+    data['Nationality'] || data['nationality'] || data['Country'] || data['country'] || '',
+  );
+}
+
 function extractDsrMobile(p: Record<string, any>): string {
   const PHONE_KEYS = [
     'Contact No', 'Contact Number', 'contact_no', 'contact_number', 'contact',
@@ -141,7 +149,7 @@ export default function BroadcastModule() {
 
     if (source === 'clients') {
       clients.forEach(c => {
-        c.nationality && nationalities.add(c.nationality);
+        c.nationality && nationalities.add(canonicalNationality(c.nationality));
         c.service && services.add(c.service);
         c.client_type && clientTypes.add(c.client_type);
         c.status && statuses.add(c.status);
@@ -157,6 +165,8 @@ export default function BroadcastModule() {
     } else {
       dsr.forEach(d => {
         d.template_key && services.add(d.template_key);
+        const nat = dsrNationality(d.data || {});
+        nat && nationalities.add(nat);
         d.entry_date && years.add(d.entry_date.slice(0, 4));
       });
     }
@@ -182,7 +192,7 @@ export default function BroadcastModule() {
     if (source === 'clients') {
       return clients.filter(c => {
         if (search && !`${c.name} ${c.mobile} ${c.email} ${c.display_id}`.toLowerCase().includes(search.toLowerCase())) return false;
-        if (selectedNationalities.length > 0 && !selectedNationalities.includes(c.nationality)) return false;
+        if (selectedNationalities.length > 0 && !selectedNationalities.includes(canonicalNationality(c.nationality))) return false;
         if (service !== 'all' && c.service !== service) return false;
         if (clientType !== 'all' && c.client_type !== clientType) return false;
         if (status !== 'all' && c.status !== status) return false;
@@ -194,7 +204,8 @@ export default function BroadcastModule() {
         meta: {
           Type: 'Client',
           'Client ID': c.display_id || '',
-          Nationality: c.nationality || '',
+          Nationality: canonicalNationality(c.nationality),
+          'Nationality (raw)': c.nationality || '',
           Service: c.service || '',
           'Client Type': c.client_type || '',
           Status: c.status || '',
@@ -232,6 +243,12 @@ export default function BroadcastModule() {
     // DSR — group by passenger phone if column exists
     return dsr.filter(d => {
       if (service !== 'all' && d.template_key !== service) return false;
+      if (selectedNationalities.length > 0 && !selectedNationalities.includes(dsrNationality(d.data || {}))) return false;
+      if (search) {
+        const data = d.data || {};
+        const hay = `${d.display_id} ${d.employee_name} ${extractDsrMobile(data)} ${data['Passenger Name'] || ''} ${data['Name'] || ''}`;
+        if (!hay.toLowerCase().includes(search.toLowerCase())) return false;
+      }
       if (!matchesDate(d.entry_date)) return false;
       return true;
     }).map(d => {
@@ -243,7 +260,7 @@ export default function BroadcastModule() {
         meta: {
           Type: 'DSR',
           'Entry ID': d.display_id || '',
-          Nationality: data['Nationality'] || data['nationality'] || data['Country'] || data['country'] || '',
+          Nationality: dsrNationality(data),
           Service: d.template_key || '',
           Employee: d.employee_name || '',
           Date: d.entry_date || '',
@@ -318,7 +335,10 @@ export default function BroadcastModule() {
                 </>
               )}
               {source === 'dsr' && (
-                <FilterSelect label="Template" value={service} onChange={setService} options={filterOptions.services} />
+                <>
+                  <FilterSelect label="Template" value={service} onChange={setService} options={filterOptions.services} />
+                  <FilterMultiSelect label="Nationality" selected={selectedNationalities} onChange={setSelectedNationalities} options={filterOptions.nationalities} />
+                </>
               )}
 
               <div>
